@@ -1,0 +1,44 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.cache/
+
+# Coverage
+.coverage
+.coverage.*
+htmlcov/
+
+# Logs
+*.log
+
+# Local application data
+.friday/
+
+# VS Code
+.vscode/
+
+# JetBrains
+.idea/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
