@@ -168,6 +168,34 @@ Provides a reusable singleton logger factory with console output, rotating file 
 ### `tests/`
 Covers the bootstrap foundation so early regressions are caught before new features land.
 
+## Logging
+
+Friday uses a centralized logging system built around the public `get_logger` entry point. All modules should obtain their logger through this function so they share the same configuration, handler lifecycle, and formatting.
+
+### Log location
+
+Logs are written to the project's `logs/` directory by default, with the main file stored at `logs/friday.log`. The directory is created automatically when logging is initialized.
+
+### Usage example
+
+```python
+from src.logger import get_logger
+
+logger = get_logger(__name__)
+logger.info("Application started")
+logger.exception("Unexpected failure")
+```
+
+### Message format
+
+Each log entry is emitted in the form:
+
+```text
+YYYY-MM-DD HH:MM:SS | LEVEL | module.name | message
+```
+
+Messages are written to both the console and a rotating file handler. The rotation policy keeps up to 5 backup files and caps each file at 5 MB.
+
 ### `.github/workflows/ci.yml`
 Runs formatting, linting, typing, and tests on every push and pull request.
 

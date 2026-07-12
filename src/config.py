@@ -13,10 +13,12 @@ from pathlib import Path
 from .constants import (
     APP_NAME,
     APP_VERSION,
+    DEFAULT_BACKUP_COUNT,
     DEFAULT_ENVIRONMENT,
     DEFAULT_LOG_DIRNAME,
     DEFAULT_LOG_FILENAME,
     DEFAULT_LOG_LEVEL,
+    DEFAULT_MAX_LOG_SIZE,
 )
 
 
@@ -88,8 +90,12 @@ class AppConfig:
             level=getenv("FRIDAY_LOG_LEVEL", DEFAULT_LOG_LEVEL).upper(),
             log_dir=configured_log_dir.expanduser().resolve(),
             log_filename=getenv("FRIDAY_LOG_FILENAME", DEFAULT_LOG_FILENAME),
-            max_bytes=int(getenv("FRIDAY_LOG_MAX_BYTES", "1048576")),
-            backup_count=int(getenv("FRIDAY_LOG_BACKUP_COUNT", "5")),
+            max_bytes=int(
+                getenv("FRIDAY_LOG_MAX_BYTES", str(DEFAULT_MAX_LOG_SIZE))
+            ),
+            backup_count=int(
+                getenv("FRIDAY_LOG_BACKUP_COUNT", str(DEFAULT_BACKUP_COUNT))
+            ),
             console_enabled=getenv("FRIDAY_CONSOLE_LOGGING", "true").lower()
             in {"1", "true", "yes", "on"},
             file_enabled=getenv("FRIDAY_FILE_LOGGING", "true").lower()
