@@ -12,7 +12,5 @@ DEFAULT_ENVIRONMENT = "development"
 DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_LOG_DIRNAME = "logs"
 DEFAULT_LOG_FILENAME = "friday.log"
-DEFAULT_MAX_LOG_SIZE = 5 * 1024 * 1024
-DEFAULT_BACKUP_COUNT = 5
 LOG_FORMAT = "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from .config import AppConfig
-from .logger import LoggerFactory, get_logger
+from .logger import LoggerFactory
 
 
 def build_startup_message(config: AppConfig) -> str:
@@ -19,8 +19,9 @@ def main() -> int:
     config = AppConfig.from_environment()
     config.paths.ensure_directories()
 
-    LoggerFactory().configure(config.logging)
-    logger = get_logger(__name__)
+    logger_factory = LoggerFactory()
+    logger_factory.configure(config.logging)
+    logger = logger_factory.get_logger(__name__)
 
     startup_message = build_startup_message(config)
     print(startup_message)

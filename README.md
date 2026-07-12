@@ -1,13 +1,13 @@
 # Friday
 
-**Friday** is an AI Development Companion for developers — but **v0.0.1 is intentionally not an AI product**.
+**Friday** is a developer-focused automation assistant foundation with a production-ready LLM abstraction layer.
 
-This repository establishes the production-grade engineering foundation for a future desktop automation assistant. The current release focuses exclusively on architecture, configuration, logging, project standards, and contributor experience.
+This repository establishes the engineering baseline for a future desktop automation assistant. The current release focuses on architecture, configuration, logging, project standards, and a clean language-model integration boundary that the rest of the application can depend on safely.
 
 > Friday is **not** ChatGPT.
-> Friday is **not** a chatbot.
+> Friday is **not** a general-purpose chatbot framework.
 > Friday is being designed as a **desktop automation assistant** whose long-term purpose is to execute real actions on a developer's computer.
-> The current release deliberately stops far short of those capabilities.
+> The current release includes only the low-level LLM communication layer, not planner, memory, tools, or agent behavior.
 
 ## Project overview
 
@@ -18,6 +18,8 @@ This initial version includes:
 - a modern Python 3.12+ project layout
 - centralized configuration based on dataclasses
 - reusable application logging with console and rotating file handlers
+- a unified `src.llm` abstraction layer for language-model providers
+- an OpenAI-compatible provider with validation, timeouts, and dedicated exceptions
 - quality tooling with Black, Ruff, MyPy, and Pytest
 - CI automation for style, type, and test validation
 - contributor documentation and open-source repository standards
@@ -33,7 +35,7 @@ A serious automation product needs clear boundaries, predictable configuration, 
 Future capabilities such as UI integration, planning, memory, execution, and speech should evolve behind stable module boundaries rather than accumulating as ad-hoc scripts.
 
 ### 3. Safety by omission
-Potentially risky capabilities are intentionally excluded in v0.0.1. There is no AI, no command execution, no intent recognition, and no automation engine.
+Potentially risky capabilities are intentionally excluded in v0.0.1. Friday includes only direct request/response communication with an LLM provider. There is still no command execution, no intent recognition, no automation engine, and no agent runtime.
 
 ### 4. Open-source professionalism
 The repository should feel publishable from day one: documented, tested, formatted, typed, and easy to contribute to.
@@ -53,7 +55,7 @@ flowchart TD
     I[plugins/]:::reserved
     J[memory/]:::reserved
     K[ui/]:::reserved
-    L[llm/]:::reserved
+    L[llm/\nProvider Interface + OpenAI Provider]
 
     A -. future composition .-> E
     A -. future composition .-> F
@@ -62,13 +64,13 @@ flowchart TD
     A -. future composition .-> I
     A -. future composition .-> J
     A -. future composition .-> K
-    A -. future composition .-> L
+    A --> L
 
     classDef reserved fill:#f6f8fa,stroke:#6b7280,color:#111827,stroke-dasharray: 4 4;
 ```
 
 ### Architectural intent
-The current application starts, loads configuration, initializes logging, and exits cleanly after announcing startup. Every other module namespace is present to make future development deliberate and incremental.
+The current application starts, loads configuration, initializes logging, and exposes an LLM subsystem that future CLI, planner, or automation layers can call through a stable provider interface. Higher-level assistant behavior remains intentionally out of scope.
 
 ## Project goals
 
@@ -78,6 +80,7 @@ The current application starts, loads configuration, initializes logging, and ex
 - define scalable package boundaries
 - centralize operational configuration
 - provide reliable logging for future runtime observability
+- introduce a stable LLM provider contract for future integrations
 - enforce formatting, linting, typing, and test discipline
 - make contribution and release workflows easy to understand
 
@@ -85,8 +88,8 @@ The current application starts, loads configuration, initializes logging, and ex
 
 The following are intentionally out of scope:
 
-- LLM integration
-- AI behavior
+- streaming responses
+- chat history
 - planners
 - plugins
 - memory systems
@@ -95,6 +98,8 @@ The following are intentionally out of scope:
 - speech recognition
 - automation routines
 - desktop control logic
+- tool or function calling
+- vision, audio, and embeddings
 
 ## Installation
 
@@ -137,6 +142,11 @@ Friday/
 │   ├── core/
 │   ├── executor/
 │   ├── llm/
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   ├── exceptions.py
+│   │   ├── openai_provider.py
+│   │   └── provider.py
 │   ├── memory/
 │   ├── planner/
 │   ├── plugins/
@@ -166,38 +176,85 @@ Provides strongly typed application configuration using dataclasses and environm
 Provides a reusable singleton logger factory with console output, rotating file logs, timestamps, and configurable levels.
 
 ### `tests/`
-Covers the bootstrap foundation so early regressions are caught before new features land.
-
-## Logging
-
-Friday uses a centralized logging system built around the public `get_logger` entry point. All modules should obtain their logger through this function so they share the same configuration, handler lifecycle, and formatting.
-
-### Log location
-
-Logs are written to the project's `logs/` directory by default, with the main file stored at `logs/friday.log`. The directory is created automatically when logging is initialized.
-
-### Usage example
-
-```python
-from src.logger import get_logger
-
-logger = get_logger(__name__)
-logger.info("Application started")
-logger.exception("Unexpected failure")
-```
-
-### Message format
-
-Each log entry is emitted in the form:
-
-```text
-YYYY-MM-DD HH:MM:SS | LEVEL | module.name | message
-```
-
-Messages are written to both the console and a rotating file handler. The rotation policy keeps up to 5 backup files and caps each file at 5 MB.
+Covers both the bootstrap foundation and the LLM abstraction layer so regressions are caught before higher-level assistant features land.
 
 ### `.github/workflows/ci.yml`
 Runs formatting, linting, typing, and tests on every push and pull request.
+
+## LLM subsystem
+
+### Architecture
+The `src.llm` package defines a single provider contract for the rest of Friday:
+
+- `BaseLLMProvider` describes the common interface
+- `OpenAIProvider` implements the first OpenAI-compatible backend
+- `exceptions.py` isolates provider failures behind Friday-specific exception types
+- `provider.py` exposes a compatibility alias for the generic provider type
+
+The rest of the application should depend on `generate(prompt: str) -> str` rather than on vendor-specific SDKs or payload formats.
+
+### Provider interface
+
+```python
+from src.llm import BaseLLMProvider
+
+
+def ask(provider: BaseLLMProvider, prompt: str) -> str:
+    return provider.generate(prompt)
+```
+
+### Configuration
+Friday reuses the existing environment-backed configuration system.
+
+Supported environment variables:
+
+- `FRIDAY_LLM_PROVIDER`
+- `FRIDAY_LLM_API_KEY`
+- `FRIDAY_LLM_BASE_URL`
+- `FRIDAY_LLM_MODEL`
+- `FRIDAY_LLM_TIMEOUT`
+
+You can either construct `OpenAIProvider` directly with constructor arguments or load settings from `AppConfig` / `LLMConfig`.
+
+### Example usage
+
+```python
+from src.llm import OpenAIProvider
+
+provider = OpenAIProvider(
+    api_key="YOUR_API_KEY",
+    model="gpt-4.1-mini",
+    base_url="https://api.openai.com/v1",
+)
+
+response = provider.generate("Say hello.")
+print(response)
+```
+
+Using Friday configuration models:
+
+```python
+from src.config import AppConfig
+from src.llm import OpenAIProvider
+
+config = AppConfig.from_environment()
+provider = OpenAIProvider.from_config(config.llm)
+
+response = provider.generate("Say hello.")
+print(response)
+```
+
+### Adding new providers
+Add one new file under `src/llm/`, implement `BaseLLMProvider`, and keep all transport-specific logic isolated there.
+
+Examples of future providers:
+
+- `GeminiProvider`
+- `AnthropicProvider`
+- `OllamaProvider`
+- `LMStudioProvider`
+
+No existing provider implementation should need modification.
 
 ## Roadmap summary
 
@@ -261,4 +318,4 @@ This project is released under the [MIT License](LICENSE).
 
 **Current release: v0.0.1**
 
-Friday is intentionally minimal at this stage. The absence of automation and intelligence is a feature, not a gap: the project is establishing a serious engineering baseline before higher-risk capabilities are introduced.
+Friday is intentionally minimal at this stage. The codebase now includes a small, production-ready LLM transport layer, but higher-level assistant behavior is still intentionally absent while the project continues to establish safe system boundaries.

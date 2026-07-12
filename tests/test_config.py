@@ -15,6 +15,11 @@ def test_app_config_uses_expected_defaults(tmp_path: Path) -> None:
     assert config.version == APP_VERSION
     assert config.logging.level == DEFAULT_LOG_LEVEL
     assert config.paths.logs_dir == tmp_path.resolve() / ".friday" / "logs"
+    assert config.llm.provider == "openai"
+    assert config.llm.api_key is None
+    assert config.llm.base_url is None
+    assert config.llm.model is None
+    assert config.llm.timeout == 30.0
 
 
 def test_app_config_reads_environment_overrides(
@@ -28,6 +33,11 @@ def test_app_config_reads_environment_overrides(
     monkeypatch.setenv("FRIDAY_LOG_BACKUP_COUNT", "2")
     monkeypatch.setenv("FRIDAY_CONSOLE_LOGGING", "false")
     monkeypatch.setenv("FRIDAY_FILE_LOGGING", "true")
+    monkeypatch.setenv("FRIDAY_LLM_PROVIDER", "openai")
+    monkeypatch.setenv("FRIDAY_LLM_API_KEY", "env-key")
+    monkeypatch.setenv("FRIDAY_LLM_BASE_URL", "https://example.com/v1")
+    monkeypatch.setenv("FRIDAY_LLM_MODEL", "gpt-4.1-mini")
+    monkeypatch.setenv("FRIDAY_LLM_TIMEOUT", "45.5")
 
     config = AppConfig.from_environment(base_dir=tmp_path)
 
@@ -38,3 +48,8 @@ def test_app_config_reads_environment_overrides(
     assert config.logging.backup_count == 2
     assert config.logging.console_enabled is False
     assert config.logging.file_enabled is True
+    assert config.llm.provider == "openai"
+    assert config.llm.api_key == "env-key"
+    assert config.llm.base_url == "https://example.com/v1"
+    assert config.llm.model == "gpt-4.1-mini"
+    assert config.llm.timeout == 45.5
