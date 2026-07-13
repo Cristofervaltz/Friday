@@ -1,23 +1,33 @@
-"""Tests for the Friday application entry point."""
+"""Tests for Friday application entry point."""
 
 from pathlib import Path
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from src.main import main
 
 
-def test_main_bootstraps_and_prints_startup_message(
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-    tmp_path: Path,
-) -> None:
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("FRIDAY_LOG_DIR", str(tmp_path / "logs"))
-    monkeypatch.setenv("FRIDAY_CONSOLE_LOGGING", "false")
+def test_main_returns_zero_on_success(tmp_path: Path) -> None:
+    """Test that main() returns 0 on successful execution."""
+    with patch("src.main.FridayApplication") as mock_app_class:
+        mock_app = MagicMock()
+        mock_app.run.return_value = 0
+        mock_app_class.return_value = mock_app
 
-    exit_code = main()
-    captured = capsys.readouterr()
+        exit_code = main()
 
-    assert exit_code == 0
-    assert "Friday v0.0.1 initialized" in captured.out
+        assert exit_code == 0
+        mock_app.initialize.assert_called_once()
+        mock_app.run.assert_called_once()
+
+
+def test_main_initializes_application(tmp_path: Path) -> None:
+    """Test that main() properly initializes the application."""
+    with patch("src.main.FridayApplication") as mock_app_class:
+        mock_app = MagicMock()
+        mock_app.run.return_value = 0
+        mock_app_class.return_value = mock_app
+
+        main()
+
+        mock_app_class.assert_called_once()
+        mock_app.initialize.assert_called_once()

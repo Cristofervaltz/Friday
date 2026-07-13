@@ -72,6 +72,44 @@ flowchart TD
 ### Architectural intent
 The current application starts, loads configuration, initializes logging, and exposes an LLM subsystem that future CLI, planner, or automation layers can call through a stable provider interface. Higher-level assistant behavior remains intentionally out of scope.
 
+## Runtime Core
+
+Friday uses a centralized `FridayApplication` class to manage the application lifecycle. This Runtime Core is responsible for:
+
+- Loading configuration from environment
+- Creating required runtime directories
+- Configuring the logging subsystem
+- Initializing the LLM provider
+- Managing shutdown and cleanup
+
+### Usage
+
+```python
+from src.runtime import FridayApplication
+
+app = FridayApplication()
+app.initialize()
+exit_code = app.run()
+app.shutdown()
+```
+
+The `main.py` entry point is now minimal:
+
+```python
+def main() -> int:
+    app = FridayApplication()
+    app.initialize()
+    return app.run()
+```
+
+### Benefits
+
+- **Single initialization point** — all subsystems are initialized through Runtime
+- **Dependency management** — components access shared instances via Runtime properties (`config`, `logger`, `provider`)
+- **Extensibility** — future subsystems (memory, plugins, tools, sessions) will register with Runtime
+- **Error safety** — failed initialization triggers proper cleanup
+- **Testability** — Runtime lifecycle is fully covered by tests
+
 ## Project goals
 
 ### Current goals for v0.0.1
@@ -150,6 +188,9 @@ Friday/
 │   ├── memory/
 │   ├── planner/
 │   ├── plugins/
+│   ├── runtime/
+│   │   ├── __init__.py
+│   │   └── application.py
 │   ├── speech/
 │   ├── ui/
 │   ├── __init__.py
@@ -169,6 +210,9 @@ Friday/
 
 ## Repository highlights
 
+### `src/runtime/application.py`
+Central application lifecycle manager. All subsystems are initialized, accessed, and shut down through `FridayApplication`.
+
 ### `src/config.py`
 Provides strongly typed application configuration using dataclasses and environment-aware loading patterns.
 
@@ -176,7 +220,7 @@ Provides strongly typed application configuration using dataclasses and environm
 Provides a reusable singleton logger factory with console output, rotating file logs, timestamps, and configurable levels.
 
 ### `tests/`
-Covers both the bootstrap foundation and the LLM abstraction layer so regressions are caught before higher-level assistant features land.
+Covers the bootstrap foundation, runtime lifecycle, and LLM abstraction layer so regressions are caught before higher-level assistant features land.
 
 ### `.github/workflows/ci.yml`
 Runs formatting, linting, typing, and tests on every push and pull request.
