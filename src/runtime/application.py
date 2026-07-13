@@ -6,7 +6,13 @@ import logging
 from typing import TYPE_CHECKING
 
 from src.config import AppConfig
-from src.llm import BaseLLMProvider, OpenAIProvider
+from src.llm import (
+    BaseLLMProvider,
+    ConfigurationError,
+    OllamaProvider,
+    OpenAIProvider,
+    OpenRouterProvider,
+)
 from src.logger import LoggerFactory
 
 if TYPE_CHECKING:
@@ -181,13 +187,25 @@ class FridayApplication:
         self._logger.info("Logger initialized.")
 
     def _initialize_provider(self) -> None:
-        """Initialize the LLM provider."""
+        """Initialize the LLM provider based on configuration."""
         assert self._logger is not None
         self._logger.info("Initializing provider...")
 
         assert self._config is not None
+        provider_type = self._config.llm.provider.lower()
+
         try:
-            self._provider = OpenAIProvider.from_config(self._config.llm)
+            if provider_type == "openai":
+                self._provider = OpenAIProvider.from_config(self._config.llm)
+            elif provider_type == "openrouter":
+                self._provider = OpenRouterProvider.from_config(self._config.llm)
+            elif provider_type == "ollama":
+                self._provider = OllamaProvider.from_config(self._config.llm)
+            else:
+                raise ConfigurationError(
+                    f"Unknown LLM provider: {provider_type}. "
+                    f"Supported providers: openai, openrouter, ollama."
+                )
             self._logger.info("Provider initialized: %s", self._provider.model_name())
         except Exception as exc:
             self._logger.warning(

@@ -9,7 +9,9 @@ from .exceptions import (
     LLMError,
     TimeoutError,
 )
+from .ollama_provider import OllamaProvider
 from .openai_provider import OpenAIProvider
+from .openrouter_provider import OpenRouterProvider
 from .provider import LLMProvider
 
 __all__ = [
@@ -20,6 +22,8 @@ __all__ = [
     "InvalidResponseError",
     "LLMError",
     "LLMProvider",
+    "OllamaProvider",
     "OpenAIProvider",
+    "OpenRouterProvider",
     "TimeoutError",
 ]

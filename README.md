@@ -150,20 +150,47 @@ The following are intentionally out of scope:
 ### Setup
 
 ```bash
-git clone https://github.com/your-org/friday.git
-cd friday
+git clone https://github.com/Cristofervaltz/Friday.git
+cd Friday
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install --upgrade pip
 pip install -r requirements.txt
-pip install -e .
 ```
 
-### Run the minimal bootstrap
+### Configuration
+
+Friday uses environment variables for configuration. Create a `.env` file:
 
 ```bash
-python -m src.main
+cp .env.example .env
 ```
+
+Edit `.env` and configure your LLM provider:
+
+**For OpenRouter:**
+```bash
+FRIDAY_LLM_PROVIDER=openrouter
+FRIDAY_LLM_API_KEY=sk-or-v1-your-key-here
+FRIDAY_LLM_MODEL=openai/gpt-4-turbo
+```
+
+**For Ollama (local):**
+```bash
+FRIDAY_LLM_PROVIDER=ollama
+FRIDAY_LLM_MODEL=llama2
+FRIDAY_LLM_BASE_URL=http://localhost:11434
+```
+
+**Important:** Never commit `.env` file! It's in `.gitignore` for your safety.
+
+### Run Examples
+
+```bash
+python examples/runtime_with_openrouter.py
+```
+
+See [examples/README.md](examples/README.md) for more.
 
 ## Project structure
 
@@ -227,11 +254,21 @@ Runs formatting, linting, typing, and tests on every push and pull request.
 
 ## LLM subsystem
 
+### Supported Providers
+
+Friday supports multiple LLM providers through a unified interface:
+
+- **OpenAI** — Official OpenAI API (GPT-4, GPT-3.5, etc.)
+- **OpenRouter** — Access to multiple providers (OpenAI, Anthropic, Google, etc.) through one API
+- **Ollama** — Local LLM hosting (also compatible with LM Studio)
+
 ### Architecture
 The `src.llm` package defines a single provider contract for the rest of Friday:
 
 - `BaseLLMProvider` describes the common interface
-- `OpenAIProvider` implements the first OpenAI-compatible backend
+- `OpenAIProvider` implements OpenAI-compatible backends
+- `OpenRouterProvider` provides access to multiple LLM providers
+- `OllamaProvider` enables local model hosting
 - `exceptions.py` isolates provider failures behind Friday-specific exception types
 - `provider.py` exposes a compatibility alias for the generic provider type
 
@@ -248,55 +285,93 @@ def ask(provider: BaseLLMProvider, prompt: str) -> str:
 ```
 
 ### Configuration
-Friday reuses the existing environment-backed configuration system.
+Friday uses environment-backed configuration for LLM providers.
 
-Supported environment variables:
+#### Environment Variables
 
-- `FRIDAY_LLM_PROVIDER`
-- `FRIDAY_LLM_API_KEY`
-- `FRIDAY_LLM_BASE_URL`
-- `FRIDAY_LLM_MODEL`
-- `FRIDAY_LLM_TIMEOUT`
+- `FRIDAY_LLM_PROVIDER` — Provider type: `openai`, `openrouter`, or `ollama`
+- `FRIDAY_LLM_API_KEY` — API key (not required for Ollama)
+- `FRIDAY_LLM_BASE_URL` — Custom API endpoint (optional)
+- `FRIDAY_LLM_MODEL` — Model identifier
+- `FRIDAY_LLM_TIMEOUT` — Request timeout in seconds (default: 30)
 
-You can either construct `OpenAIProvider` directly with constructor arguments or load settings from `AppConfig` / `LLMConfig`.
-
-### Example usage
+#### OpenAI Example
 
 ```python
-from src.llm import OpenAIProvider
+import os
+os.environ["FRIDAY_LLM_PROVIDER"] = "openai"
+os.environ["FRIDAY_LLM_API_KEY"] = "sk-..."
+os.environ["FRIDAY_LLM_MODEL"] = "gpt-4"
 
-provider = OpenAIProvider(
-    api_key="YOUR_API_KEY",
-    model="gpt-4.1-mini",
-    base_url="https://api.openai.com/v1",
+from src.runtime import FridayApplication
+
+app = FridayApplication()
+app.initialize()
+response = app.provider.generate("Hello!")
+print(response)
+app.shutdown()
+```
+
+#### OpenRouter Example
+
+```python
+import os
+os.environ["FRIDAY_LLM_PROVIDER"] = "openrouter"
+os.environ["FRIDAY_LLM_API_KEY"] = "sk-or-v1-..."
+os.environ["FRIDAY_LLM_MODEL"] = "openai/gpt-4-turbo"
+
+from src.runtime import FridayApplication
+
+app = FridayApplication()
+app.initialize()
+response = app.provider.generate("What is Friday?")
+print(response)
+app.shutdown()
+```
+
+#### Ollama Example (Local)
+
+```python
+import os
+os.environ["FRIDAY_LLM_PROVIDER"] = "ollama"
+os.environ["FRIDAY_LLM_MODEL"] = "llama2"
+os.environ["FRIDAY_LLM_BASE_URL"] = "http://localhost:11434"
+
+from src.runtime import FridayApplication
+
+app = FridayApplication()
+app.initialize()
+response = app.provider.generate("Hello Friday!")
+print(response)
+app.shutdown()
+```
+
+#### Direct Provider Usage
+
+You can also use providers directly without Runtime:
+
+```python
+from src.llm import OpenRouterProvider
+
+provider = OpenRouterProvider(
+    api_key="sk-or-v1-...",
+    model="anthropic/claude-3-sonnet",
 )
 
-response = provider.generate("Say hello.")
+response = provider.generate("Explain Friday in one sentence.")
 print(response)
 ```
 
-Using Friday configuration models:
-
-```python
-from src.config import AppConfig
-from src.llm import OpenAIProvider
-
-config = AppConfig.from_environment()
-provider = OpenAIProvider.from_config(config.llm)
-
-response = provider.generate("Say hello.")
-print(response)
-```
+More examples available in the `examples/` directory.
 
 ### Adding new providers
-Add one new file under `src/llm/`, implement `BaseLLMProvider`, and keep all transport-specific logic isolated there.
+Add one new file under `src/llm/`, implement `BaseLLMProvider`, and register it in the Runtime provider factory.
 
 Examples of future providers:
 
-- `GeminiProvider`
-- `AnthropicProvider`
-- `OllamaProvider`
-- `LMStudioProvider`
+- `AnthropicProvider` (native Anthropic API)
+- `GeminiProvider` (Google's Gemini)
+- `AzureOpenAIProvider` (Azure-hosted OpenAI)
 
 No existing provider implementation should need modification.
 
