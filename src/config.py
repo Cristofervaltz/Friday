@@ -68,6 +68,17 @@ class LoggingConfig:
 
 
 @dataclass(frozen=True)
+class LLMConfig:
+    """Configuration for the LLM provider subsystem."""
+
+    provider: str = "openai"
+    api_key: str | None = None
+    base_url: str | None = None
+    model: str | None = None
+    timeout: float = 30.0
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """Top-level application configuration object for Friday."""
 
@@ -76,6 +87,7 @@ class AppConfig:
     environment: str
     paths: PathsConfig
     logging: LoggingConfig
+    llm: LLMConfig
 
     @classmethod
     def from_environment(cls, base_dir: Path | None = None) -> AppConfig:
@@ -95,6 +107,13 @@ class AppConfig:
             file_enabled=getenv("FRIDAY_FILE_LOGGING", "true").lower()
             in {"1", "true", "yes", "on"},
         )
+        llm_config = LLMConfig(
+            provider=getenv("FRIDAY_LLM_PROVIDER", "openai"),
+            api_key=getenv("FRIDAY_LLM_API_KEY"),
+            base_url=getenv("FRIDAY_LLM_BASE_URL"),
+            model=getenv("FRIDAY_LLM_MODEL"),
+            timeout=float(getenv("FRIDAY_LLM_TIMEOUT", "30.0")),
+        )
 
         return cls(
             app_name=APP_NAME,
@@ -102,4 +121,5 @@ class AppConfig:
             environment=getenv("FRIDAY_ENV", DEFAULT_ENVIRONMENT),
             paths=paths,
             logging=logging_config,
+            llm=llm_config,
         )

@@ -50,6 +50,11 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "N"]
 
+# Ignore E402 (module level import not at top) for examples
+# Examples need to modify sys.path before importing project modules
+[tool.ruff.lint.per-file-ignores]
+"examples/*.py" = ["E402"]
+
 [tool.pytest.ini_options]
 addopts = "-ra --strict-config --strict-markers"
 testpaths = ["tests"]
@@ -62,4 +67,3 @@ pretty = true
 show_error_codes = true
 warn_unused_configs = true
 files = ["src", "tests"]
-
