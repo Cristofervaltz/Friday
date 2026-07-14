@@ -59,6 +59,7 @@ def test_list_files_basic(list_tool: ListFilesTool, sample_directory: Path) -> N
     result = list_tool.execute(path=str(sample_directory))
 
     assert result.success
+    assert result.output is not None
     assert "file1.txt" in result.output
     assert "file2.py" in result.output
     assert "file3.md" in result.output
@@ -71,6 +72,7 @@ def test_list_files_with_pattern(
     result = list_tool.execute(path=str(sample_directory), pattern="*.py")
 
     assert result.success
+    assert result.output is not None
     assert "file2.py" in result.output
     assert "file1.txt" not in result.output
 
@@ -80,6 +82,7 @@ def test_list_files_recursive(list_tool: ListFilesTool, sample_directory: Path) 
     result = list_tool.execute(path=str(sample_directory), recursive=True)
 
     assert result.success
+    assert result.output is not None
     assert "nested1.txt" in result.output
     assert "nested2.py" in result.output
 
@@ -91,6 +94,7 @@ def test_list_files_with_hidden(
     result = list_tool.execute(path=str(sample_directory), show_hidden=True)
 
     assert result.success
+    assert result.output is not None
     assert ".hidden" in result.output
 
 
@@ -101,6 +105,7 @@ def test_list_files_without_hidden(
     result = list_tool.execute(path=str(sample_directory), show_hidden=False)
 
     assert result.success
+    assert result.output is not None
     assert ".hidden" not in result.output
 
 
@@ -111,6 +116,7 @@ def test_list_files_with_details(
     result = list_tool.execute(path=str(sample_directory), show_details=True)
 
     assert result.success
+    assert result.output is not None
     # Should show size info
     assert "B" in result.output or "KB" in result.output
 
@@ -122,6 +128,7 @@ def test_list_files_sort_by_name(
     result = list_tool.execute(path=str(sample_directory), sort_by="name")
 
     assert result.success
+    assert result.output is not None
     # Check that files appear in order
     idx1 = result.output.index("file1.txt")
     idx2 = result.output.index("file2.py")
@@ -140,6 +147,7 @@ def test_list_files_sort_by_size(
     result = list_tool.execute(path=str(sample_directory), sort_by="size")
 
     assert result.success
+    assert result.output is not None
     # Larger file should appear first
     idx_large = result.output.index("large.txt")
     idx_small = result.output.index("small.txt")
@@ -153,6 +161,7 @@ def test_list_files_directory_not_found(
     result = list_tool.execute(path=str(tmp_path / "nonexistent"))
 
     assert not result.success
+    assert result.error is not None
     assert "not found" in result.error.lower()
 
 
@@ -166,6 +175,7 @@ def test_list_files_path_not_directory(
     result = list_tool.execute(path=str(file_path))
 
     assert not result.success
+    assert result.error is not None
     assert "not a directory" in result.error.lower()
 
 
@@ -177,6 +187,7 @@ def test_list_files_empty_directory(list_tool: ListFilesTool, tmp_path: Path) ->
     result = list_tool.execute(path=str(empty_dir))
 
     assert result.success
+    assert result.output is not None
     assert "(empty)" in result.output
 
 
@@ -199,6 +210,7 @@ def test_list_files_too_many_entries(tmp_path: Path) -> None:
     result = tool.execute(path=str(tmp_path))
 
     assert not result.success
+    assert result.error is not None
     assert "too many" in result.error.lower()
 
 
@@ -211,6 +223,7 @@ def test_list_files_recursive_with_pattern(
     )
 
     assert result.success
+    assert result.output is not None
     assert "file2.py" in result.output
     assert "nested2.py" in result.output
     assert "file1.txt" not in result.output
@@ -223,5 +236,6 @@ def test_list_files_shows_directory_icon(
     result = list_tool.execute(path=str(sample_directory))
 
     assert result.success
+    assert result.output is not None
     # Should show folder icon for subdirectory
     assert "subdir" in result.output

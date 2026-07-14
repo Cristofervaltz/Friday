@@ -164,6 +164,7 @@ def test_file_not_found_error(edit_tool: EditFileTool, tmp_path: Path) -> None:
     )
 
     assert not result.success
+    assert result.error is not None
     assert "not found" in result.error.lower()
 
 
@@ -179,6 +180,7 @@ def test_line_number_out_of_range_error(
     )
 
     assert not result.success
+    assert result.error is not None
     assert "out of range" in result.error.lower()
 
 
@@ -187,6 +189,7 @@ def test_missing_required_parameter_path(edit_tool: EditFileTool) -> None:
     result = edit_tool.execute(operation="replace_lines", line_number=1, content="Test")
 
     assert not result.success
+    assert result.error is not None
     assert "path" in result.error.lower()
 
 
@@ -197,6 +200,7 @@ def test_missing_required_parameter_operation(
     result = edit_tool.execute(path=str(sample_file))
 
     assert not result.success
+    assert result.error is not None
     assert "operation" in result.error.lower()
 
 
@@ -205,6 +209,7 @@ def test_invalid_operation(edit_tool: EditFileTool, sample_file: Path) -> None:
     result = edit_tool.execute(path=str(sample_file), operation="invalid_op")
 
     assert not result.success
+    assert result.error is not None
     assert "unknown" in result.error.lower()
 
 
@@ -220,6 +225,7 @@ def test_file_too_large_error(tmp_path: Path) -> None:
     )
 
     assert not result.success
+    assert result.error is not None
     assert "too large" in result.error.lower()
 
 
@@ -234,6 +240,7 @@ def test_invalid_regex_pattern(edit_tool: EditFileTool, sample_file: Path) -> No
     )
 
     assert not result.success
+    assert result.error is not None
     assert "regex" in result.error.lower()
 
 
