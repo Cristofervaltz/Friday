@@ -16,7 +16,7 @@ from src.config import LLMConfig
 from src.constants import APP_NAME
 from src.logger import LoggerFactory
 
-from .base import BaseLLMProvider
+from .base import BaseLLMProvider, LLMResponse
 from .exceptions import (
     AuthenticationError,
     ConfigurationError,
@@ -103,6 +103,48 @@ class OpenAIProvider(BaseLLMProvider):
         )
         return response_text
 
+    def generate_with_tools(
+        self,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+    ) -> LLMResponse:
+        """Generate response with function calling support.
+
+        Args:
+            messages: Conversation history in OpenAI format.
+            tools: Available tools in OpenAI function calling format.
+
+        Returns:
+            LLMResponse with content or tool calls.
+        """
+        started_at = perf_counter()
+
+        self._logger.info(
+            "LLM request with tools started model=%s tools_count=%d",
+            self._model,
+            len(tools),
+        )
+
+        try:
+            payload = self._send_request_with_tools(messages, tools)
+            response = self._extract_response(payload)
+        except LLMError:
+            duration_ms = (perf_counter() - started_at) * 1000
+            self._logger.exception(
+                "LLM request with tools failed model=%s duration_ms=%.2f",
+                self._model,
+                duration_ms,
+            )
+            raise
+
+        duration_ms = (perf_counter() - started_at) * 1000
+        self._logger.info(
+            "LLM request with tools finished model=%s duration_ms=%.2f",
+            self._model,
+            duration_ms,
+        )
+        return response
+
     def is_available(self) -> bool:
         """Return whether the provider has a valid configuration."""
         return all((self._api_key, self._model, self._base_url)) and self._timeout > 0
@@ -113,6 +155,51 @@ class OpenAIProvider(BaseLLMProvider):
 
     def _send_request(self, prompt: str) -> dict[str, Any]:
         request = self._build_request(prompt)
+
+        try:
+            with urlopen(request, timeout=self._timeout) as response:
+                raw_response = response.read().decode("utf-8")
+        except HTTPError as exc:
+            if exc.code in {401, 403}:
+                raise AuthenticationError("LLM authentication failed.") from None
+            raise ConnectionError(
+                f"LLM request failed with status code {exc.code}."
+            ) from None
+        except builtins.TimeoutError:
+            raise TimeoutError("LLM request timed out.") from None
+        except TimeoutError:
+            raise
+        except URLError as exc:
+            if isinstance(exc.reason, builtins.TimeoutError):
+                raise TimeoutError("LLM request timed out.") from None
+            raise ConnectionError(f"LLM connection failed: {exc.reason}") from None
+        except OSError as exc:
+            raise ConnectionError(f"LLM connection failed: {exc}") from None
+
+        return self._parse_payload(raw_response)
+
+    def _send_request_with_tools(
+        self,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Send request with tools to the API."""
+        payload = {
+            "model": self._model,
+            "messages": messages,
+            "tools": tools,
+        }
+        request_body = json.dumps(payload).encode("utf-8")
+        request_headers = {
+            key: value.format(api_key=self._api_key)
+            for key, value in _JSON_HEADERS.items()
+        }
+        request = Request(
+            url=f"{self._base_url}/chat/completions",
+            data=request_body,
+            headers=request_headers,
+            method="POST",
+        )
 
         try:
             with urlopen(request, timeout=self._timeout) as response:
@@ -187,6 +274,74 @@ class OpenAIProvider(BaseLLMProvider):
         if not normalized_content:
             raise InvalidResponseError("LLM response content was empty.")
         return normalized_content
+
+    def _extract_response(self, payload: dict[str, Any]) -> LLMResponse:
+        """Extract LLMResponse from API payload.
+
+        Handles both regular content and tool calls.
+        """
+        choices = payload.get("choices")
+        if not isinstance(choices, list) or not choices:
+            raise InvalidResponseError("LLM response did not include choices.")
+
+        first_choice = choices[0]
+        if not isinstance(first_choice, dict):
+            raise InvalidResponseError("LLM response choice payload was invalid.")
+
+        message = first_choice.get("message")
+        if not isinstance(message, dict):
+            raise InvalidResponseError("LLM response message payload was invalid.")
+
+        finish_reason = first_choice.get("finish_reason", "stop")
+
+        # Check for tool calls
+        tool_calls_raw = message.get("tool_calls")
+        if tool_calls_raw:
+            # Parse tool calls
+            tool_calls = []
+            for tc in tool_calls_raw:
+                if not isinstance(tc, dict):
+                    continue
+
+                function = tc.get("function", {})
+                if not isinstance(function, dict):
+                    continue
+
+                name = function.get("name")
+                arguments_str = function.get("arguments", "{}")
+
+                try:
+                    arguments = json.loads(arguments_str)
+                except JSONDecodeError:
+                    arguments = {}
+
+                tool_calls.append(
+                    {
+                        "id": tc.get("id", "call_1"),
+                        "name": name,
+                        "arguments": arguments,
+                    }
+                )
+
+            return LLMResponse(
+                content=None,
+                tool_calls=tool_calls,
+                finish_reason=finish_reason,
+            )
+
+        # Regular content response
+        content = message.get("content")
+        if content is None:
+            raise InvalidResponseError("LLM response had no content or tool calls.")
+
+        if not isinstance(content, str):
+            raise InvalidResponseError("LLM response content was invalid.")
+
+        return LLMResponse(
+            content=content.strip() or None,
+            tool_calls=None,
+            finish_reason=finish_reason,
+        )
 
     @staticmethod
     def _require_non_empty(value: str | None, *, field_name: str) -> str:

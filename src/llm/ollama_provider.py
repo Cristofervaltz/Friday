@@ -14,7 +14,7 @@ from src.config import LLMConfig
 from src.constants import APP_NAME
 from src.logger import LoggerFactory
 
-from .base import BaseLLMProvider
+from .base import BaseLLMProvider, LLMResponse
 from .exceptions import (
     ConfigurationError,
     ConnectionError,
@@ -115,6 +115,49 @@ class OllamaProvider(BaseLLMProvider):
             duration_ms,
         )
         return response_text
+
+    def generate_with_tools(
+        self,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+    ) -> LLMResponse:
+        """Generate response with function calling support.
+
+        Note: Ollama function calling support varies by model.
+        This is a basic implementation that may need model-specific adjustments.
+
+        Args:
+            messages: Conversation history in OpenAI format.
+            tools: Available tools in OpenAI function calling format.
+
+        Returns:
+            LLMResponse with content (tool calling not fully supported yet).
+        """
+        # For now, Ollama doesn't fully support function calling like OpenAI
+        # We'll convert messages to a simple prompt and return text response
+        # TODO: Add proper function calling when Ollama models support it better
+
+        self._logger.warning(
+            "Ollama function calling support is limited. "
+            "Using fallback text generation."
+        )
+
+        # Convert messages to single prompt
+        prompt_parts = []
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if content:
+                prompt_parts.append(f"{role}: {content}")
+
+        prompt = "\n".join(prompt_parts)
+        response_text = self.generate(prompt)
+
+        return LLMResponse(
+            content=response_text,
+            tool_calls=None,
+            finish_reason="stop",
+        )
 
     def is_available(self) -> bool:
         """Return whether the provider is configured and ready to use."""

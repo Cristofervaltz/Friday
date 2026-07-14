@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from src.core import Agent, ToolRegistry
 from src.tools import EditFileTool, ListFilesTool, ReadFileTool, WriteFileTool
 
 if TYPE_CHECKING:
@@ -26,7 +27,21 @@ class FridayREPL:
         self._app = app
         self._running = False
 
-        # Initialize tools
+        # Initialize tool registry
+        self._registry = ToolRegistry()
+        self._registry.register(ReadFileTool())
+        self._registry.register(WriteFileTool())
+        self._registry.register(EditFileTool())
+        self._registry.register(ListFilesTool())
+
+        # Initialize agent with tools
+        self._agent = Agent(
+            llm_provider=app.provider,
+            tool_registry=self._registry,
+            max_iterations=10,
+        )
+
+        # Keep manual tools for direct commands
         self._tools = {
             "read": ReadFileTool(),
             "write": WriteFileTool(),
@@ -125,13 +140,14 @@ class FridayREPL:
         self._handle_message(user_input)
 
     def _handle_message(self, message: str) -> None:
-        """Send message to LLM and print response.
+        """Send message to Agent (with function calling) and print response.
 
         Args:
             message: User's message.
         """
         try:
-            response = self._app.provider.generate(message)
+            # Use agent instead of direct LLM call
+            response = self._agent.run(message)
             print(f"\nFriday: {response}\n")
         except Exception as exc:
             print(f"\n❌ Error: {exc}\n")

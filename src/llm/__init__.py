@@ -1,6 +1,6 @@
 """Unified LLM provider interfaces and implementations for Friday."""
 
-from .base import BaseLLMProvider
+from .base import BaseLLMProvider, LLMResponse
 from .exceptions import (
     AuthenticationError,
     ConfigurationError,
@@ -22,6 +22,7 @@ __all__ = [
     "InvalidResponseError",
     "LLMError",
     "LLMProvider",
+    "LLMResponse",
     "OllamaProvider",
     "OpenAIProvider",
     "OpenRouterProvider",

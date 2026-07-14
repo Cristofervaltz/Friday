@@ -76,14 +76,29 @@ class BaseTool(ABC):
         """
         ...
 
-    def to_function_schema(self) -> dict[str, Any]:
+    def to_openai_schema(self) -> dict[str, Any]:
         """Convert tool to OpenAI function calling schema.
 
         Returns:
             Dictionary compatible with OpenAI function calling format.
         """
         return {
-            "name": self.name,
-            "description": self.description,
-            "parameters": self.parameters_schema,
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": self.parameters_schema,
+            },
         }
+
+    def to_function_schema(self) -> dict[str, Any]:
+        """Convert tool to function calling schema (legacy alias).
+
+        Returns:
+            Dictionary compatible with OpenAI function calling format.
+        """
+        schema = self.to_openai_schema()
+        function_part = schema.get("function")
+        if not isinstance(function_part, dict):
+            raise ValueError("Invalid OpenAI schema format")
+        return function_part

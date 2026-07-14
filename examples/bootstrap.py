@@ -2,7 +2,6 @@
 
 from src.config import AppConfig
 from src.logger import LoggerFactory
-from src.main import build_startup_message
 
 
 def run() -> None:
@@ -14,7 +13,11 @@ def run() -> None:
     logger_factory.configure(config.logging)
 
     logger = logger_factory.get_logger(__name__)
-    logger.info(build_startup_message(config))
+    logger.info(
+        "Friday %s initialized: %s",
+        config.version,
+        config.app_name,
+    )
 
 
 if __name__ == "__main__":
