@@ -4,12 +4,22 @@ from __future__ import annotations
 
 import logging
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from .base import BaseTool, ToolResult
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class _EditResult:
+    """Internal result for edit operations."""
+
+    success: bool
+    lines: list[str] | None = None
+    error: str | None = None
 
 
 class EditFileTool(BaseTool):
@@ -70,7 +80,9 @@ class EditFileTool(BaseTool):
                 },
                 "line_number": {
                     "type": "integer",
-                    "description": "Line number (1-indexed) for replace_lines or insert_after",
+                    "description": (
+                        "Line number (1-indexed) for replace_lines " "or insert_after"
+                    ),
                 },
                 "line_numbers": {
                     "type": "array",
@@ -147,7 +159,10 @@ class EditFileTool(BaseTool):
             if file_size > self._max_file_size:
                 return ToolResult(
                     success=False,
-                    error=f"File too large: {file_size} bytes (max {self._max_file_size})",
+                    error=(
+                        f"File too large: {file_size} bytes "
+                        f"(max {self._max_file_size})"
+                    ),
                 )
 
             # Read file
@@ -168,10 +183,11 @@ class EditFileTool(BaseTool):
                 )
 
             if not result.success:
-                return result
+                return ToolResult(success=False, error=result.error)
 
             # Write modified content
-            new_content = "".join(result.output)
+            assert result.lines is not None
+            new_content = "".join(result.lines)
             file_path.write_text(new_content, encoding="utf-8")
 
             logger.info(f"Edited file: {file_path} (operation: {operation})")
@@ -191,18 +207,18 @@ class EditFileTool(BaseTool):
             logger.exception(f"Failed to edit file: {path_str}")
             return ToolResult(success=False, error=f"Failed to edit file: {exc}")
 
-    def _replace_lines(self, lines: list[str], kwargs: dict[str, Any]) -> ToolResult:
+    def _replace_lines(self, lines: list[str], kwargs: dict[str, Any]) -> _EditResult:
         """Replace specific line with new content."""
         line_number = kwargs.get("line_number")
         content = kwargs.get("content")
 
         if line_number is None:
-            return ToolResult(
+            return _EditResult(
                 success=False, error="Missing required parameter: line_number"
             )
 
         if content is None:
-            return ToolResult(
+            return _EditResult(
                 success=False, error="Missing required parameter: content"
             )
 
@@ -210,9 +226,12 @@ class EditFileTool(BaseTool):
         idx = line_number - 1
 
         if idx < 0 or idx >= len(lines):
-            return ToolResult(
+            return _EditResult(
                 success=False,
-                error=f"Line number {line_number} out of range (file has {len(lines)} lines)",
+                error=(
+                    f"Line number {line_number} out of range "
+                    f"(file has {len(lines)} lines)"
+                ),
             )
 
         # Ensure content ends with newline if original line had one
@@ -221,20 +240,20 @@ class EditFileTool(BaseTool):
 
         lines[idx] = content
 
-        return ToolResult(success=True, output=lines)
+        return _EditResult(success=True, lines=lines)
 
-    def _insert_after(self, lines: list[str], kwargs: dict[str, Any]) -> ToolResult:
+    def _insert_after(self, lines: list[str], kwargs: dict[str, Any]) -> _EditResult:
         """Insert content after specified line."""
         line_number = kwargs.get("line_number")
         content = kwargs.get("content")
 
         if line_number is None:
-            return ToolResult(
+            return _EditResult(
                 success=False, error="Missing required parameter: line_number"
             )
 
         if content is None:
-            return ToolResult(
+            return _EditResult(
                 success=False, error="Missing required parameter: content"
             )
 
@@ -242,9 +261,12 @@ class EditFileTool(BaseTool):
         idx = line_number - 1
 
         if idx < -1 or idx >= len(lines):
-            return ToolResult(
+            return _EditResult(
                 success=False,
-                error=f"Line number {line_number} out of range (file has {len(lines)} lines)",
+                error=(
+                    f"Line number {line_number} out of range "
+                    f"(file has {len(lines)} lines)"
+                ),
             )
 
         # Ensure content ends with newline
@@ -254,14 +276,14 @@ class EditFileTool(BaseTool):
         # Insert after specified line (idx + 1)
         lines.insert(idx + 1, content)
 
-        return ToolResult(success=True, output=lines)
+        return _EditResult(success=True, lines=lines)
 
-    def _delete_lines(self, lines: list[str], kwargs: dict[str, Any]) -> ToolResult:
+    def _delete_lines(self, lines: list[str], kwargs: dict[str, Any]) -> _EditResult:
         """Delete specified lines."""
         line_numbers = kwargs.get("line_numbers")
 
         if not line_numbers:
-            return ToolResult(
+            return _EditResult(
                 success=False, error="Missing required parameter: line_numbers"
             )
 
@@ -271,18 +293,21 @@ class EditFileTool(BaseTool):
         # Validate all indices
         for idx in indices:
             if idx < 0 or idx >= len(lines):
-                return ToolResult(
+                return _EditResult(
                     success=False,
-                    error=f"Line number {idx + 1} out of range (file has {len(lines)} lines)",
+                    error=(
+                        f"Line number {idx + 1} out of range "
+                        f"(file has {len(lines)} lines)"
+                    ),
                 )
 
         # Delete lines
         for idx in indices:
             del lines[idx]
 
-        return ToolResult(success=True, output=lines)
+        return _EditResult(success=True, lines=lines)
 
-    def _find_replace(self, lines: list[str], kwargs: dict[str, Any]) -> ToolResult:
+    def _find_replace(self, lines: list[str], kwargs: dict[str, Any]) -> _EditResult:
         """Find and replace text pattern."""
         find = kwargs.get("find")
         replace = kwargs.get("replace")
@@ -290,10 +315,10 @@ class EditFileTool(BaseTool):
         count = kwargs.get("count", -1)  # -1 means replace all
 
         if not find:
-            return ToolResult(success=False, error="Missing required parameter: find")
+            return _EditResult(success=False, error="Missing required parameter: find")
 
         if replace is None:
-            return ToolResult(
+            return _EditResult(
                 success=False, error="Missing required parameter: replace"
             )
 
@@ -315,7 +340,7 @@ class EditFileTool(BaseTool):
             # Split back into lines, preserving line endings
             new_lines = new_content.splitlines(keepends=True)
 
-            return ToolResult(success=True, output=new_lines)
+            return _EditResult(success=True, lines=new_lines)
 
         except re.error as exc:
-            return ToolResult(success=False, error=f"Invalid regex pattern: {exc}")
+            return _EditResult(success=False, error=f"Invalid regex pattern: {exc}")

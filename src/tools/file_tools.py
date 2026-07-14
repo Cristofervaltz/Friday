@@ -79,7 +79,10 @@ class ReadFileTool(BaseTool):
             if file_size > self._max_file_size:
                 return ToolResult(
                     success=False,
-                    error=f"File too large: {file_size} bytes (max {self._max_file_size})",
+                    error=(
+                        f"File too large: {file_size} bytes "
+                        f"(max {self._max_file_size})"
+                    ),
                 )
 
             # Read file content
@@ -122,7 +125,10 @@ class WriteFileTool(BaseTool):
 
     @property
     def description(self) -> str:
-        return "Write content to a file. Creates the file if it doesn't exist, overwrites if it does. Creates parent directories if needed."
+        return (
+            "Write content to a file. Creates the file if it doesn't exist, "
+            "overwrites if it does. Creates parent directories if needed."
+        )
 
     @property
     def parameters_schema(self) -> dict[str, Any]:
@@ -170,7 +176,10 @@ class WriteFileTool(BaseTool):
             if content_size > self._max_content_size:
                 return ToolResult(
                     success=False,
-                    error=f"Content too large: {content_size} bytes (max {self._max_content_size})",
+                    error=(
+                        f"Content too large: {content_size} bytes "
+                        f"(max {self._max_content_size})"
+                    ),
                 )
 
             # Create parent directories if needed

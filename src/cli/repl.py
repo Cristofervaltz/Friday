@@ -233,7 +233,7 @@ class FridayREPL:
                     if not line:
                         break
                     content_lines.append(line)
-                kwargs["line_number"] = line_num
+                kwargs["line_number"] = line_num  # type: ignore[assignment]
                 kwargs["content"] = "\n".join(content_lines)
 
             elif choice == "2":
@@ -246,7 +246,7 @@ class FridayREPL:
                     if not line:
                         break
                     content_lines.append(line)
-                kwargs["line_number"] = line_num
+                kwargs["line_number"] = line_num  # type: ignore[assignment]
                 kwargs["content"] = "\n".join(content_lines)
 
             elif choice == "3":
@@ -255,7 +255,7 @@ class FridayREPL:
                     "Line numbers to delete (comma-separated): "
                 ).strip()
                 line_numbers = [int(x.strip()) for x in lines_input.split(",")]
-                kwargs["line_numbers"] = line_numbers
+                kwargs["line_numbers"] = line_numbers  # type: ignore[assignment]
 
             elif choice == "4":
                 kwargs["operation"] = "find_replace"
@@ -264,7 +264,7 @@ class FridayREPL:
                 use_regex = input("Use regex? (y/n): ").strip().lower() == "y"
                 kwargs["find"] = find_text
                 kwargs["replace"] = replace_text
-                kwargs["regex"] = use_regex
+                kwargs["regex"] = use_regex  # type: ignore[assignment]
 
             else:
                 print("\n❌ Invalid choice\n")

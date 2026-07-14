@@ -44,11 +44,15 @@ class ListFilesTool(BaseTool):
             "properties": {
                 "path": {
                     "type": "string",
-                    "description": "Directory path to list (default: current directory)",
+                    "description": (
+                        "Directory path to list (default: current directory)"
+                    ),
                 },
                 "pattern": {
                     "type": "string",
-                    "description": "Glob pattern to filter files (e.g., '*.py', '*.txt')",
+                    "description": (
+                        "Glob pattern to filter files (e.g., '*.py', '*.txt')"
+                    ),
                 },
                 "recursive": {
                     "type": "boolean",
@@ -122,7 +126,10 @@ class ListFilesTool(BaseTool):
             if len(entries) > self._max_entries:
                 return ToolResult(
                     success=False,
-                    error=f"Too many entries: {len(entries)} (max {self._max_entries}). Use pattern or recursive=false to narrow down.",
+                    error=(
+                        f"Too many entries: {len(entries)} (max {self._max_entries}). "
+                        "Use pattern or recursive=false to narrow down."
+                    ),
                 )
 
             # Sort entries
@@ -207,8 +214,9 @@ class ListFilesTool(BaseTool):
         Returns:
             Formatted size string.
         """
+        size_float = float(size)
         for unit in ["B", "KB", "MB", "GB"]:
-            if size < 1024.0:
-                return f"{size:.1f} {unit}"
-            size /= 1024.0
-        return f"{size:.1f} TB"
+            if size_float < 1024.0:
+                return f"{size_float:.1f} {unit}"
+            size_float /= 1024.0
+        return f"{size_float:.1f} TB"
