@@ -20,6 +20,7 @@ sys.path.insert(0, str(project_root))
 # Load environment variables from .env file
 try:
     from dotenv import load_dotenv
+
     load_dotenv(project_root / ".env")
 except ImportError:
     print("python-dotenv not installed. Using system environment variables.")

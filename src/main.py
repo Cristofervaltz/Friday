@@ -16,14 +16,14 @@ def main() -> int:
             sys.stdout.reconfigure(encoding="utf-8")  # type: ignore
         except AttributeError:
             pass
-    
+
     app = FridayApplication()
     app.initialize()
-    
+
     # Start interactive REPL
     repl = FridayREPL(app)
     exit_code = repl.run()
-    
+
     app.shutdown()
     return exit_code
 

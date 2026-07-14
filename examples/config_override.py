@@ -18,9 +18,7 @@ sys.path.insert(0, str(project_root))
 # In production, these should come from .env file
 os.environ["FRIDAY_LLM_PROVIDER"] = "openrouter"
 os.environ["FRIDAY_LLM_MODEL"] = "anthropic/claude-3-sonnet"
-os.environ["FRIDAY_LLM_API_KEY"] = os.getenv(
-    "FRIDAY_LLM_API_KEY", "your-api-key-here"
-)
+os.environ["FRIDAY_LLM_API_KEY"] = os.getenv("FRIDAY_LLM_API_KEY", "your-api-key-here")
 os.environ["FRIDAY_LOG_LEVEL"] = "DEBUG"
 os.environ["FRIDAY_LLM_TIMEOUT"] = "60"
 

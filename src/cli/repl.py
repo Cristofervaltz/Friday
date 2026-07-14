@@ -12,20 +12,20 @@ if TYPE_CHECKING:
 
 class FridayREPL:
     """Interactive Read-Eval-Print Loop for Friday.
-    
+
     Provides a simple command-line interface for conversing with Friday
     through the configured LLM provider.
     """
 
     def __init__(self, app: FridayApplication) -> None:
         """Initialize the REPL with a Friday application instance.
-        
+
         Args:
             app: Initialized FridayApplication with LLM provider.
         """
         self._app = app
         self._running = False
-        
+
         # Initialize tools
         self._tools = {
             "read": ReadFileTool(),
@@ -36,7 +36,7 @@ class FridayREPL:
 
     def run(self) -> int:
         """Start the interactive REPL loop.
-        
+
         Returns:
             Exit code (0 for success).
         """
@@ -98,23 +98,23 @@ class FridayREPL:
         if user_input.lower() == "clear":
             print("(Conversation clearing not yet implemented)")
             return
-        
+
         # Handle tool commands
         if user_input.lower().startswith("read "):
             path = user_input[5:].strip()
             self._handle_read_file(path)
             return
-        
+
         if user_input.lower().startswith("write "):
             path = user_input[6:].strip()
             self._handle_write_file(path)
             return
-        
+
         if user_input.lower().startswith("edit "):
             path = user_input[5:].strip()
             self._handle_edit_file(path)
             return
-        
+
         if user_input.lower().startswith("list"):
             # "list" or "list <path>"
             path = user_input[4:].strip() if len(user_input) > 4 else "."
@@ -126,7 +126,7 @@ class FridayREPL:
 
     def _handle_message(self, message: str) -> None:
         """Send message to LLM and print response.
-        
+
         Args:
             message: User's message.
         """
@@ -136,39 +136,39 @@ class FridayREPL:
         except Exception as exc:
             print(f"\n❌ Error: {exc}\n")
             self._app.logger.exception("REPL error during message handling")
-    
+
     def _handle_read_file(self, path: str) -> None:
         """Handle read file command.
-        
+
         Args:
             path: File path to read.
         """
         if not path:
             print("\n❌ Error: Please provide a file path\n")
             return
-        
+
         tool = self._tools["read"]
         result = tool.execute(path=path)
-        
+
         if result.success:
             print(f"\n📄 File content ({path}):\n")
             print(result.output)
             print()
         else:
             print(f"\n❌ Error: {result.error}\n")
-    
+
     def _handle_write_file(self, path: str) -> None:
         """Handle write file command.
-        
+
         Args:
             path: File path to write.
         """
         if not path:
             print("\n❌ Error: Please provide a file path\n")
             return
-        
+
         print("\nEnter content (press Enter on empty line to finish):\n")
-        
+
         lines = []
         try:
             while True:
@@ -180,27 +180,27 @@ class FridayREPL:
         except (KeyboardInterrupt, EOFError):
             print("\n\n❌ Write cancelled\n")
             return
-        
+
         content = "\n".join(lines)
-        
+
         tool = self._tools["write"]
         result = tool.execute(path=path, content=content)
-        
+
         if result.success:
             print(f"\n✅ {result.output}\n")
         else:
             print(f"\n❌ Error: {result.error}\n")
-    
+
     def _handle_edit_file(self, path: str) -> None:
         """Handle edit file command with interactive mode.
-        
+
         Args:
             path: File path to edit.
         """
         if not path:
             print("\n❌ Error: Please provide a file path\n")
             return
-        
+
         # Show available operations
         print("\n📝 Edit operations:")
         print("  1. replace_lines  - Replace specific line(s)")
@@ -208,20 +208,20 @@ class FridayREPL:
         print("  3. delete_lines   - Delete specific line(s)")
         print("  4. find_replace   - Find and replace text")
         print("  0. cancel\n")
-        
+
         try:
             choice = input("Select operation (0-4): ").strip()
         except (KeyboardInterrupt, EOFError):
             print("\n\n❌ Edit cancelled\n")
             return
-        
+
         if choice == "0":
             print("\n❌ Edit cancelled\n")
             return
-        
+
         tool = self._tools["edit"]
         kwargs = {"path": path}
-        
+
         try:
             if choice == "1":
                 kwargs["operation"] = "replace_lines"
@@ -235,7 +235,7 @@ class FridayREPL:
                     content_lines.append(line)
                 kwargs["line_number"] = line_num
                 kwargs["content"] = "\n".join(content_lines)
-            
+
             elif choice == "2":
                 kwargs["operation"] = "insert_after"
                 line_num = int(input("Insert after line number: ").strip())
@@ -248,13 +248,15 @@ class FridayREPL:
                     content_lines.append(line)
                 kwargs["line_number"] = line_num
                 kwargs["content"] = "\n".join(content_lines)
-            
+
             elif choice == "3":
                 kwargs["operation"] = "delete_lines"
-                lines_input = input("Line numbers to delete (comma-separated): ").strip()
+                lines_input = input(
+                    "Line numbers to delete (comma-separated): "
+                ).strip()
                 line_numbers = [int(x.strip()) for x in lines_input.split(",")]
                 kwargs["line_numbers"] = line_numbers
-            
+
             elif choice == "4":
                 kwargs["operation"] = "find_replace"
                 find_text = input("Text to find: ").strip()
@@ -263,35 +265,35 @@ class FridayREPL:
                 kwargs["find"] = find_text
                 kwargs["replace"] = replace_text
                 kwargs["regex"] = use_regex
-            
+
             else:
                 print("\n❌ Invalid choice\n")
                 return
-            
+
             result = tool.execute(**kwargs)
-            
+
             if result.success:
                 print(f"\n✅ {result.output}\n")
             else:
                 print(f"\n❌ Error: {result.error}\n")
-        
+
         except (KeyboardInterrupt, EOFError):
             print("\n\n❌ Edit cancelled\n")
         except ValueError as exc:
             print(f"\n❌ Invalid input: {exc}\n")
-    
+
     def _handle_list_files(self, path: str) -> None:
         """Handle list files command.
-        
+
         Args:
             path: Directory path to list.
         """
         if not path:
             path = "."
-        
+
         tool = self._tools["list"]
         result = tool.execute(path=path)
-        
+
         if result.success:
             print(f"\n{result.output}\n")
         else:

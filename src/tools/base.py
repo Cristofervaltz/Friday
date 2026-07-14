@@ -10,13 +10,13 @@ from typing import Any
 @dataclass
 class ToolResult:
     """Result of tool execution.
-    
+
     Attributes:
         success: Whether the tool executed successfully.
         output: Tool output (file content, command result, etc.).
         error: Error message if execution failed.
     """
-    
+
     success: bool
     output: str | None = None
     error: str | None = None
@@ -24,35 +24,35 @@ class ToolResult:
 
 class BaseTool(ABC):
     """Base class for all Friday tools.
-    
+
     Tools are actions that Friday can perform:
     - Read/write files
     - Execute commands
     - Search content
     - Interact with APIs
-    
+
     Each tool must implement execute() and provide metadata.
     """
-    
+
     @property
     @abstractmethod
     def name(self) -> str:
         """Return the tool name (used in LLM function calling)."""
         ...
-    
+
     @property
     @abstractmethod
     def description(self) -> str:
         """Return a description of what the tool does."""
         ...
-    
+
     @property
     @abstractmethod
     def parameters_schema(self) -> dict[str, Any]:
         """Return JSON schema for tool parameters.
-        
+
         Used by LLM function calling to know what parameters to pass.
-        
+
         Example:
             {
                 "type": "object",
@@ -63,22 +63,22 @@ class BaseTool(ABC):
             }
         """
         ...
-    
+
     @abstractmethod
     def execute(self, **kwargs: Any) -> ToolResult:
         """Execute the tool with given parameters.
-        
+
         Args:
             **kwargs: Tool-specific parameters.
-            
+
         Returns:
             ToolResult with success status, output, and optional error.
         """
         ...
-    
+
     def to_function_schema(self) -> dict[str, Any]:
         """Convert tool to OpenAI function calling schema.
-        
+
         Returns:
             Dictionary compatible with OpenAI function calling format.
         """
