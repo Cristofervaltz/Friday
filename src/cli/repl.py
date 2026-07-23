@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from src.core import Agent, ToolRegistry
+from src.planner import PlanExecutor, TaskPlanner
 from src.tools import (
     EditFileTool,
     ListFilesTool,
@@ -96,6 +97,7 @@ class FridayREPL:
         print("  write <path>  - Write to a file (multi-line mode)")
         print("  edit <path>   - Edit a file (interactive mode)")
         print("  list [path]   - List files in directory (default: current)")
+        print("  /plan <goal>  - Generate and execute a multi-step plan")
         print("\nOr just type your message to chat with Friday.\n")
 
     def _process_input(self) -> None:
@@ -141,6 +143,11 @@ class FridayREPL:
             # "list" or "list <path>"
             path = user_input[4:].strip() if len(user_input) > 4 else "."
             self._handle_list_files(path)
+            return
+
+        if user_input.lower().startswith("/plan "):
+            goal = user_input[6:].strip()
+            self._handle_plan(goal)
             return
 
         # Send to LLM
@@ -321,3 +328,45 @@ class FridayREPL:
             print(f"\n{result.output}\n")
         else:
             print(f"\n❌ Error: {result.error}\n")
+
+    def _handle_plan(self, goal: str) -> None:
+        """Handle the /plan command to generate and execute a multi-step plan.
+
+        Args:
+            goal: The user's requested goal.
+        """
+        if not goal:
+            print(
+                "\n❌ Error: Please provide a goal "
+                "(e.g. /plan write tests for planner)\n"
+            )
+            return
+
+        print("\n⏳ Generating plan...")
+        planner = TaskPlanner(self._app.provider)
+        try:
+            plan = planner.generate_plan(goal)
+            print("\n📋 Plan generated:\n")
+            print(plan.format_status())
+
+            confirm = input("\nExecute this plan? (y/n): ").strip().lower()
+            if confirm != "y":
+                print("\n❌ Plan execution cancelled.\n")
+                return
+
+            print("\n🚀 Executing plan...\n")
+            executor = PlanExecutor(self._agent)
+            success = executor.execute_plan(plan)
+
+            if success:
+                print("\n✅ Plan executed successfully!\n")
+            else:
+                print("\n❌ Plan execution failed or stopped.\n")
+
+            # Print final status
+            print(plan.format_status())
+            print()
+
+        except Exception as exc:
+            print(f"\n❌ Error generating or executing plan: {exc}\n")
+            self._app.logger.exception("Error in /plan command")
