@@ -22,7 +22,10 @@ classifiers = [
   "Topic :: Software Development :: Build Tools",
   "Topic :: Software Development :: Libraries :: Python Modules"
 ]
-dependencies = []
+dependencies = [
+  "urllib3>=2.0.0",
+  "mcp>=1.0.0",
+]
 
 [project.optional-dependencies]
 dev = [

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from src.plugins.base import BasePluginManager
     from src.tools.base import BaseTool, ToolResult
 
 
@@ -31,6 +32,19 @@ class ToolRegistry:
         if tool.name in self._tools:
             raise ValueError(f"Tool '{tool.name}' is already registered")
         self._tools[tool.name] = tool
+
+    def register_plugin(self, manager: BasePluginManager) -> None:
+        """Register all tools discovered from a plugin manager.
+
+        Args:
+            manager: The plugin manager providing the tools.
+        """
+        from src.plugins.proxy import PluginToolProxy
+
+        schemas = manager.discover_tools()
+        for schema in schemas:
+            proxy = PluginToolProxy(manager, schema)
+            self.register(proxy)
 
     def unregister(self, name: str) -> None:
         """Unregister a tool from the registry.
