@@ -5,7 +5,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from src.core import Agent, ToolRegistry
-from src.tools import EditFileTool, ListFilesTool, ReadFileTool, WriteFileTool
+from src.tools import (
+    EditFileTool,
+    ListFilesTool,
+    ReadFileTool,
+    ShellCommandTool,
+    WriteFileTool,
+)
 
 if TYPE_CHECKING:
     from src.runtime import FridayApplication
@@ -33,6 +39,7 @@ class FridayREPL:
         self._registry.register(WriteFileTool())
         self._registry.register(EditFileTool())
         self._registry.register(ListFilesTool())
+        self._registry.register(ShellCommandTool())
 
         # Initialize agent with tools
         self._agent = Agent(
