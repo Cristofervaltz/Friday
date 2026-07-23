@@ -435,6 +435,6 @@ This project is released under the [MIT License](LICENSE).
 
 ## Release status
 
-**Current release: v0.0.1**
+**Current release: v0.3.0**
 
 Friday is intentionally minimal at this stage. The codebase now includes a small, production-ready LLM transport layer, but higher-level assistant behavior is still intentionally absent while the project continues to establish safe system boundaries.

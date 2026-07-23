@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on *Keep a Changelog*, and this project follows semantic versioning principles as it matures.
 
+## [0.3.0] - 2026-07-23
+
+### Added
+- **Task Planner Subsystem** — implemented multi-step goal decomposition (`TaskPlanner`)
+- **Plan Executor** — sequentially runs agent tasks with safety halting on failure (`PlanExecutor`)
+- **REPL `/plan` command** — generate and execute multi-step plans interactively
+
+## [0.2.0] - 2026-07-23
+
+### Added
+- **Conversation Memory** — implemented short-term sliding window context (`ConversationMemory`)
+- **Workspace Memory** — implemented persistent JSON storage for global context (`WorkspaceMemory`)
+- Integrated memory subsystems into `Agent` core
+
+## [0.1.0] - 2026-07-23
+
+### Added
+- **Command Execution Subsystem** — safe execution with timeouts and output limiting (`CommandExecutor`)
+- **Shell Command Tool** — integrated terminal access for the Friday Agent (`ShellCommandTool`)
+- Interactive agent tool-calling loop with REPL integration
+
 ## [0.0.1] - 2026-07-13
 
 ### Added

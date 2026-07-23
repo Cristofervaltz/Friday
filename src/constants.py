@@ -7,7 +7,7 @@ bootstrap layers of the application.
 from __future__ import annotations
 
 APP_NAME = "Friday"
-APP_VERSION = "0.0.1"
+APP_VERSION = "0.3.0"
 DEFAULT_ENVIRONMENT = "development"
 DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_LOG_DIRNAME = "logs"
