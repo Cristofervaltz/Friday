@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from src.core import Agent, ToolRegistry
 from src.planner import PlanExecutor, TaskPlanner
+from src.speech import GoogleSpeechProvider
 from src.tools import (
     EditFileTool,
     ListFilesTool,
@@ -98,6 +99,7 @@ class FridayREPL:
         print("  edit <path>   - Edit a file (interactive mode)")
         print("  list [path]   - List files in directory (default: current)")
         print("  /plan <goal>  - Generate and execute a multi-step plan")
+        print("  /voice, /v    - Use microphone to dictate a command")
         print("\nOr just type your message to chat with Friday.\n")
 
     def _process_input(self) -> None:
@@ -148,6 +150,10 @@ class FridayREPL:
         if user_input.lower().startswith("/plan "):
             goal = user_input[6:].strip()
             self._handle_plan(goal)
+            return
+
+        if user_input.lower() in ("/voice", "/v"):
+            self._handle_voice()
             return
 
         # Send to LLM
@@ -370,3 +376,30 @@ class FridayREPL:
         except Exception as exc:
             print(f"\n❌ Error generating or executing plan: {exc}\n")
             self._app.logger.exception("Error in /plan command")
+
+    def _handle_voice(self) -> None:
+        """Handle the /voice command to capture and process microphone input."""
+        print("\n🎤 Initializing microphone...\n")
+        try:
+            provider = GoogleSpeechProvider()
+            print("Listening... (speak now)")
+
+            # Listen and transcribe
+            text = provider.listen_and_transcribe()
+
+            print(f"\n🗣️  You said: {text}")
+
+            # Feed the text to the LLM agent
+            self._handle_message(text)
+
+        except RuntimeError as exc:
+            print(f"\n❌ Speech system error: {exc}")
+            print(
+                "💡 Tip: Make sure you installed dependencies with: "
+                "pip install .[speech]"
+            )
+        except TimeoutError:
+            print("\n❌ No speech detected. Microphone timed out.")
+        except Exception as exc:
+            print(f"\n❌ Error capturing speech: {exc}")
+            self._app.logger.exception("Error in /voice command")
