@@ -1,9 +1,12 @@
-"""AI Agent with function calling capabilities."""
+"""AI Agent with function calling and memory capabilities."""
 
 from __future__ import annotations
 
 import json
 from typing import TYPE_CHECKING, Any
+
+from src.memory.conversation import ConversationMemory
+from src.memory.workspace import WorkspaceMemory
 
 if TYPE_CHECKING:
     from src.core.tool_registry import ToolRegistry
@@ -11,10 +14,9 @@ if TYPE_CHECKING:
 
 
 class Agent:
-    """AI Agent that can use tools through function calling.
+    """AI Agent that orchestrates conversation, tool usage, and memory.
 
-    The agent orchestrates the conversation between the user, LLM,
-    and tools. It handles the function calling loop:
+    Handles the function calling execution loop:
     1. User sends message
     2. LLM decides which tool to call (if any)
     3. Agent executes the tool
@@ -27,19 +29,36 @@ class Agent:
         llm_provider: BaseLLMProvider,
         tool_registry: ToolRegistry,
         max_iterations: int = 10,
+        memory: ConversationMemory | None = None,
+        workspace_memory: WorkspaceMemory | None = None,
     ) -> None:
         """Initialize the agent.
 
         Args:
             llm_provider: LLM provider for generating responses.
             tool_registry: Registry of available tools.
-            max_iterations: Maximum number of tool calling iterations
-                           to prevent infinite loops.
+            max_iterations: Maximum number of tool calling iterations.
+            memory: Optional custom ConversationMemory instance.
+            workspace_memory: Optional custom WorkspaceMemory instance.
         """
         self.llm = llm_provider
         self.tools = tool_registry
         self.max_iterations = max_iterations
-        self._conversation_history: list[dict[str, Any]] = []
+        self.memory = memory if memory is not None else ConversationMemory()
+        self.workspace_memory = workspace_memory
+
+        # Combine workspace context into system prompt if present
+        if self.workspace_memory is not None:
+            context = self.workspace_memory.build_system_context()
+            if context:
+                existing = self.memory.system_prompt or ""
+                new_prompt = f"{existing}\n\n{context}".strip()
+                self.memory.set_system_prompt(new_prompt)
+
+    @property
+    def _conversation_history(self) -> list[dict[str, Any]]:
+        """Backwards compatibility accessor for raw conversation history."""
+        return self.memory.get_messages()
 
     def run(self, user_input: str) -> str:
         """Process user input and return agent's response.
@@ -53,81 +72,65 @@ class Agent:
         Raises:
             RuntimeError: If max iterations exceeded (infinite loop).
         """
-        # Add user message to conversation
-        self._conversation_history.append({"role": "user", "content": user_input})
+        self.memory.add_user_message(user_input)
 
-        # Get tools schema for function calling
         tools_schema = self.tools.get_tools_schema()
 
         iteration = 0
         while iteration < self.max_iterations:
             iteration += 1
 
-            # Generate response with tools
+            messages = self.memory.get_messages()
             response = self.llm.generate_with_tools(
-                messages=self._conversation_history,
+                messages=messages,
                 tools=tools_schema,
             )
 
-            # Check if LLM wants to call a function
             if response.tool_calls:
-                # Process all tool calls
                 for tool_call in response.tool_calls:
-                    # Execute tool
                     try:
                         tool_result = self.tools.execute(
                             tool_call["name"],
                             **tool_call["arguments"],
                         )
-
-                        # Format result for LLM
-                        result_content = (
-                            tool_result.output
-                            if tool_result.success
-                            else f"Error: {tool_result.error}"
-                        )
-
+                        if tool_result.success:
+                            result_content = (
+                                tool_result.output
+                                if tool_result.output is not None
+                                else "Tool executed successfully."
+                            )
+                        else:
+                            result_content = (
+                                f"Error: {tool_result.error or 'Unknown tool error'}"
+                            )
                     except Exception as exc:
                         result_content = f"Error executing tool: {exc}"
 
-                    # Add tool call and result to conversation
-                    self._conversation_history.append(
+                    formatted_calls = [
                         {
-                            "role": "assistant",
-                            "content": None,
-                            "tool_calls": [
-                                {
-                                    "id": tool_call.get("id", "call_1"),
-                                    "type": "function",
-                                    "function": {
-                                        "name": tool_call["name"],
-                                        "arguments": json.dumps(tool_call["arguments"]),
-                                    },
-                                }
-                            ],
+                            "id": tool_call.get("id", "call_1"),
+                            "type": "function",
+                            "function": {
+                                "name": tool_call["name"],
+                                "arguments": json.dumps(tool_call["arguments"]),
+                            },
                         }
+                    ]
+                    self.memory.add_assistant_message(
+                        content=None, tool_calls=formatted_calls
+                    )
+                    self.memory.add_tool_result(
+                        tool_call_id=tool_call.get("id", "call_1"),
+                        content=result_content,
                     )
 
-                    self._conversation_history.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": tool_call.get("id", "call_1"),
-                            "content": result_content,
-                        }
-                    )
-
-                # Continue loop to let LLM process tool results
                 continue
 
             else:
-                # No tool calls - LLM provided final answer
                 final_response = response.content or ""
-                self._conversation_history.append(
-                    {"role": "assistant", "content": final_response}
-                )
+                self.memory.add_assistant_message(content=final_response)
                 return final_response
 
-        # Max iterations exceeded
         raise RuntimeError(
             f"Agent exceeded max iterations ({self.max_iterations}). "
             "Possible infinite loop."
@@ -135,7 +138,7 @@ class Agent:
 
     def clear_history(self) -> None:
         """Clear conversation history."""
-        self._conversation_history.clear()
+        self.memory.clear()
 
     def get_history(self) -> list[dict[str, Any]]:
         """Get conversation history.
@@ -143,4 +146,4 @@ class Agent:
         Returns:
             List of conversation messages.
         """
-        return self._conversation_history.copy()
+        return self.memory.get_messages()

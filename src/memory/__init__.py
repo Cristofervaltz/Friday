@@ -1,1 +1,6 @@
-"""Memory module namespace reserved for future Friday development."""
+"""Memory subsystem for conversation history and workspace context."""
+
+from .conversation import ConversationMemory
+from .workspace import WorkspaceMemory
+
+__all__ = ["ConversationMemory", "WorkspaceMemory"]
