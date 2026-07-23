@@ -158,6 +158,7 @@ class OllamaProvider(BaseLLMProvider):
             tool_calls=None,
             finish_reason="stop",
         )
+
     def is_available(self) -> bool:
         """Return whether the provider is configured and ready to use."""
         return bool(self._model and self._base_url and self._timeout > 0)
