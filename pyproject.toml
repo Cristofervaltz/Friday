@@ -72,10 +72,19 @@ include = ["src*"]
 [tool.black]
 line-length = 88
 target-version = ["py312"]
+extend-exclude = 'src/ui'
 
 [tool.ruff]
 line-length = 88
 target-version = "py312"
+exclude = [
+    ".git",
+    ".mypy_cache",
+    ".ruff_cache",
+    "venv",
+    ".env",
+    "src/ui"
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "N"]
@@ -84,6 +93,8 @@ select = ["E", "F", "I", "B", "UP", "N"]
 # Examples need to modify sys.path before importing project modules
 [tool.ruff.lint.per-file-ignores]
 "examples/*.py" = ["E402"]
+"__init__.py" = ["F401"]
+"tests/*" = ["E501"]
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-config --strict-markers"
@@ -97,4 +108,12 @@ warn_unused_ignores = false
 pretty = true
 show_error_codes = true
 warn_unused_configs = true
+exclude = [
+    ".git",
+    ".mypy_cache",
+    ".ruff_cache",
+    "venv",
+    ".env",
+    "src/ui"
+]
 files = ["src", "tests"]
