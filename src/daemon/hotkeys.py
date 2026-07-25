@@ -13,7 +13,7 @@ except ImportError:
 class HotkeyManager:
     """Manages global hotkeys for the background daemon."""
 
-    def __init__(self, combo: str = "<ctrl>+<alt>+space"):
+    def __init__(self, combo: str = "<ctrl>+<alt>+<space>"):
         """Initialize the hotkey manager.
 
         Args:

@@ -13,6 +13,7 @@ try:
 except ImportError:
     FileSystemEventHandler = object  # type: ignore
     Observer = None
+    FileSystemEvent = Any  # type: ignore
 
 
 class TriggerHandler(FileSystemEventHandler):  # type: ignore[misc,valid-type]
