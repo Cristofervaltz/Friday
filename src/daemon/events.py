@@ -12,7 +12,7 @@ try:
     from watchdog.observers import Observer  # type: ignore
 except ImportError:
     FileSystemEventHandler = object  # type: ignore
-    Observer = None
+    Observer = None  # type: ignore
     FileSystemEvent = Any  # type: ignore
 
 

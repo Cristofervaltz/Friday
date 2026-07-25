@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
+import { SettingsModal } from './components/SettingsModal';
 import './App.css';
 
 interface Message {
@@ -13,6 +14,7 @@ function App() {
   const [input, setInput] = useState('');
   const [connected, setConnected] = useState(false);
   const [ws, setWs] = useState<WebSocket | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -96,6 +98,10 @@ function App() {
   }, []);
 
   const handleAction = (cmd: string) => {
+    if (cmd === '/settings') {
+      setIsSettingsOpen(true);
+      return;
+    }
     if (!ws || !connected) return;
     const userMsg: Message = { id: Date.now().toString(), role: 'user', content: cmd };
     setMessages(prev => [...prev, userMsg]);
@@ -177,22 +183,10 @@ function App() {
         </div>
       </section>
 
-      {/* Artifacts/Context Panel */}
-      <section className="artifacts-panel glass-panel">
-        <header className="panel-header">
-          <h2>Workspace Context</h2>
-        </header>
-        <div className="empty-state">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-            <polyline points="14 2 14 8 20 8"></polyline>
-            <line x1="16" y1="13" x2="8" y2="13"></line>
-            <line x1="16" y1="17" x2="8" y2="17"></line>
-            <polyline points="10 9 9 9 8 9"></polyline>
-          </svg>
-          <p>Artifacts and visualizations will appear here.</p>
-        </div>
-      </section>
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+      />
     </div>
   );
 }

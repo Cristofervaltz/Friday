@@ -6,6 +6,7 @@ import logging
 import sys
 import threading
 from pathlib import Path
+from typing import Any
 
 try:
     import uvicorn  # type: ignore
@@ -101,8 +102,32 @@ def create_app() -> "FastAPI":
         except WebSocketDisconnect:
             pass
 
+    from fastapi.middleware.cors import CORSMiddleware
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     @app.get("/health")  # type: ignore
     async def health() -> dict[str, str]:
+        return {"status": "ok"}
+
+    @app.get("/api/settings")  # type: ignore
+    async def get_settings() -> dict[str, Any]:
+        from ..config import load_settings
+
+        return load_settings()
+
+    @app.post("/api/settings")  # type: ignore
+    async def update_settings(settings: dict[str, Any]) -> dict[str, Any]:
+        from ..config import save_settings
+
+        save_settings(settings)
+        friday_app.reload_config()
         return {"status": "ok"}
 
     # Serve Vite build if it exists

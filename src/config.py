@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from os import getenv
 from pathlib import Path
+from typing import Any
 
 from .constants import (
     APP_NAME,
@@ -95,31 +96,95 @@ class AppConfig:
         resolved_base_dir = base_dir or Path.cwd()
         paths = PathsConfig.from_base_dir(resolved_base_dir)
 
-        configured_log_dir = Path(getenv("FRIDAY_LOG_DIR", str(paths.logs_dir)))
+        # First, try to load settings from config.json
+        config_file = paths.app_home / "config.json"
+        saved_settings = {}
+        if config_file.exists():
+            import json
+
+            try:
+                with open(config_file, encoding="utf-8") as f:
+                    saved_settings = json.load(f)
+            except Exception:
+                pass
+
+        def get_val(key: str, env_key: str, default: Any = None) -> Any:
+            val = saved_settings.get(key)
+            if val is not None and val != "":
+                return str(val)
+            env_val = getenv(env_key)
+            if env_val is not None and env_val != "":
+                return str(env_val)
+            return default
+
+        configured_log_dir = Path(
+            get_val("log_dir", "FRIDAY_LOG_DIR") or str(paths.logs_dir)
+        )
         logging_config = LoggingConfig(
-            level=getenv("FRIDAY_LOG_LEVEL", DEFAULT_LOG_LEVEL).upper(),
+            level=get_val("log_level", "FRIDAY_LOG_LEVEL", DEFAULT_LOG_LEVEL).upper(),
             log_dir=configured_log_dir.expanduser().resolve(),
-            log_filename=getenv("FRIDAY_LOG_FILENAME", DEFAULT_LOG_FILENAME),
-            max_bytes=int(getenv("FRIDAY_LOG_MAX_BYTES", "1048576")),
-            backup_count=int(getenv("FRIDAY_LOG_BACKUP_COUNT", "5")),
-            console_enabled=getenv("FRIDAY_CONSOLE_LOGGING", "true").lower()
+            log_filename=get_val(
+                "log_filename", "FRIDAY_LOG_FILENAME", DEFAULT_LOG_FILENAME
+            ),
+            max_bytes=int(get_val("log_max_bytes", "FRIDAY_LOG_MAX_BYTES", "1048576")),
+            backup_count=int(
+                get_val("log_backup_count", "FRIDAY_LOG_BACKUP_COUNT", "5")
+            ),
+            console_enabled=str(
+                get_val("console_logging", "FRIDAY_CONSOLE_LOGGING", "true")
+            ).lower()
             in {"1", "true", "yes", "on"},
-            file_enabled=getenv("FRIDAY_FILE_LOGGING", "true").lower()
+            file_enabled=str(
+                get_val("file_logging", "FRIDAY_FILE_LOGGING", "true")
+            ).lower()
             in {"1", "true", "yes", "on"},
         )
+
         llm_config = LLMConfig(
-            provider=getenv("FRIDAY_LLM_PROVIDER", "openai"),
-            api_key=getenv("FRIDAY_LLM_API_KEY"),
-            base_url=getenv("FRIDAY_LLM_BASE_URL"),
-            model=getenv("FRIDAY_LLM_MODEL"),
-            timeout=float(getenv("FRIDAY_LLM_TIMEOUT", "30.0")),
+            provider=get_val("llm_provider", "FRIDAY_LLM_PROVIDER", "openai"),
+            api_key=get_val("llm_api_key", "FRIDAY_LLM_API_KEY"),
+            base_url=get_val("llm_base_url", "FRIDAY_LLM_BASE_URL"),
+            model=get_val("llm_model", "FRIDAY_LLM_MODEL"),
+            timeout=float(get_val("llm_timeout", "FRIDAY_LLM_TIMEOUT", "30.0")),
         )
 
         return cls(
             app_name=APP_NAME,
             version=APP_VERSION,
-            environment=getenv("FRIDAY_ENV", DEFAULT_ENVIRONMENT),
+            environment=get_val("env", "FRIDAY_ENV", DEFAULT_ENVIRONMENT),
             paths=paths,
             logging=logging_config,
             llm=llm_config,
         )
+
+
+
+
+def load_settings(base_dir: Path | None = None) -> dict[str, Any]:
+    resolved_base_dir = base_dir or Path.cwd()
+    paths = PathsConfig.from_base_dir(resolved_base_dir)
+    config_file = paths.app_home / "config.json"
+    if config_file.exists():
+        import json
+
+        try:
+            with open(config_file, encoding="utf-8") as f:
+                return json.load(f)  # type: ignore
+        except Exception:
+            return {}
+    return {}
+
+
+def save_settings(settings: dict[str, Any], base_dir: Path | None = None) -> None:
+    resolved_base_dir = base_dir or Path.cwd()
+    paths = PathsConfig.from_base_dir(resolved_base_dir)
+    paths.ensure_directories()
+    config_file = paths.app_home / "config.json"
+
+    current = load_settings(base_dir)
+    current.update(settings)
+
+    import json
+
+    with open(config_file, "w", encoding="utf-8") as f:
+        json.dump(current, f, indent=4)
