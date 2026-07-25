@@ -128,7 +128,8 @@ graph TD
 
 ### Configuration
 
-Copy the example environment file and add your keys:
+You can configure Friday directly via the **Desktop App Settings Modal**, which will save your preferences to a local `config.json`. 
+Alternatively, if you're running headless or in Terminal mode, you can copy the example environment file and add your keys:
 
 ```bash
 cp .env.example .env
@@ -171,14 +172,18 @@ Once inside the REPL, you can type your requests naturally, or use the following
 - `/clear` - Clear the current conversation context.
 - `/exit` or `/quit` - Safely shut down Friday.
 
-### 2. Daemon & Dashboard Mode
-Run Friday in the background with a System Tray icon and a beautiful Web Dashboard:
+### 2. Native Desktop App (Tauri + React)
+Run Friday as a sleek, standalone desktop application powered by **Tauri**, featuring a gorgeous Glassmorphism UI:
 
 ```bash
-friday-daemon
+cd src/ui
+npm run tauri dev
 ```
 
-*Right-click the Friday icon in your system tray and select **Dashboard** to interact with the AI via a modern web interface!*
+The desktop app bundles the Python backend into a highly optimized sidecar (`friday-api.exe`), meaning end-users don't need Python installed. It also features:
+- **In-App Settings:** Configure API keys, models, and providers directly via a beautiful UI modal.
+- **Hot-Reloading:** Change your LLM or API keys and apply them instantly without restarting the application!
+- **Native System Tray:** Runs quietly in the background and can be summoned anytime.
 
 ---
 
