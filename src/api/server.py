@@ -32,7 +32,7 @@ def create_app() -> "FastAPI":
     app = FastAPI(title="Friday API")
     friday_app = FridayApplication()
     friday_app.initialize()
-    
+
     # We use REPL to reuse the existing Agent and Tools wiring
     friday_repl = FridayREPL(friday_app)
 
@@ -41,6 +41,7 @@ def create_app() -> "FastAPI":
 
     class WSMockIO:
         """Mock IO that routes print() calls to the WebSocket."""
+
         def __init__(self, ws: "WebSocket"):
             self.ws = ws
 
@@ -61,21 +62,21 @@ def create_app() -> "FastAPI":
     @app.websocket("/ws/chat")  # type: ignore[misc]
     async def websocket_endpoint(websocket: "WebSocket") -> None:
         await websocket.accept()
-        
-        # Hijack stdout just for this session if needed, 
+
+        # Hijack stdout just for this session if needed,
         # but better to let FridayApplication return text or stream to a callback.
         # Since FridayApplication uses print, we can intercept sys.stdout in a thread
         # Actually, FridayApplication is tightly coupled to console print.
         # To avoid massive refactoring, we'll run _handle_message in a thread.
-        
+
         try:
             while True:
                 data = await websocket.receive_text()
                 payload = json.loads(data)
-                
+
                 if payload.get("type") == "message":
                     user_text = payload.get("content", "")
-                    
+
                     # Run Friday's message handling in a background thread to unblock WS
                     def run_friday(msg_text: str = user_text) -> None:
                         # Temporary stdout hijacking
@@ -94,9 +95,9 @@ def create_app() -> "FastAPI":
                                 websocket.send_text(json.dumps({"type": "done"})),
                                 loop,
                             )
-                            
+
                     threading.Thread(target=run_friday).start()
-                    
+
         except WebSocketDisconnect:
             pass
 
@@ -109,6 +110,7 @@ def create_app() -> "FastAPI":
     if ui_dist.exists() and ui_dist.is_dir():
         app.mount("/", StaticFiles(directory=str(ui_dist), html=True), name="ui")
     else:
+
         @app.get("/")  # type: ignore[misc]
         async def root() -> HTMLResponse:
             return HTMLResponse(
@@ -123,7 +125,7 @@ def start_server(host: str = "127.0.0.1", port: int = 8000) -> None:
     if uvicorn is None:
         print("Error: uvicorn not installed.")
         sys.exit(1)
-        
+
     app = create_app()
     uvicorn.run(app, host=host, port=port, log_level="error")
 
@@ -133,7 +135,7 @@ def main() -> int:
     # Run the server in a daemon thread so it stops when webview closes
     server_thread = threading.Thread(target=start_server, daemon=True)
     server_thread.start()
-    
+
     if webview is not None:
         webview.create_window(
             "Friday AI", "http://127.0.0.1:8000", width=1024, height=768
@@ -145,10 +147,11 @@ def main() -> int:
         try:
             while True:
                 import time
+
                 time.sleep(1)
         except KeyboardInterrupt:
             pass
-            
+
     return 0
 
 

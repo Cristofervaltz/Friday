@@ -60,6 +60,7 @@ class TrayManager:
                 webview.start()
 
             import threading
+
             threading.Thread(target=open_webview, daemon=True).start()
         except ImportError:
             # Fallback to default browser

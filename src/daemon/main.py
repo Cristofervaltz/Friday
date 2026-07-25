@@ -35,6 +35,7 @@ class FridayDaemon:
         if start_server is not None:
             print("Starting local API server...")
             import threading
+
             threading.Thread(target=start_server, daemon=True).start()
         else:
             print("Warning: API server could not be imported. GUI will be unavailable.")
