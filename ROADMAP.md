@@ -41,9 +41,9 @@ This document outlines the evolutionary path of Friday, transitioning from a bas
 ### Stage 7: Proactive Background Daemon (`v0.7.0`)
 > **Goal:** Untie Friday from the console and teach it to take initiative in the background.
 
-- [ ] **Daemon Process:** Isolate a background service running in the Windows/Mac System Tray.
-- [ ] **Event Subsystem:** React to file triggers (e.g., code modifications) and schedules (cron jobs) proactively.
-- [ ] **Global Shortcut:** Summon Friday as an overlay on top of all windows via a global hotkey (Spotlight/Raycast style).
+- [x] **Daemon Process:** Isolate a background service running in the Windows/Mac System Tray.
+- [x] **Event Subsystem:** React to file triggers (e.g., code modifications) and schedules (cron jobs) proactively.
+- [x] **Global Shortcut:** Summon Friday as an overlay on top of all windows via a global hotkey (Spotlight/Raycast style).
 
 ### Stage 8: Desktop GUI & Visual Interaction (`v0.8.0`)
 > **Goal:** Provide a beautiful, interactive visual interface.

@@ -7,6 +7,11 @@ from .events import EventMonitor
 from .hotkeys import HotkeyManager
 from .tray import TrayManager
 
+try:
+    from ..api.server import start_server
+except ImportError:
+    start_server = None  # type: ignore
+
 
 class FridayDaemon:
     """The main daemon controller."""
@@ -19,13 +24,20 @@ class FridayDaemon:
         self._running = False
 
     def start(self) -> None:
-        """Start the daemon."""
-        print("Starting Friday Daemon...")
+        """Start the daemon loops."""
+        print(f"Starting {self.app.config.app_name} Daemon...")
         self._running = True
-
         # Start background listeners
         self.hotkeys.start()
         self.events.start()
+
+        # Start API server in background
+        if start_server is not None:
+            print("Starting local API server...")
+            import threading
+            threading.Thread(target=start_server, daemon=True).start()
+        else:
+            print("Warning: API server could not be imported. GUI will be unavailable.")
 
         # Start tray icon (this blocks on most OSes)
         self.tray.start()

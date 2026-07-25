@@ -1,5 +1,6 @@
 """System tray management for the Friday Daemon."""
 
+import webbrowser
 from collections.abc import Callable
 from typing import Any
 
@@ -39,9 +40,30 @@ class TrayManager:
         """Create the context menu for the tray icon."""
         return pystray.Menu(
             pystray.MenuItem("Friday Daemon Running", lambda: None, enabled=False),
+            pystray.MenuItem("Open Dashboard", self._on_menu_dashboard),
             pystray.MenuSeparator(),
             pystray.MenuItem("Exit", self._on_menu_exit),
         )
+
+    def _on_menu_dashboard(
+        self, icon: "pystray.Icon", item: "pystray.MenuItem"
+    ) -> None:
+        """Handler for the Dashboard menu item."""
+        try:
+            import webview  # type: ignore
+
+            # Run in a new thread so we don't block the tray icon loop
+            def open_webview() -> None:
+                webview.create_window(
+                    "Friday AI", "http://127.0.0.1:8000", width=1024, height=768
+                )
+                webview.start()
+
+            import threading
+            threading.Thread(target=open_webview, daemon=True).start()
+        except ImportError:
+            # Fallback to default browser
+            webbrowser.open("http://127.0.0.1:8000")
 
     def _on_menu_exit(self, icon: "pystray.Icon", item: "pystray.MenuItem") -> None:
         """Handler for the Exit menu item."""

@@ -53,10 +53,17 @@ daemon = [
   "watchdog>=3.0.0",
   "Pillow>=10.0.0"
 ]
+gui = [
+  "fastapi>=0.100.0",
+  "uvicorn>=0.23.0",
+  "websockets>=11.0.3",
+  "pywebview>=4.0.0"
+]
 
 [project.scripts]
 friday = "src.main:main"
 friday-daemon = "src.daemon.main:main"
+friday-gui = "src.api.server:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
