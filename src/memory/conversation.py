@@ -19,14 +19,7 @@ class ConversationMemory:
             system_prompt: Optional initial system prompt.
             max_messages: Maximum number of non-system messages to retain.
         """
-        self.system_prompt: str | None
-        if system_prompt is None:
-            self.system_prompt = (
-                "You are Friday (или Пятница), an autonomous AI assistant on a "
-                "developer's computer. You answer to both names."
-            )
-        else:
-            self.system_prompt = system_prompt
+        self.system_prompt: str | None = system_prompt
 
         self.max_messages = max_messages
         self._messages: list[dict[str, Any]] = []
