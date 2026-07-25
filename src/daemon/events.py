@@ -57,9 +57,7 @@ class TriggerHandler(FileSystemEventHandler):  # type: ignore[misc,valid-type]
                     creationflags=subprocess.CREATE_NEW_CONSOLE,  # type: ignore[attr-defined]
                 )
             else:
-                subprocess.Popen(
-                    [sys.executable, "-m", "src.main", "--task", task]
-                )
+                subprocess.Popen([sys.executable, "-m", "src.main", "--task", task])
 
             # Clean up the trigger file
             try:
@@ -77,7 +75,7 @@ class EventMonitor:
     def __init__(self) -> None:
         """Initialize the event monitor."""
         self._observer: Any = None
-        
+
         # Create triggers directory in user home
         home = Path.home()
         self.triggers_dir = home / ".friday" / "triggers"

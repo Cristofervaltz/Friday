@@ -34,9 +34,7 @@ class HotkeyManager:
                     creationflags=subprocess.CREATE_NEW_CONSOLE,  # type: ignore[attr-defined]
                 )
             else:
-                subprocess.Popen(
-                    [sys.executable, "-m", "src.main", "--voice-task"]
-                )
+                subprocess.Popen([sys.executable, "-m", "src.main", "--voice-task"])
         except Exception as e:
             print(f"Error launching Friday: {e}")
 
