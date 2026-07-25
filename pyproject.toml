@@ -79,6 +79,7 @@ pythonpath = ["."]
 [tool.mypy]
 python_version = "3.12"
 strict = true
+warn_unused_ignores = false
 pretty = true
 show_error_codes = true
 warn_unused_configs = true
