@@ -5,7 +5,7 @@ from typing import Any
 
 try:
     import pystray  # type: ignore
-    from PIL import Image, ImageDraw
+    from PIL import Image, ImageDraw  # type: ignore
 except ImportError:
     pystray = None  # type: ignore
     Image = None  # type: ignore
