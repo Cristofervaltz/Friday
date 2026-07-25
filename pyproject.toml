@@ -72,7 +72,7 @@ include = ["src*"]
 [tool.black]
 line-length = 88
 target-version = ["py312"]
-extend-exclude = 'src/ui'
+extend-exclude = '''src/ui/.*'''
 
 [tool.ruff]
 line-length = 88
