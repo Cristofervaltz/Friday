@@ -80,8 +80,7 @@ class ReadFileTool(BaseTool):
                 return ToolResult(
                     success=False,
                     error=(
-                        f"File too large: {file_size} bytes "
-                        f"(max {self._max_file_size})"
+                        f"File too large: {file_size} bytes (max {self._max_file_size})"
                     ),
                 )
 

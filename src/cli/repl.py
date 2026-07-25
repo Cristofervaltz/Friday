@@ -407,7 +407,7 @@ class FridayREPL:
         """Handle the /voice command to capture and process microphone input."""
         print("\n🎤 Initializing microphone...\n")
         try:
-            provider = GoogleSpeechProvider()
+            provider = GoogleSpeechProvider(language=self._app.config.speech_language)
             print("Listening... (speak now)")
 
             # Listen and transcribe

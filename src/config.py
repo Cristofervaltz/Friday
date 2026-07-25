@@ -89,6 +89,7 @@ class AppConfig:
     paths: PathsConfig
     logging: LoggingConfig
     llm: LLMConfig
+    speech_language: str = "ru-RU"
 
     @classmethod
     def from_environment(cls, base_dir: Path | None = None) -> AppConfig:
@@ -155,6 +156,9 @@ class AppConfig:
             paths=paths,
             logging=logging_config,
             llm=llm_config,
+            speech_language=get_val(
+                "speech_language", "FRIDAY_SPEECH_LANGUAGE", "ru-RU"
+            ),
         )
 
 

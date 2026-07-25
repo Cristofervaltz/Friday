@@ -81,7 +81,7 @@ class EditFileTool(BaseTool):
                 "line_number": {
                     "type": "integer",
                     "description": (
-                        "Line number (1-indexed) for replace_lines " "or insert_after"
+                        "Line number (1-indexed) for replace_lines or insert_after"
                     ),
                 },
                 "line_numbers": {
@@ -160,8 +160,7 @@ class EditFileTool(BaseTool):
                 return ToolResult(
                     success=False,
                     error=(
-                        f"File too large: {file_size} bytes "
-                        f"(max {self._max_file_size})"
+                        f"File too large: {file_size} bytes (max {self._max_file_size})"
                     ),
                 )
 
