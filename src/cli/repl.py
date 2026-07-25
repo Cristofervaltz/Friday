@@ -57,6 +57,7 @@ class FridayREPL:
             pass
 
         from src.memory.conversation import ConversationMemory
+
         memory = ConversationMemory(
             system_prompt=(
                 "You are Friday (или Пятница), an autonomous AI assistant on a "
