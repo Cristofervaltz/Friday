@@ -102,7 +102,7 @@ def create_app() -> "FastAPI":
         except WebSocketDisconnect:
             pass
 
-    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.middleware.cors import CORSMiddleware  # type: ignore
 
     app.add_middleware(
         CORSMiddleware,
