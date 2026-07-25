@@ -86,11 +86,18 @@ graph TD
 
 ## 🚀 Installation
 
-### Prerequisites
-- **Python 3.12+**
-- **Ollama** *(Optional: Only if you want to run local models)*
+### For Regular Users (Recommended)
+You don't need Python or Node.js! Friday comes as a standalone native desktop application.
 
-### Quick Start
+1. Go to the [Releases](https://github.com/Cristofervaltz/Friday/releases) page.
+2. Download the latest `Friday_x.x.x_x64_setup.exe` installer.
+3. Run the installer and launch Friday.
+
+*Friday will run in your System Tray and bundle its own optimized AI engine (`friday-api.exe` sidecar).*
+
+### For Developers (Source Code)
+
+If you want to modify Friday or run the terminal REPL, you'll need **Python 3.12+** and **Node.js**.
 
 1. **Clone the repository:**
    ```bash
@@ -98,42 +105,34 @@ graph TD
    cd Friday
    ```
 
-2. **Create a virtual environment & install the core:**
+2. **Python Backend Setup:**
    ```bash
    python -m venv .venv
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    pip install --upgrade pip
-   
-   # Core installation
-   pip install -e .
+   pip install -e .[gui,speech,vision,rag]
    ```
 
-3. **Install optional subsystems (Recommended for full experience):**
+3. **Frontend (Tauri) Setup:**
    ```bash
-   # Install Voice support
-   pip install -e .[speech]
-   
-   # Install Vision (Screenshots) support
-   pip install -e .[vision]
-   
-   # Install RAG (Semantic Search) support
-   pip install -e .[rag]
-   
-   # Install GUI & Daemon support
-   pip install -e .[gui,daemon]
-   
-   # Or install ALL features at once:
-   pip install -e .[speech,vision,rag,gui,daemon]
+   cd src/ui
+   npm install
+   npm run tauri dev
    ```
 
-### Configuration
+---
 
-You can configure Friday directly via the **Desktop App Settings Modal**, which will save your preferences to a local `config.json`. 
-Alternatively, if you're running headless or in Terminal mode, you can copy the example environment file and add your keys:
+## ⚙️ Configuration
 
-```bash
-cp .env.example .env
-```
+Friday is designed to be user-friendly. **You do not need to touch `.env` files** unless you are developing!
+
+1. Open the **Friday Desktop App**.
+2. Click the **Settings (Gear)** icon in the sidebar.
+3. Choose your LLM Provider (e.g., `openai`, `ollama`, `openrouter`).
+4. Enter your API Key and Model name.
+5. Click **Save Settings**. 
+
+*Thanks to **Hot-Reloading**, Friday will apply your new configuration instantly without needing to restart!*
 
 <details>
 <summary><b>🔧 Configure OpenRouter (GPT-4, Claude)</b></summary>
@@ -159,31 +158,23 @@ FRIDAY_LLM_BASE_URL=http://localhost:11434
 
 ## 💻 Usage
 
-### 1. Terminal Mode
-Start the interactive REPL:
+### 1. Native Desktop App (Tauri + React)
+The easiest way to use Friday is via the Desktop Application.
+- **System Tray:** Friday runs quietly in the background. Right-click the tray icon to exit or open the Dashboard.
+- **Glassmorphism UI:** A beautiful, responsive interface that feels native to your OS.
+- **Standalone:** No terminal windows left open, the Python sidecar is completely hidden.
+
+### 2. Terminal Mode (For Hackers)
+If you prefer the command line, you can start the interactive REPL:
 
 ```bash
 friday
 ```
 
-Once inside the REPL, you can type your requests naturally, or use the following slash commands:
-
+Inside the REPL, you can use the following slash commands:
 - `/voice` - Activate microphone and speak your request.
 - `/clear` - Clear the current conversation context.
 - `/exit` or `/quit` - Safely shut down Friday.
-
-### 2. Native Desktop App (Tauri + React)
-Run Friday as a sleek, standalone desktop application powered by **Tauri**, featuring a gorgeous Glassmorphism UI:
-
-```bash
-cd src/ui
-npm run tauri dev
-```
-
-The desktop app bundles the Python backend into a highly optimized sidecar (`friday-api.exe`), meaning end-users don't need Python installed. It also features:
-- **In-App Settings:** Configure API keys, models, and providers directly via a beautiful UI modal.
-- **Hot-Reloading:** Change your LLM or API keys and apply them instantly without restarting the application!
-- **Native System Tray:** Runs quietly in the background and can be summoned anytime.
 
 ---
 
