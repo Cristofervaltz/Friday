@@ -84,6 +84,22 @@ class FridayApplication:
             self.shutdown()
             raise
 
+    def reload_config(self) -> None:
+        """Reload configuration and reinitialize components dynamically."""
+        if not self._initialized:
+            return
+        
+        if self._logger:
+            self._logger.info("Reloading configuration...")
+        else:
+            print("Reloading configuration...")
+            
+        self._load_configuration()
+        self._initialize_provider()
+        
+        if self._logger:
+            self._logger.info("Configuration and provider reloaded.")
+
     def run(self) -> int:
         """Run the Friday application.
 

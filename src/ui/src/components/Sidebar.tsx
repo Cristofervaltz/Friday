@@ -36,7 +36,11 @@ export function Sidebar({ onAction, connected }: SidebarProps) {
       </div>
 
       <div className="sidebar-footer">
-        <button className="action-btn icon-only" title="Settings" disabled>
+        <button 
+          className="action-btn icon-only" 
+          title="Settings" 
+          onClick={() => onAction('/settings')}
+        >
           <Settings size={20} />
         </button>
       </div>
