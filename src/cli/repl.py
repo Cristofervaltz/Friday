@@ -14,6 +14,8 @@ from src.tools import (
     ShellCommandTool,
     WriteFileTool,
 )
+from src.tools.search_tool import SemanticSearchTool
+from src.tools.vision_tool import ScreenshotTool
 
 if TYPE_CHECKING:
     from src.runtime import FridayApplication
@@ -42,6 +44,17 @@ class FridayREPL:
         self._registry.register(EditFileTool())
         self._registry.register(ListFilesTool())
         self._registry.register(ShellCommandTool())
+
+        # Register optional tools
+        try:
+            self._registry.register(ScreenshotTool())
+        except RuntimeError:
+            pass
+
+        try:
+            self._registry.register(SemanticSearchTool(workspace_path="."))
+        except RuntimeError:
+            pass
 
         # Initialize agent with tools
         self._agent = Agent(
