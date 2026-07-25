@@ -205,17 +205,17 @@ class CodeIndexer:
         docs = results.get("documents")
         if not docs or not docs[0]:
             return formatted_results
-            
+
         metas = results.get("metadatas")
         dists = results.get("distances")
 
         for i in range(len(docs[0])):
             doc = docs[0][i]
-            
+
             # Safely get metadata
             meta = metas[0][i] if metas and metas[0] else None
             file_path = str(meta.get("file", "unknown")) if meta else "unknown"
-            
+
             # Safely get distance
             dist = float(dists[0][i]) if dists and dists[0] else 0.0
 
