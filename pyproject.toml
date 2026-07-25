@@ -47,9 +47,16 @@ rag = [
   "chromadb>=0.4.0",
   "sentence-transformers>=2.0.0"
 ]
+daemon = [
+  "pystray>=0.19.3",
+  "pynput>=1.7.6",
+  "watchdog>=3.0.0",
+  "Pillow>=10.0.0"
+]
 
 [project.scripts]
 friday = "src.main:main"
+friday-daemon = "src.daemon.main:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

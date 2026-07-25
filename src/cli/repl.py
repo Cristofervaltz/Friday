@@ -92,6 +92,19 @@ class FridayREPL:
 
         return 0
 
+    def run_single_voice_task(self) -> None:
+        """Run a single voice command and exit."""
+        self._print_welcome()
+        self._handle_voice()
+        self._print_goodbye()
+
+    def run_single_task(self, text: str) -> None:
+        """Run a single text command and exit."""
+        self._print_welcome()
+        print(f"You: {text}")
+        self._handle_message(text)
+        self._print_goodbye()
+
     def _print_welcome(self) -> None:
         """Print welcome message."""
         print(f"\n{self._app.config.app_name} v{self._app.config.version}")
