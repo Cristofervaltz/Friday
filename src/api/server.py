@@ -136,9 +136,7 @@ def main() -> int:
     server_thread = threading.Thread(target=start_server, daemon=True)
     server_thread.start()
 
-    import webbrowser
-
-    webbrowser.open("http://127.0.0.1:8000")
+    # webbrowser.open("http://127.0.0.1:8000")
 
     print("API server running. Press Ctrl+C to stop.")
     try:

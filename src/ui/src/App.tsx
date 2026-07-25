@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Sidebar } from './components/Sidebar';
 import './App.css';
 
 interface Message {
@@ -14,6 +15,7 @@ function App() {
   const [ws, setWs] = useState<WebSocket | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -23,53 +25,85 @@ function App() {
     scrollToBottom();
   }, [messages]);
 
+  // Auto-resize textarea
   useEffect(() => {
-    // Connect to local FastAPI server
-    const websocket = new WebSocket('ws://127.0.0.1:8000/ws/chat');
-    
-    websocket.onopen = () => {
-      setConnected(true);
-      console.log('Connected to Friday API');
-    };
-    
-    websocket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'output') {
-          // Append to the last bot message or create a new one
-          setMessages(prev => {
-            const last = prev[prev.length - 1];
-            if (last && last.role === 'bot') {
-              // Update last message
-              return [
-                ...prev.slice(0, -1), 
-                { ...last, content: last.content + data.content }
-              ];
-            } else {
-              // Create new bot message
-              return [...prev, { id: Date.now().toString(), role: 'bot', content: data.content }];
-            }
-          });
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+    }
+  }, [input]);
+
+  useEffect(() => {
+    let reconnectTimeout: ReturnType<typeof setTimeout>;
+    let websocket: WebSocket | null = null;
+    let isMounted = true;
+
+    const connect = () => {
+      websocket = new WebSocket('ws://127.0.0.1:8000/ws/chat');
+      
+      websocket.onopen = () => {
+        if (!isMounted) return;
+        setConnected(true);
+        setWs(websocket);
+        console.log('Connected to Friday API');
+      };
+      
+      websocket.onmessage = (event) => {
+        if (!isMounted) return;
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'output') {
+            setMessages(prev => {
+              const last = prev[prev.length - 1];
+              if (last && last.role === 'bot') {
+                return [
+                  ...prev.slice(0, -1), 
+                  { ...last, content: last.content + data.content }
+                ];
+              } else {
+                return [...prev, { id: Date.now().toString(), role: 'bot', content: data.content }];
+              }
+            });
+          }
+        } catch (e) {
+          console.error('Failed to parse WS message', e);
         }
-      } catch (e) {
-        console.error('Failed to parse WS message', e);
-      }
+      };
+      
+      websocket.onclose = () => {
+        if (!isMounted) return;
+        setConnected(false);
+        setWs(null);
+        console.log('Disconnected from Friday API. Reconnecting in 2s...');
+        reconnectTimeout = setTimeout(connect, 2000);
+      };
+
+      websocket.onerror = () => {
+        websocket?.close();
+      };
     };
-    
-    websocket.onclose = () => {
-      setConnected(false);
-      console.log('Disconnected from Friday API');
-    };
-    
-    setWs(websocket);
+
+    connect();
     
     return () => {
-      websocket.close();
+      isMounted = false;
+      clearTimeout(reconnectTimeout);
+      if (websocket) {
+        websocket.onclose = null; // prevent reconnect on unmount
+        websocket.close();
+      }
     };
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAction = (cmd: string) => {
+    if (!ws || !connected) return;
+    const userMsg: Message = { id: Date.now().toString(), role: 'user', content: cmd };
+    setMessages(prev => [...prev, userMsg]);
+    ws.send(JSON.stringify({ type: 'message', content: cmd }));
+  };
+
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!input.trim() || !ws || !connected) return;
     
     // Add user message
@@ -81,8 +115,17 @@ function App() {
     setInput('');
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
   return (
     <div className="app-container">
+      <Sidebar onAction={handleAction} connected={connected} />
+      
       {/* Chat Panel */}
       <section className="chat-panel glass-panel">
         <header className="panel-header">
@@ -100,7 +143,7 @@ function App() {
                 <path d="M12 16v-4"></path>
                 <path d="M12 8h.01"></path>
               </svg>
-              <p>How can I help you today?</p>
+              <p>{connected ? "How can I help you today?" : "Starting background AI engine... (takes a few seconds)"}</p>
             </div>
           ) : (
             messages.map(msg => (
@@ -118,12 +161,14 @@ function App() {
         
         <div className="input-area">
           <form className="input-form" onSubmit={handleSubmit}>
-            <input 
-              type="text" 
+            <textarea
+              ref={textareaRef}
               value={input}
               onChange={e => setInput(e.target.value)}
-              placeholder="Ask Friday to run a task..."
+              onKeyDown={handleKeyDown}
+              placeholder={connected ? "Ask Friday to run a task... (Shift+Enter for newline)" : "Connecting to engine..."}
               disabled={!connected}
+              rows={1}
             />
             <button type="submit" disabled={!connected || !input.trim()}>
               Send
