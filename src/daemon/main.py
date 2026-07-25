@@ -1,7 +1,6 @@
 """Main entry point for the Friday Background Daemon."""
 
 import sys
-import threading
 import time
 
 from .events import EventMonitor

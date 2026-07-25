@@ -2,8 +2,7 @@
 
 import subprocess
 import sys
-import threading
-from typing import Callable, Any
+from typing import Any
 
 try:
     from pynput import keyboard  # type: ignore

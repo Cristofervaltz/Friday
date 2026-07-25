@@ -3,7 +3,6 @@
 import os
 import subprocess
 import sys
-import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -43,7 +42,7 @@ class TriggerHandler(FileSystemEventHandler):  # type: ignore[misc,valid-type]
         time.sleep(0.1)
 
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 task = f.read().strip()
 
             if not task:

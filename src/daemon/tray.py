@@ -1,7 +1,7 @@
 """System tray management for the Friday Daemon."""
 
-import threading
-from typing import Callable, Any
+from collections.abc import Callable
+from typing import Any
 
 try:
     import pystray  # type: ignore
