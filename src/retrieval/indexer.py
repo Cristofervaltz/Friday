@@ -7,7 +7,9 @@ from typing import Any
 try:
     import chromadb  # type: ignore[import-not-found]
     from chromadb.config import Settings  # type: ignore[import-not-found]
-    from sentence_transformers import SentenceTransformer  # type: ignore[import-not-found]
+    from sentence_transformers import (
+        SentenceTransformer,  # type: ignore[import-not-found]
+    )
 
     _RAG_AVAILABLE = True
 except ImportError:

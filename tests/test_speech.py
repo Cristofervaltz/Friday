@@ -4,12 +4,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.speech.base import BaseSpeechProvider
+from src.speech.google_provider import GoogleSpeechProvider
+
 # We need to mock the speech_recognition import for tests
 # because CI environments might not have PyAudio installed or audio devices
 sr = pytest.importorskip("speech_recognition")
-
-from src.speech.base import BaseSpeechProvider
-from src.speech.google_provider import GoogleSpeechProvider
 
 
 class MockSpeechProvider(BaseSpeechProvider):

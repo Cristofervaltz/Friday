@@ -35,7 +35,7 @@ class ScreenCapture:
         """Capture a screenshot of a specific monitor.
 
         Args:
-            monitor_index: The index of the monitor to capture (1-indexed). 
+            monitor_index: The index of the monitor to capture (1-indexed).
                 0 means all monitors.
 
         Returns:
@@ -65,7 +65,7 @@ class ScreenCapture:
 
         Args:
             monitor_index: The index of the monitor.
-            max_size: Optional maximum dimensions to resize the image to, 
+            max_size: Optional maximum dimensions to resize the image to,
                 preserving aspect ratio.
 
         Returns:
