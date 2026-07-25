@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on *Keep a Changelog*, and this project follows semantic versioning principles as it matures.
 
+## [0.7.0] - 2026-07-25
+### Added
+- Proactive Background Daemon (`src.daemon` module) enabling zero-GUI background execution.
+- System-wide global hotkey integration (`pynput`) triggered via `Ctrl+Alt+Space` to instantly launch voice tasks.
+- File-based trigger monitoring (`watchdog`) in `~/.friday/triggers/` for background task spawning.
+- System tray integration (`pystray`) for background daemon visibility.
+- Headless execution flags (`--voice-task` and `--task`) in CLI to bridge the lightweight daemon with the AI core.
+
 ## [0.6.0] - 2026-07-25
 
 ### Added (Stage 6: Spatial Perception)
