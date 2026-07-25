@@ -25,7 +25,7 @@ class FridayDaemon:
 
     def start(self) -> None:
         """Start the daemon loops."""
-        print(f"Starting {self.app.config.app_name} Daemon...")
+        print("Starting Friday Daemon...")
         self._running = True
         # Start background listeners
         self.hotkeys.start()

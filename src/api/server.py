@@ -59,7 +59,7 @@ def create_app() -> "FastAPI":
         def flush(self) -> None:
             pass
 
-    @app.websocket("/ws/chat")  # type: ignore[misc]
+    @app.websocket("/ws/chat")  # type: ignore
     async def websocket_endpoint(websocket: "WebSocket") -> None:
         await websocket.accept()
 
@@ -101,7 +101,7 @@ def create_app() -> "FastAPI":
         except WebSocketDisconnect:
             pass
 
-    @app.get("/health")  # type: ignore[misc]
+    @app.get("/health")  # type: ignore
     async def health() -> dict[str, str]:
         return {"status": "ok"}
 
@@ -111,7 +111,7 @@ def create_app() -> "FastAPI":
         app.mount("/", StaticFiles(directory=str(ui_dist), html=True), name="ui")
     else:
 
-        @app.get("/")  # type: ignore[misc]
+        @app.get("/")  # type: ignore
         async def root() -> HTMLResponse:
             return HTMLResponse(
                 "<h1>Friday UI Not Found</h1><p>Build the UI in src/ui first.</p>"
