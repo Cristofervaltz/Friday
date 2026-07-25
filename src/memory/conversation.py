@@ -19,7 +19,8 @@ class ConversationMemory:
             system_prompt: Optional initial system prompt.
             max_messages: Maximum number of non-system messages to retain.
         """
-        self.system_prompt = system_prompt
+        self.system_prompt: str | None = system_prompt
+
         self.max_messages = max_messages
         self._messages: list[dict[str, Any]] = []
 

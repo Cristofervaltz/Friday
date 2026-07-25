@@ -56,11 +56,21 @@ class FridayREPL:
         except RuntimeError:
             pass
 
+        from src.memory.conversation import ConversationMemory
+
+        memory = ConversationMemory(
+            system_prompt=(
+                "You are Friday (или Пятница), an autonomous AI assistant on a "
+                "developer's computer. You answer to both names."
+            )
+        )
+
         # Initialize agent with tools
         self._agent = Agent(
             llm_provider=app.provider,
             tool_registry=self._registry,
             max_iterations=10,
+            memory=memory,
         )
 
         # Keep manual tools for direct commands
@@ -407,7 +417,7 @@ class FridayREPL:
         """Handle the /voice command to capture and process microphone input."""
         print("\n🎤 Initializing microphone...\n")
         try:
-            provider = GoogleSpeechProvider()
+            provider = GoogleSpeechProvider(language=self._app.config.speech_language)
             print("Listening... (speak now)")
 
             # Listen and transcribe

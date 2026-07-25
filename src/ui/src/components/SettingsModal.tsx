@@ -117,6 +117,19 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 />
               </div>
 
+              <div className="form-group">
+                <label>Speech Language</label>
+                <select 
+                  value={settings.speech_language || 'ru-RU'}
+                  onChange={e => setSettings({...settings, speech_language: e.target.value})}
+                >
+                  <option value="ru-RU">Русский (Russian)</option>
+                  <option value="en-US">English (US)</option>
+                  <option value="fr-FR">Français (French)</option>
+                  <option value="de-DE">Deutsch (German)</option>
+                </select>
+              </div>
+
               {error && <div className="alert error">{error}</div>}
               {success && <div className="alert success">{success}</div>}
 

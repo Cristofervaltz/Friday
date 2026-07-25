@@ -84,10 +84,13 @@ def create_app() -> "FastAPI":
                         original_stdout = sys.stdout
                         sys.stdout = WSMockIO(websocket)  # type: ignore
                         try:
-                            # Use the REPL's message handling
-                            friday_repl._handle_message(msg_text)
+                            if msg_text.strip() == "/voice":
+                                friday_repl._handle_voice()
+                            else:
+                                # Use the REPL's message handling
+                                friday_repl._handle_message(msg_text)
                         except Exception as e:
-                            sys.stdout.write(f"Error: {str(e)}\\n")
+                            sys.stdout.write(f"Error: {str(e)}\n")
                         finally:
                             sys.stdout = original_stdout
                             # Signal completion
