@@ -158,8 +158,6 @@ class AppConfig:
         )
 
 
-
-
 def load_settings(base_dir: Path | None = None) -> dict[str, Any]:
     resolved_base_dir = base_dir or Path.cwd()
     paths = PathsConfig.from_base_dir(resolved_base_dir)
