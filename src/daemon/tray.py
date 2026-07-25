@@ -41,7 +41,7 @@ class TrayManager:
         return pystray.Menu(
             pystray.MenuItem("Friday Daemon Running", lambda: None, enabled=False),
             pystray.MenuItem("Open Dashboard", self._on_menu_dashboard),
-            pystray.MenuSeparator(),
+            pystray.Menu.SEPARATOR,
             pystray.MenuItem("Exit", self._on_menu_exit),
         )
 
