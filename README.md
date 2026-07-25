@@ -119,8 +119,11 @@ graph TD
    # Install RAG (Semantic Search) support
    pip install -e .[rag]
    
+   # Install GUI & Daemon support
+   pip install -e .[gui,daemon]
+   
    # Or install ALL features at once:
-   pip install -e .[speech,vision,rag]
+   pip install -e .[speech,vision,rag,gui,daemon]
    ```
 
 ### Configuration
@@ -155,18 +158,27 @@ FRIDAY_LLM_BASE_URL=http://localhost:11434
 
 ## 💻 Usage
 
+### 1. Terminal Mode
 Start the interactive REPL:
 
 ```bash
 friday
 ```
 
-### Available Commands
 Once inside the REPL, you can type your requests naturally, or use the following slash commands:
 
 - `/voice` - Activate microphone and speak your request.
 - `/clear` - Clear the current conversation context.
 - `/exit` or `/quit` - Safely shut down Friday.
+
+### 2. Daemon & Dashboard Mode
+Run Friday in the background with a System Tray icon and a beautiful Web Dashboard:
+
+```bash
+friday-daemon
+```
+
+*Right-click the Friday icon in your system tray and select **Dashboard** to interact with the AI via a modern web interface!*
 
 ---
 
