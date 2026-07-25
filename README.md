@@ -1,33 +1,58 @@
 <div align="center">
 
 # 🤖 Friday
-**Your local AI assistant for routine automation and development.**
+**The Next-Generation Local AI Assistant for Developers.**
 
-[![Python Version](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![CI Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
-[![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Python Version](https://img.shields.io/badge/python-3.12%2B-blue.svg?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg?style=for-the-badge)](https://github.com/psf/black)
+[![Checked with mypy](https://img.shields.io/badge/mypy-checked-blue?style=for-the-badge)](https://mypy-lang.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg?style=for-the-badge)](LICENSE)
 
-*«Friday is not just a chatbot. It is a reliable AI assistant living on your computer, with access to your local files and tools, capable of executing real tasks.»*
+*«Friday is not just a chatbot. It is a reliable, autonomous AI assistant living on your computer, deeply integrated with your local files, tools, and workflows.»*
+
+<br/>
+
+[Features](#-key-features) •
+[Architecture](#-architecture) •
+[Installation](#-installation) •
+[Usage](#-usage) •
+[Roadmap](#-roadmap)
 
 </div>
 
 ---
 
-## ✨ Key Features (v0.3.0)
+## ✨ Key Features
 
-- 🧠 **Autonomous Task Planner** — Friday can decompose complex tasks into steps and execute them sequentially, handling errors at each stage.
-- 🗣️ **Speech Recognition** — Communicate with Friday using your voice! Type `/voice` and the assistant will listen, using advanced noise filtering algorithms.
-- 🔌 **MCP (Model Context Protocol) Support** — Friday can safely connect external tools (databases, GitHub, web search) on the fly without changing the core source code.
-- 💾 **Long-term Memory** — Built-in `Conversation Memory` and `Workspace Memory` subsystems allow the assistant to "remember" your project context across sessions.
-- 🔄 **Local and Cloud LLMs** — Complete freedom of choice. Use the power of `gpt-4o` (via OpenAI/OpenRouter) or free local models via `Ollama`.
-- 🛡️ **Secure Architecture** — Strict control over command execution and file system access.
+Friday brings the power of agentic AI directly to your desktop, offering an unparalleled developer experience through a suite of advanced subsystems.
+
+### 🧠 Autonomous Execution Engine
+Friday doesn't just answer questions; it acts. The built-in **Task Planner** breaks down complex, ambiguous goals into actionable steps, executes them using local tools, and autonomously handles errors or unexpected behaviors along the way.
+
+### 👁️ Vision & Context Awareness
+Friday can see what you see. Using the `[vision]` subsystem, the assistant can take screenshots of your active monitors to understand visual context, debug UI issues, or analyze architecture diagrams.
+
+### 🗣️ Voice Interaction
+Type `/voice` and speak directly to Friday! Powered by advanced noise-filtering algorithms, the `[speech]` subsystem allows for hands-free, seamless communication during your workflow.
+
+### 📚 RAG & Semantic Code Search
+Never lose track of your codebase. Friday's `[rag]` subsystem uses a local `ChromaDB` vector database and `sentence-transformers` to index your workspace, allowing the AI to perform lightning-fast semantic searches across thousands of files.
+
+### 🔌 MCP (Model Context Protocol) Support
+Easily extend Friday's capabilities on the fly. Connect external databases, GitHub, Jira, or web search tools securely via MCP without altering the core source code.
+
+### 💾 Persistent Dual-Memory
+- **Conversation Memory:** Remembers the context of your current and past conversations.
+- **Workspace Memory:** Maintains an understanding of your project's structure, tech stack, and conventions.
+
+### 🔄 Flexible LLM Backends
+Total freedom of choice. Run completely offline and free using local models via **Ollama**, or leverage state-of-the-art frontier models like `gpt-4o` and `claude-3.5-sonnet` via **OpenRouter** or direct API keys.
 
 ---
 
 ## 🏗️ Architecture
 
-Friday is built on the principles of **reliability**, **clean code**, and **extensibility**.
+Friday is built on the principles of **reliability**, **modularity**, and **security**.
 
 ```mermaid
 graph TD
@@ -36,26 +61,36 @@ graph TD
     C -->|Decompose| D[Execution Engine]
     D --> E[Tools Registry]
     
+    subgraph Local Environment
     E --> F((Shell / Bash))
     E --> G((File System))
-    E --> H((MCP Plugins))
+    E --> V((Vision Capture))
+    E --> S((Semantic Search))
+    end
+    
+    E -.-> H((MCP Plugins))
     
     D --> I[LLM Abstraction Layer]
-    I --> J[OpenAI / OpenRouter]
+    subgraph Providers
+    I --> J[OpenRouter / OpenAI]
     I --> K[Ollama Local]
+    end
     
     B --> L[(Memory / Context)]
 ```
 
+> [!NOTE]  
+> **Security First:** Friday operates within strict boundaries. Command execution and file system access are logged, and potentially destructive actions can be configured to require explicit user approval.
+
 ---
 
-## 🚀 Installation and Setup
+## 🚀 Installation
 
-### Requirements
-- Python 3.12 or newer
-- [Ollama](https://ollama.com/) (optional, if you want to use local models)
+### Prerequisites
+- **Python 3.12+**
+- **Ollama** *(Optional: Only if you want to run local models)*
 
-### Steps
+### Quick Start
 
 1. **Clone the repository:**
    ```bash
@@ -63,63 +98,111 @@ graph TD
    cd Friday
    ```
 
-2. **Create a virtual environment and install dependencies:**
+2. **Create a virtual environment & install the core:**
    ```bash
    python -m venv .venv
-   source .venv/bin/activate  # For Windows: .venv\Scripts\activate
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    pip install --upgrade pip
    
-   # Basic installation:
+   # Core installation
    pip install -e .
-   
-   # Installation with voice command support:
+   ```
+
+3. **Install optional subsystems (Recommended for full experience):**
+   ```bash
+   # Install Voice support
    pip install -e .[speech]
-   ```
-
-3. **Configure environment variables:**
-   Copy the example configuration file:
-   ```bash
-   cp .env.example .env
-   ```
    
-   Open `.env` and configure your provider:
+   # Install Vision (Screenshots) support
+   pip install -e .[vision]
    
-   **For Ollama (Free, local):**
-   ```env
-   FRIDAY_LLM_PROVIDER=ollama
-   FRIDAY_LLM_MODEL=llama3
-   FRIDAY_LLM_BASE_URL=http://localhost:11434
+   # Install RAG (Semantic Search) support
+   pip install -e .[rag]
+   
+   # Or install ALL features at once:
+   pip install -e .[speech,vision,rag]
    ```
 
-   **For OpenRouter (Access to GPT-4, Claude):**
-   ```env
-   FRIDAY_LLM_PROVIDER=openrouter
-   FRIDAY_LLM_API_KEY=sk-or-v1-...
-   FRIDAY_LLM_MODEL=openai/gpt-4o
-   ```
+### Configuration
 
-4. **Run:**
-   ```bash
-   friday
-   ```
+Copy the example environment file and add your keys:
+
+```bash
+cp .env.example .env
+```
+
+<details>
+<summary><b>🔧 Configure OpenRouter (GPT-4, Claude)</b></summary>
+
+```env
+FRIDAY_LLM_PROVIDER=openrouter
+FRIDAY_LLM_API_KEY=sk-or-v1-...
+FRIDAY_LLM_MODEL=openai/gpt-4o
+```
+</details>
+
+<details>
+<summary><b>🔧 Configure Ollama (Local, Free)</b></summary>
+
+```env
+FRIDAY_LLM_PROVIDER=ollama
+FRIDAY_LLM_MODEL=llama3
+FRIDAY_LLM_BASE_URL=http://localhost:11434
+```
+</details>
+
+---
+
+## 💻 Usage
+
+Start the interactive REPL:
+
+```bash
+friday
+```
+
+### Available Commands
+Once inside the REPL, you can type your requests naturally, or use the following slash commands:
+
+- `/voice` - Activate microphone and speak your request.
+- `/clear` - Clear the current conversation context.
+- `/exit` or `/quit` - Safely shut down Friday.
+
+---
+
+## 🗺️ Roadmap
+
+Friday is actively evolving. We are currently implementing features across several major stages, including a background Daemon Mode, a Desktop GUI, and proactive CI/CD monitoring.
+
+Check out our full detailed [Future Roadmap](future_roadmap.md) to see what's coming next!
 
 ---
 
 ## 🛠️ For Developers
 
-Friday is designed to be easy to contribute to. All code is typed (`mypy`) and formatted (`black`, `ruff`).
+Contributions are highly welcome! We maintain strict code quality standards to ensure a robust foundation.
 
-### Code Quality Checks:
 ```bash
+# Install development dependencies
+pip install -e .[dev,speech,vision,rag]
+
+# Run the test suite
 python -m pytest
+
+# Check code formatting & linting
 black .
 ruff check .
+
+# Check static typing
 mypy src tests
 ```
 
+> [!TIP]
+> Ensure all GitHub Actions CI checks pass before submitting a Pull Request.
+
 ---
 
-## 📄 License
-
-This project is licensed under the [MIT License](LICENSE). 
-Made with ❤️ for developers.
+<div align="center">
+  <p>Made with ❤️ by the Friday Contributors.</p>
+  <p>Licensed under the <a href="LICENSE">MIT License</a>.</p>
+</div>

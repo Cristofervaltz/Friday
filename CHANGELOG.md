@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on *Keep a Changelog*, and this project follows semantic versioning principles as it matures.
 
+## [0.4.0] - 2026-07-25
+
+### Added
+- **Vision Subsystem** — ability to take desktop screenshots for contextual debugging (`ScreenshotTool`)
+- **RAG Subsystem** — local `ChromaDB` vector database with `all-MiniLM-L6-v2` embeddings for fast semantic code search (`SemanticSearchTool`)
+- **Code Indexer** — automatic chunking and indexing of local workspace files (`CodeIndexer`)
+
 ## [0.3.0] - 2026-07-23
 
 ### Added

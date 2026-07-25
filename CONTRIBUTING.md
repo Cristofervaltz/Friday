@@ -118,8 +118,7 @@ Reviews should be constructive, specific, and architecture-aware. The goal is no
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install --upgrade pip
-pip install -r requirements.txt
-pip install -e .
+pip install -e .[dev,speech,vision,rag]
 ```
 
 ## Local quality checks
