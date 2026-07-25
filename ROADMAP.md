@@ -1,50 +1,50 @@
 <div align="center">
 
-# 🗺️ Roadmap: Путь Friday к версии 1.0
+# 🗺️ Roadmap: Friday's Path to v1.0
 
-Этот документ описывает, как проект развивается от базового консольного скрипта до автономного ИИ-ассистента вашей операционной системы.
+This document describes how the project evolves from a basic console script into an autonomous AI assistant for your operating system.
 
 </div>
 
 ---
 
-## ✅ Реализованные этапы
+## ✅ Completed Stages
 
-### v0.0.1 - v0.1 — Фундамент
-* [x] Настройка архитектуры проекта, линтеров (Black, Ruff, MyPy).
-* [x] Абстракция LLM-провайдеров (OpenAI, OpenRouter, Ollama).
-* [x] Базовый терминальный интерфейс (REPL).
+### v0.0.1 - v0.1 — Foundation
+* [x] Setup project architecture, linters (Black, Ruff, MyPy).
+* [x] LLM provider abstraction (OpenAI, OpenRouter, Ollama).
+* [x] Basic terminal interface (REPL).
 
-### v0.2 — Память и Контекст
-* [x] `Conversation Memory` — сохранение истории диалогов.
-* [x] `Workspace Memory` — индексация и запоминание структуры проекта (пользовательских файлов).
+### v0.2 — Memory and Context
+* [x] `Conversation Memory` — preserving dialogue history.
+* [x] `Workspace Memory` — indexing and remembering the structure of the project (user files).
 
-### v0.3 — Экзекьютор и Расширяемость
-* [x] `Task Planner` — планирование сложных задач из нескольких шагов.
-* [x] `Execution Engine` — безопасное выполнение запланированных шагов.
-* [x] `Speech Subsystem` — распознавание голосовых команд.
-* [x] `MCP (Model Context Protocol)` — безопасная архитектура плагинов для подключения внешних инструментов.
+### v0.3 — Executor and Extensibility
+* [x] `Task Planner` — planning complex multi-step tasks.
+* [x] `Execution Engine` — safe execution of planned steps.
+* [x] `Speech Subsystem` — voice command recognition.
+* [x] `MCP (Model Context Protocol)` — secure plugin architecture for connecting external tools.
 
 ---
 
-## 🚀 Предстоящие глобальные этапы
+## 🚀 Upcoming Global Stages
 
-### Этап 6: Spatial Perception (Зрение и RAG)
-**Суть:** Дать Friday "глаза" и способность мгновенно ориентироваться в гигантских объемах данных.
-* [ ] Интеграция `vision` инструментов для чтения скриншотов.
-* [ ] Локальная векторная база данных (`ChromaDB`) для семантического RAG-поиска по коду проекта.
-* [ ] Способность ИИ "на лету" понимать контекст огромных репозиториев, не переполняя контекстное окно.
+### Stage 6: Spatial Perception (Vision & RAG)
+**Goal:** Give Friday "eyes" and the ability to instantly navigate massive amounts of data.
+* [ ] Integration of `vision` tools for reading screenshots.
+* [ ] Local vector database (`ChromaDB`) for semantic RAG search across the project code.
+* [ ] Ability for the AI to understand the context of huge repositories on the fly, without overflowing the context window.
 
-### Этап 7: Фоновый Демон и События (Proactive Agent)
-**Суть:** Отвязать Friday от консоли и научить его проявлять инициативу в фоне.
-* [ ] Выделение фоновой службы (Daemon), работающей в System Tray Windows/Mac.
-* [ ] Подсистема событий (`src/events/`) для реагирования на файловые триггеры (например, изменение кода) и расписание (cron-задачи).
-* [ ] Вызов Friday поверх всех окон глобальным хоткеем (в стиле Spotlight/Raycast).
+### Stage 7: Background Daemon and Events (Proactive Agent)
+**Goal:** Untie Friday from the console and teach it to take initiative in the background.
+* [ ] Isolation of a background service (Daemon) running in the Windows/Mac System Tray.
+* [ ] Event subsystem (`src/events/`) for reacting to file triggers (e.g., code changes) and schedules (cron jobs).
+* [ ] Summon Friday on top of all windows via a global hotkey (Spotlight/Raycast style).
 
-### Этап 8: UI и Взаимодействие
-**Суть:** Удобный визуальный интерфейс вместо сухой консоли.
-* [ ] Интерактивные веб-дашборды для отображения мыслей, планов и текущих фоновых задач агента.
-* [ ] Визуальное управление разрешениями (когда агент просит подтвердить удаление файла).
+### Stage 8: UI and Interaction
+**Goal:** A convenient visual interface instead of a dry console.
+* [ ] Interactive web dashboards for displaying the agent's thoughts, plans, and current background tasks.
+* [ ] Visual permission management (when the agent asks to confirm file deletion).
 
-## 🏆 v1.0 — Первый стабильный релиз
-Запуск полноценного, безопасного и красивого десктопного компаньона, готового к production-использованию разработчиками на ежедневной основе.
+## 🏆 v1.0 — First Stable Release
+Launch of a fully-featured, secure, and beautiful desktop companion, ready for daily production use by developers.
