@@ -1,69 +1,50 @@
-# Roadmap
+<div align="center">
 
-This roadmap describes the intended progression of Friday from a repository foundation into a reliable desktop automation companion for developers.
+# 🗺️ Roadmap: Путь Friday к версии 1.0
 
-## v0.0.1 — Foundation release
+Этот документ описывает, как проект развивается от базового консольного скрипта до автономного ИИ-ассистента вашей операционной системы.
 
-- Establish repository standards and contributor workflows.
-- Introduce centralized configuration and logging.
-- Define future-facing module boundaries.
-- Provide CI, tests, typing, linting, and formatting.
+</div>
 
-## v0.0.2 — Bootstrap lifecycle hardening
+---
 
-- Add structured startup and shutdown lifecycle services.
-- Introduce application state objects and service registration patterns.
-- Expand configuration validation and environment profiles.
-- Improve diagnostics and health reporting foundations.
+## ✅ Реализованные этапы
 
-## v0.0.3 — Internal contracts and observability
+### v0.0.1 - v0.1 — Фундамент
+* [x] Настройка архитектуры проекта, линтеров (Black, Ruff, MyPy).
+* [x] Абстракция LLM-провайдеров (OpenAI, OpenRouter, Ollama).
+* [x] Базовый терминальный интерфейс (REPL).
 
-- Define service interfaces for future subsystems.
-- Introduce richer structured logging conventions.
-- Add metrics and runtime event abstractions.
-- Expand test coverage for initialization and configuration failure modes.
+### v0.2 — Память и Контекст
+* [x] `Conversation Memory` — сохранение истории диалогов.
+* [x] `Workspace Memory` — индексация и запоминание структуры проекта (пользовательских файлов).
 
-## v0.1 — Desktop shell baseline
+### v0.3 — Экзекьютор и Расширяемость
+* [x] `Task Planner` — планирование сложных задач из нескольких шагов.
+* [x] `Execution Engine` — безопасное выполнение запланированных шагов.
+* [x] `Speech Subsystem` — распознавание голосовых команд.
+* [x] `MCP (Model Context Protocol)` — безопасная архитектура плагинов для подключения внешних инструментов.
 
-- Add a minimal desktop-facing shell or host process.
-- Establish UI boundary contracts without implementing advanced behavior.
-- Introduce safe application lifecycle coordination across modules.
-- Improve packaging and local development workflows.
+---
 
-## v0.2 — Safe automation abstractions
+## 🚀 Предстоящие глобальные этапы
 
-- Introduce internal action abstractions and safety boundaries.
-- Model auditable execution requests without enabling unrestricted command execution.
-- Define permission and confirmation patterns for future computer actions.
-- Add more robust error handling and activity tracing.
+### Этап 6: Spatial Perception (Зрение и RAG)
+**Суть:** Дать Friday "глаза" и способность мгновенно ориентироваться в гигантских объемах данных.
+* [ ] Интеграция `vision` инструментов для чтения скриншотов.
+* [ ] Локальная векторная база данных (`ChromaDB`) для семантического RAG-поиска по коду проекта.
+* [ ] Способность ИИ "на лету" понимать контекст огромных репозиториев, не переполняя контекстное окно.
 
-## v0.3 — Extensibility groundwork
+### Этап 7: Фоновый Демон и События (Proactive Agent)
+**Суть:** Отвязать Friday от консоли и научить его проявлять инициативу в фоне.
+* [ ] Выделение фоновой службы (Daemon), работающей в System Tray Windows/Mac.
+* [ ] Подсистема событий (`src/events/`) для реагирования на файловые триггеры (например, изменение кода) и расписание (cron-задачи).
+* [ ] Вызов Friday поверх всех окон глобальным хоткеем (в стиле Spotlight/Raycast).
 
-- Introduce extension contracts and module discovery strategy.
-- Define stable service APIs for optional components.
-- Prepare plugin governance rules, version compatibility, and validation.
-- Strengthen documentation around supported extension boundaries.
+### Этап 8: UI и Взаимодействие
+**Суть:** Удобный визуальный интерфейс вместо сухой консоли.
+* [ ] Интерактивные веб-дашборды для отображения мыслей, планов и текущих фоновых задач агента.
+* [ ] Визуальное управление разрешениями (когда агент просит подтвердить удаление файла).
 
-## v0.5 — Interaction layer foundations
-
-- Add structured user interaction surfaces.
-- Establish non-chat primary control workflows for the assistant.
-- Introduce status views, notifications, and event-driven UX concepts.
-- Expand developer tooling and release automation.
-
-## v1.0 — First stable release
-
-- Deliver a dependable desktop automation companion for developers.
-- Ship stable architecture boundaries and upgrade paths.
-- Provide well-documented operational behavior and contributor APIs.
-- Reach production-grade standards for safety, maintainability, and reliability.
-
-## Planning principles
-
-Friday will continue to evolve conservatively:
-
-- architecture before feature pressure
-- safety before convenience
-- maintainability before novelty
-- observability before complexity
-- explicit interfaces before hidden coupling
+## 🏆 v1.0 — Первый стабильный релиз
+Запуск полноценного, безопасного и красивого десктопного компаньона, готового к production-использованию разработчиками на ежедневной основе.
