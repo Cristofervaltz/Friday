@@ -269,12 +269,14 @@ def main() -> int:
     server_thread.start()
 
     import webbrowser
+
     webbrowser.open("http://127.0.0.1:8000")
-    
+
     print("API server running. Press Ctrl+C to stop.")
     try:
         while True:
             import time
+
             time.sleep(1)
     except KeyboardInterrupt:
         pass

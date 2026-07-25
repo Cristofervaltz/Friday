@@ -49,22 +49,7 @@ class TrayManager:
         self, icon: "pystray.Icon", item: "pystray.MenuItem"
     ) -> None:
         """Handler for the Dashboard menu item."""
-        try:
-            import webview  # type: ignore
-
-            # Run in a new thread so we don't block the tray icon loop
-            def open_webview() -> None:
-                webview.create_window(
-                    "Friday AI", "http://127.0.0.1:8000", width=1024, height=768
-                )
-                webview.start()
-
-            import threading
-
-            threading.Thread(target=open_webview, daemon=True).start()
-        except ImportError:
-            # Fallback to default browser
-            webbrowser.open("http://127.0.0.1:8000")
+        webbrowser.open("http://127.0.0.1:8000")
 
     def _on_menu_exit(self, icon: "pystray.Icon", item: "pystray.MenuItem") -> None:
         """Handler for the Exit menu item."""

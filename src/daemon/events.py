@@ -21,17 +21,25 @@ class TriggerHandler(FileSystemEventHandler):  # type: ignore[misc,valid-type]
 
     def on_created(self, event: FileSystemEvent) -> None:
         """Called when a file or directory is created."""
-        if event.is_directory or not event.src_path.endswith(".txt"):
+        if event.is_directory:
             return
 
-        self._process_trigger(event.src_path)
+        path = str(event.src_path)
+        if not path.endswith(".txt"):
+            return
+
+        self._process_trigger(path)
 
     def on_modified(self, event: FileSystemEvent) -> None:
         """Called when a file or directory is modified."""
-        if event.is_directory or not event.src_path.endswith(".txt"):
+        if event.is_directory:
             return
 
-        self._process_trigger(event.src_path)
+        path = str(event.src_path)
+        if not path.endswith(".txt"):
+            return
+
+        self._process_trigger(path)
 
     def _process_trigger(self, path: str) -> None:
         """Process a trigger file.
