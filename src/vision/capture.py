@@ -8,11 +8,11 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from PIL.Image import Image as PILImage
+    from PIL.Image import Image as PILImage  # type: ignore[import-not-found]
 
 try:
-    import mss
-    from PIL import Image
+    import mss  # type: ignore[import-not-found]
+    from PIL import Image  # type: ignore[import-not-found]
 
     _VISION_AVAILABLE = True
 except ImportError:
