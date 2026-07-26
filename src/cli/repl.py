@@ -57,16 +57,20 @@ class FridayREPL:
             pass
 
         # Register MCP plugins if configured
-        mcp_config_path = app.config.paths.data_dir / "mcp_servers.json" if app.config else None
+        mcp_config_path = (
+            app.config.paths.data_dir / "mcp_servers.json" if app.config else None
+        )
         if mcp_config_path and mcp_config_path.exists():
             try:
                 import json
                 from src.plugins.mcp_client import MCPClientManager
-                
+
                 with open(mcp_config_path, "r", encoding="utf-8") as f:
                     mcp_servers = json.load(f)
-                
-                for server_name, server_config in mcp_servers.get("mcpServers", {}).items():
+
+                for server_name, server_config in mcp_servers.get(
+                    "mcpServers", {}
+                ).items():
                     command = server_config.get("command")
                     args = server_config.get("args", [])
                     if command:
@@ -74,10 +78,14 @@ class FridayREPL:
                             manager = MCPClientManager(command=command, args=args)
                             self._registry.register_plugin(manager)
                             if self._app.logger:
-                                self._app.logger.info(f"Loaded MCP server: {server_name}")
+                                self._app.logger.info(
+                                    f"Loaded MCP server: {server_name}"
+                                )
                         except Exception as e:
                             if self._app.logger:
-                                self._app.logger.warning(f"Failed to load MCP server {server_name}: {e}")
+                                self._app.logger.warning(
+                                    f"Failed to load MCP server {server_name}: {e}"
+                                )
             except Exception as e:
                 if self._app.logger:
                     self._app.logger.error(f"Error parsing mcp_servers.json: {e}")
@@ -101,9 +109,7 @@ class FridayREPL:
             save_dir=save_dir,
         )
 
-        max_iterations = (
-            app.config.llm.max_iterations if app.config else 10
-        )
+        max_iterations = app.config.llm.max_iterations if app.config else 10
 
         # Initialize agent with tools
         self._agent = Agent(
@@ -419,7 +425,7 @@ class FridayREPL:
         """
         if not goal:
             return
-            
+
         from src.planner.planner import TaskPlanner
         from src.planner.executor import PlanExecutor
 
@@ -428,22 +434,28 @@ class FridayREPL:
             self._agent.memory.add_user_message(f"/plan {goal}")
             self._agent.memory.add_assistant_message("Thinking about a plan... 🧠")
             plan = planner.generate_plan(goal)
-            
+
             plan_str = f"**Goal:** {plan.goal}\n\n"
             for i, task in enumerate(plan.tasks, 1):
                 plan_str += f"{i}. {task.description}\n"
-            
-            self._agent.memory.add_assistant_message(f"**Generated Plan:**\n\n{plan_str}\n\nExecuting plan... 🚀")
+
+            self._agent.memory.add_assistant_message(
+                f"**Generated Plan:**\n\n{plan_str}\n\nExecuting plan... 🚀"
+            )
 
             executor = PlanExecutor(self._agent)
             success = executor.execute_plan(plan)
             if success:
-                self._agent.memory.add_assistant_message("✅ Plan executed successfully.")
+                self._agent.memory.add_assistant_message(
+                    "✅ Plan executed successfully."
+                )
             else:
                 self._agent.memory.add_assistant_message("❌ Plan execution failed.")
 
         except Exception as exc:
-            self._agent.memory.add_assistant_message(f"❌ Error generating/executing plan: {exc}")
+            self._agent.memory.add_assistant_message(
+                f"❌ Error generating/executing plan: {exc}"
+            )
             self._app.logger.exception("Error in /plan command")
 
     def _handle_voice(self) -> None:

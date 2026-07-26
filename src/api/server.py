@@ -50,35 +50,32 @@ def _handle_voice_for_ws(
 
         # Send transcribed text back to the UI as a special message type
         asyncio.run_coroutine_threadsafe(
-            websocket.send_text(
-                json.dumps({"type": "voice_result", "text": text})
-            ),
+            websocket.send_text(json.dumps({"type": "voice_result", "text": text})),
             loop,
         )
     except RuntimeError as exc:
         asyncio.run_coroutine_threadsafe(
-            websocket.send_text(
-                json.dumps({"type": "voice_error", "error": str(exc)})
-            ),
+            websocket.send_text(json.dumps({"type": "voice_error", "error": str(exc)})),
             loop,
         )
     except TimeoutError:
         asyncio.run_coroutine_threadsafe(
             websocket.send_text(
-                json.dumps({
-                    "type": "voice_error",
-                    "error": "No speech detected. Microphone timed out.",
-                })
+                json.dumps(
+                    {
+                        "type": "voice_error",
+                        "error": "No speech detected. Microphone timed out.",
+                    }
+                )
             ),
             loop,
         )
     except Exception as exc:
         asyncio.run_coroutine_threadsafe(
-            websocket.send_text(
-                json.dumps({"type": "voice_error", "error": str(exc)})
-            ),
+            websocket.send_text(json.dumps({"type": "voice_error", "error": str(exc)})),
             loop,
         )
+
 
 def create_app() -> "FastAPI":
     """Create the FastAPI application."""
@@ -102,19 +99,23 @@ def create_app() -> "FastAPI":
     async def websocket_endpoint(websocket: "WebSocket") -> None:
         await websocket.accept()
         loop = asyncio.get_event_loop()
-        
+
         # Subscribe to agent memory changes to stream updates live
         def on_memory_change() -> None:
             chat_id = friday_repl._agent.memory.chat_id
             asyncio.run_coroutine_threadsafe(
-                websocket.send_text(json.dumps({
-                    "type": "chat_history", 
-                    "chat_id": chat_id, 
-                    "messages": friday_repl._agent.memory.get_messages()
-                })),
+                websocket.send_text(
+                    json.dumps(
+                        {
+                            "type": "chat_history",
+                            "chat_id": chat_id,
+                            "messages": friday_repl._agent.memory.get_messages(),
+                        }
+                    )
+                ),
                 loop,
             )
-        
+
         friday_repl._agent.memory.add_on_change_callback(on_memory_change)
 
         try:
@@ -124,20 +125,26 @@ def create_app() -> "FastAPI":
 
                 if payload.get("type") == "get_chats":
                     chats = friday_repl._agent.memory.get_all_chats()
-                    await websocket.send_text(json.dumps({"type": "chats_list", "chats": chats}))
-                    
+                    await websocket.send_text(
+                        json.dumps({"type": "chats_list", "chats": chats})
+                    )
+
                 elif payload.get("type") == "switch_chat":
                     chat_id = payload.get("chat_id")
                     if chat_id:
                         friday_repl._agent.memory.switch_chat(chat_id)
                         # Also send back the messages for this chat
-                        await websocket.send_text(json.dumps({
-                            "type": "chat_history",
-                            "chat_id": chat_id,
-                            "title": friday_repl._agent.memory.title,
-                            "messages": friday_repl._agent.memory._messages
-                        }))
-                        
+                        await websocket.send_text(
+                            json.dumps(
+                                {
+                                    "type": "chat_history",
+                                    "chat_id": chat_id,
+                                    "title": friday_repl._agent.memory.title,
+                                    "messages": friday_repl._agent.memory._messages,
+                                }
+                            )
+                        )
+
                 elif payload.get("type") == "get_workspaces":
                     ws_file = friday_app.config.paths.data_dir / "workspaces.json"
                     workspaces = []
@@ -146,8 +153,12 @@ def create_app() -> "FastAPI":
                             workspaces = json.loads(ws_file.read_text(encoding="utf-8"))
                         except Exception:
                             pass
-                    await websocket.send_text(json.dumps({"type": "workspaces_list", "workspaces": workspaces}))
-                    
+                    await websocket.send_text(
+                        json.dumps(
+                            {"type": "workspaces_list", "workspaces": workspaces}
+                        )
+                    )
+
                 elif payload.get("type") == "rename_chat":
                     data_obj = json.loads(payload.get("payload", "{}"))
                     chat_id = data_obj.get("id")
@@ -155,55 +166,104 @@ def create_app() -> "FastAPI":
                     if chat_id and title:
                         friday_repl._agent.memory.rename_chat(chat_id, title)
                         chats = friday_repl._agent.memory.get_all_chats()
-                        await websocket.send_text(json.dumps({"type": "chats_list", "chats": chats}))
-                        
+                        await websocket.send_text(
+                            json.dumps({"type": "chats_list", "chats": chats})
+                        )
+
                 elif payload.get("type") == "delete_chat":
                     chat_id = payload.get("chat_id")
                     if chat_id:
                         friday_repl._agent.memory.delete_chat(chat_id)
                         chats = friday_repl._agent.memory.get_all_chats()
-                        await websocket.send_text(json.dumps({"type": "chats_list", "chats": chats}))
+                        await websocket.send_text(
+                            json.dumps({"type": "chats_list", "chats": chats})
+                        )
 
                 elif payload.get("type") == "set_workspace":
                     import os
+
                     path = payload.get("path")
                     chat_id = friday_repl._agent.memory.current_chat_id
-                    
+
                     if path == "":
                         os.chdir(friday_app.config.paths.app_home_dir)
                         if chat_id:
-                            friday_repl._agent.memory.add_message("system", "The user cleared the workspace. You are no longer constrained to a specific project folder.", chat_id=chat_id)
+                            friday_repl._agent.memory.add_message(
+                                "system",
+                                "The user cleared the workspace. You are no longer constrained to a specific project folder.",
+                                chat_id=chat_id,
+                            )
                             # add visual message for user too
-                            friday_repl._agent.memory.add_message("assistant", "📁 Workspace cleared.", chat_id=chat_id)
-                            await websocket.send_text(json.dumps({"type": "chat_history", "chat_id": chat_id, "messages": friday_repl._agent.memory.get_chat(chat_id)["messages"]}))
-                        await websocket.send_text(json.dumps({"type": "workspace_set", "path": ""}))
-                    
+                            friday_repl._agent.memory.add_message(
+                                "assistant", "📁 Workspace cleared.", chat_id=chat_id
+                            )
+                            await websocket.send_text(
+                                json.dumps(
+                                    {
+                                        "type": "chat_history",
+                                        "chat_id": chat_id,
+                                        "messages": friday_repl._agent.memory.get_chat(
+                                            chat_id
+                                        )["messages"],
+                                    }
+                                )
+                            )
+                        await websocket.send_text(
+                            json.dumps({"type": "workspace_set", "path": ""})
+                        )
+
                     elif path and Path(path).exists():
                         os.chdir(path)
                         try:
-                            search_tool = friday_repl._agent.tools.get_tool("semantic_search")
+                            search_tool = friday_repl._agent.tools.get_tool(
+                                "semantic_search"
+                            )
                             search_tool.workspace_path = path
                             search_tool._indexer = None
                         except KeyError:
                             pass
-                        
+
                         if chat_id:
-                            friday_repl._agent.memory.add_message("system", f"The user changed the workspace directory to: {path}. All file operations should be relative to this directory.", chat_id=chat_id)
-                            friday_repl._agent.memory.add_message("assistant", f"📁 Workspace set to: `{path}`", chat_id=chat_id)
-                            await websocket.send_text(json.dumps({"type": "chat_history", "chat_id": chat_id, "messages": friday_repl._agent.memory.get_chat(chat_id)["messages"]}))
-                            
+                            friday_repl._agent.memory.add_message(
+                                "system",
+                                f"The user changed the workspace directory to: {path}. All file operations should be relative to this directory.",
+                                chat_id=chat_id,
+                            )
+                            friday_repl._agent.memory.add_message(
+                                "assistant",
+                                f"📁 Workspace set to: `{path}`",
+                                chat_id=chat_id,
+                            )
+                            await websocket.send_text(
+                                json.dumps(
+                                    {
+                                        "type": "chat_history",
+                                        "chat_id": chat_id,
+                                        "messages": friday_repl._agent.memory.get_chat(
+                                            chat_id
+                                        )["messages"],
+                                    }
+                                )
+                            )
+
                         # Save to recent workspaces
                         ws_file = friday_app.config.paths.data_dir / "workspaces.json"
                         workspaces = []
                         if ws_file.exists():
                             try:
-                                workspaces = json.loads(ws_file.read_text(encoding="utf-8"))
+                                workspaces = json.loads(
+                                    ws_file.read_text(encoding="utf-8")
+                                )
                             except Exception:
                                 pass
                         if path not in workspaces:
                             workspaces.insert(0, path)
-                        ws_file.write_text(json.dumps(workspaces[:10]), encoding="utf-8")
-                        await websocket.send_text(json.dumps({"type": "workspace_set", "path": path}))
+                        ws_file.write_text(
+                            json.dumps(workspaces[:10]), encoding="utf-8"
+                        )
+                        await websocket.send_text(
+                            json.dumps({"type": "workspace_set", "path": path})
+                        )
 
                 elif payload.get("type") == "message":
                     user_text = payload.get("content", "")
@@ -222,7 +282,9 @@ def create_app() -> "FastAPI":
                                 friday_repl._handle_message(msg_text)
                         except Exception as e:
                             # Add error to agent memory directly
-                            friday_repl._agent.memory.add_assistant_message(f"Error: {str(e)}")
+                            friday_repl._agent.memory.add_assistant_message(
+                                f"Error: {str(e)}"
+                            )
                         finally:
                             # Signal completion
                             asyncio.run_coroutine_threadsafe(

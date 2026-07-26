@@ -223,7 +223,11 @@ class FridayApplication:
                 gemini_config = self._config.llm
                 if not gemini_config.base_url:
                     from dataclasses import replace
-                    gemini_config = replace(gemini_config, base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
+
+                    gemini_config = replace(
+                        gemini_config,
+                        base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                    )
                 self._provider = OpenAIProvider.from_config(gemini_config)
             elif provider_type == "openrouter":
                 self._provider = OpenRouterProvider.from_config(self._config.llm)
@@ -232,9 +236,13 @@ class FridayApplication:
                 ollama_config = self._config.llm
                 if not ollama_config.base_url:
                     from dataclasses import replace
-                    ollama_config = replace(ollama_config, base_url="http://localhost:11434/v1")
+
+                    ollama_config = replace(
+                        ollama_config, base_url="http://localhost:11434/v1"
+                    )
                 if not ollama_config.api_key:
                     from dataclasses import replace
+
                     ollama_config = replace(ollama_config, api_key="ollama")
                 self._provider = OpenAIProvider.from_config(ollama_config)
             else:

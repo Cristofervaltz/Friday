@@ -33,7 +33,7 @@ class ConversationMemory:
         self.title = "New Chat"
         self._messages: list[dict[str, Any]] = []
         self._on_change_callbacks = []
-        
+
         if self.save_dir:
             self.save_dir.mkdir(parents=True, exist_ok=True)
             self.load()
@@ -135,7 +135,8 @@ class ConversationMemory:
         return len(self._messages)
 
     def load(self) -> None:
-        if not self.save_dir: return
+        if not self.save_dir:
+            return
         file_path = self.save_dir / f"{self.chat_id}.json"
         if file_path.exists():
             try:
@@ -147,20 +148,23 @@ class ConversationMemory:
                 pass
 
     def save(self) -> None:
-        if not self.save_dir: return
+        if not self.save_dir:
+            return
         # Generate title from first user message if title is default
         if self.title == "New Chat":
             for msg in self._messages:
                 if msg.get("role") == "user":
-                    self.title = msg.get("content", "New Chat")[:30] + ("..." if len(msg.get("content", "")) > 30 else "")
+                    self.title = msg.get("content", "New Chat")[:30] + (
+                        "..." if len(msg.get("content", "")) > 30 else ""
+                    )
                     break
-                    
+
         file_path = self.save_dir / f"{self.chat_id}.json"
         data = {
             "id": self.chat_id,
             "title": self.title,
             "updated_at": int(time.time()),
-            "messages": self._messages
+            "messages": self._messages,
         }
         try:
             with open(file_path, "w", encoding="utf-8") as f:
@@ -175,23 +179,27 @@ class ConversationMemory:
         self.load()
 
     def get_all_chats(self) -> list[dict[str, Any]]:
-        if not self.save_dir: return []
+        if not self.save_dir:
+            return []
         chats = []
         for file_path in self.save_dir.glob("*.json"):
             try:
                 with open(file_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    chats.append({
-                        "id": data.get("id"),
-                        "title": data.get("title", "New Chat"),
-                        "updated_at": data.get("updated_at", 0)
-                    })
+                    chats.append(
+                        {
+                            "id": data.get("id"),
+                            "title": data.get("title", "New Chat"),
+                            "updated_at": data.get("updated_at", 0),
+                        }
+                    )
             except Exception:
                 pass
         return sorted(chats, key=lambda x: x["updated_at"], reverse=True)
 
     def rename_chat(self, chat_id: str, new_title: str) -> None:
-        if not self.save_dir: return
+        if not self.save_dir:
+            return
         file_path = self.save_dir / f"{chat_id}.json"
         if file_path.exists():
             try:
@@ -200,7 +208,7 @@ class ConversationMemory:
                 data["title"] = new_title
                 with open(file_path, "w", encoding="utf-8") as f:
                     json.dump(data, f, ensure_ascii=False, indent=2)
-                
+
                 # If we are renaming the active chat, update the title in memory
                 if self.chat_id == chat_id:
                     self.title = new_title
@@ -208,7 +216,8 @@ class ConversationMemory:
                 pass
 
     def delete_chat(self, chat_id: str) -> None:
-        if not self.save_dir: return
+        if not self.save_dir:
+            return
         file_path = self.save_dir / f"{chat_id}.json"
         if file_path.exists():
             try:

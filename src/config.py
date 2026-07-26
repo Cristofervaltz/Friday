@@ -35,8 +35,9 @@ class PathsConfig:
     def from_base_dir(cls, base_dir: Path) -> PathsConfig:
         """Build path configuration from a repository or runtime base directory."""
         from os import getenv
+
         resolved_base_dir = base_dir.expanduser().resolve()
-        
+
         # Use FRIDAY_HOME if set (useful for tests), otherwise use global home dir
         env_home = getenv("FRIDAY_HOME")
         if env_home:
@@ -44,7 +45,7 @@ class PathsConfig:
         else:
             # Use a stable global app home directory so settings aren't lost when launched from different CWDs
             app_home = Path.home() / ".friday"
-            
+
         return cls(
             base_dir=resolved_base_dir,
             app_home=app_home,
@@ -161,7 +162,9 @@ class AppConfig:
             model=get_val("llm_model", "FRIDAY_LLM_MODEL"),
             timeout=float(get_val("llm_timeout", "FRIDAY_LLM_TIMEOUT", "30.0")),
             system_prompt=get_val("system_prompt", "FRIDAY_SYSTEM_PROMPT"),
-            max_iterations=int(get_val("max_iterations", "FRIDAY_MAX_ITERATIONS", "10")),
+            max_iterations=int(
+                get_val("max_iterations", "FRIDAY_MAX_ITERATIONS", "10")
+            ),
         )
 
         return cls(
@@ -173,7 +176,9 @@ class AppConfig:
             paths=paths,
             logging=logging_config,
             llm=llm_config,
-            speech_language=get_val("speech_language", "FRIDAY_SPEECH_LANGUAGE", "ru-RU"),
+            speech_language=get_val(
+                "speech_language", "FRIDAY_SPEECH_LANGUAGE", "ru-RU"
+            ),
             theme=get_val("theme", "FRIDAY_THEME", "dark"),
             accent_color=get_val("accent_color", "FRIDAY_ACCENT_COLOR"),
         )

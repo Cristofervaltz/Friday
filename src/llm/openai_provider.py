@@ -134,7 +134,9 @@ class OpenAIProvider(BaseLLMProvider):
                 "Retrying without tools (useful for local models)."
             )
             # Fallback to text generation
-            prompt = "\n".join(f"{m.get('role', 'user')}: {m.get('content', '')}" for m in messages)
+            prompt = "\n".join(
+                f"{m.get('role', 'user')}: {m.get('content', '')}" for m in messages
+            )
             try:
                 fallback_payload = self._send_request(prompt)
                 fallback_text = self._extract_text(fallback_payload)
@@ -275,7 +277,9 @@ class OpenAIProvider(BaseLLMProvider):
     def _extract_text(self, payload: dict[str, Any]) -> str:
         choices = payload.get("choices")
         if not isinstance(choices, list) or not choices:
-            raise InvalidResponseError(f"LLM response did not include choices. Payload: {payload}")
+            raise InvalidResponseError(
+                f"LLM response did not include choices. Payload: {payload}"
+            )
 
         first_choice = choices[0]
         if not isinstance(first_choice, dict):
