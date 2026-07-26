@@ -11,7 +11,6 @@ from src.config import AppConfig
 from src.llm import (
     BaseLLMProvider,
     ConfigurationError,
-    OllamaProvider,
     OpenAIProvider,
     OpenRouterProvider,
 )
@@ -232,7 +231,8 @@ class FridayApplication:
             elif provider_type == "openrouter":
                 self._provider = OpenRouterProvider.from_config(self._config.llm)
             elif provider_type == "ollama":
-                # Use Ollama's native OpenAI compatibility endpoint to support Function Calling
+                # Use Ollama's native OpenAI compatibility endpoint to support
+                # Function Calling
                 ollama_config = self._config.llm
                 if not ollama_config.base_url:
                     from dataclasses import replace

@@ -43,7 +43,8 @@ class PathsConfig:
         if env_home:
             app_home = Path(env_home).expanduser().resolve()
         else:
-            # Use a stable global app home directory so settings aren't lost when launched from different CWDs
+            # Use a stable global app home directory so settings aren't lost when
+            # launched from different CWDs
             app_home = Path.home() / ".friday"
 
         return cls(

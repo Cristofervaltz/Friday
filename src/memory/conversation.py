@@ -140,7 +140,7 @@ class ConversationMemory:
         file_path = self.save_dir / f"{self.chat_id}.json"
         if file_path.exists():
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(file_path, encoding="utf-8") as f:
                     data = json.load(f)
                     self._messages = data.get("messages", [])
                     self.title = data.get("title", "New Chat")
@@ -184,7 +184,7 @@ class ConversationMemory:
         chats = []
         for file_path in self.save_dir.glob("*.json"):
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(file_path, encoding="utf-8") as f:
                     data = json.load(f)
                     chats.append(
                         {
@@ -203,7 +203,7 @@ class ConversationMemory:
         file_path = self.save_dir / f"{chat_id}.json"
         if file_path.exists():
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(file_path, encoding="utf-8") as f:
                     data = json.load(f)
                 data["title"] = new_title
                 with open(file_path, "w", encoding="utf-8") as f:

@@ -190,7 +190,8 @@ def create_app() -> "FastAPI":
                         if chat_id:
                             friday_repl._agent.memory.add_message(
                                 "system",
-                                "The user cleared the workspace. You are no longer constrained to a specific project folder.",
+                                "The user cleared the workspace. You are no longer "
+                                "constrained to a specific project folder.",
                                 chat_id=chat_id,
                             )
                             # add visual message for user too
@@ -226,7 +227,9 @@ def create_app() -> "FastAPI":
                         if chat_id:
                             friday_repl._agent.memory.add_message(
                                 "system",
-                                f"The user changed the workspace directory to: {path}. All file operations should be relative to this directory.",
+                                f"The user changed the workspace directory to: {path}. "
+                                "All file operations should be relative "
+                                "to this directory.",
                                 chat_id=chat_id,
                             )
                             friday_repl._agent.memory.add_message(

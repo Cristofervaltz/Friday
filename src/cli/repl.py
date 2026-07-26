@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from src.core import Agent, ToolRegistry
-from src.planner import PlanExecutor, TaskPlanner
 from src.speech import GoogleSpeechProvider
 from src.tools import (
     EditFileTool,
@@ -63,9 +62,10 @@ class FridayREPL:
         if mcp_config_path and mcp_config_path.exists():
             try:
                 import json
+
                 from src.plugins.mcp_client import MCPClientManager
 
-                with open(mcp_config_path, "r", encoding="utf-8") as f:
+                with open(mcp_config_path, encoding="utf-8") as f:
                     mcp_servers = json.load(f)
 
                 for server_name, server_config in mcp_servers.get(
@@ -426,8 +426,8 @@ class FridayREPL:
         if not goal:
             return
 
-        from src.planner.planner import TaskPlanner
         from src.planner.executor import PlanExecutor
+        from src.planner.planner import TaskPlanner
 
         planner = TaskPlanner(self._agent.llm)
         try:

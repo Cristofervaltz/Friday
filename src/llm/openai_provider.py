@@ -149,7 +149,7 @@ class OpenAIProvider(BaseLLMProvider):
                     duration_ms,
                 )
                 raise
-        except Exception as exc:
+        except Exception:
             duration_ms = (perf_counter() - started_at) * 1000
             self._logger.exception(
                 "LLM request with tools failed unexpectedly model=%s duration_ms=%.2f",

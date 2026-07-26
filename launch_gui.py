@@ -1,8 +1,8 @@
-import threading
-import webview
-import time
-import os
 import subprocess
+import threading
+import time
+
+import webview
 
 
 def start_server():
