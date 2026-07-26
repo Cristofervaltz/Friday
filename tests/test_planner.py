@@ -142,7 +142,6 @@ def test_plan_executor_success() -> None:
     assert success is True
     assert plan.is_completed is True
     assert len(agent.run_calls) == 2
-    assert agent.cleared is True
     assert "Step 1" in agent.run_calls[0]
     assert "Step 2" in agent.run_calls[1]
 

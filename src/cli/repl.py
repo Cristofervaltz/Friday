@@ -56,20 +56,60 @@ class FridayREPL:
         except RuntimeError:
             pass
 
+        # Register MCP plugins if configured
+        mcp_config_path = app.config.paths.data_dir / "mcp_servers.json" if app.config else None
+        if mcp_config_path and mcp_config_path.exists():
+            try:
+                import json
+                from src.plugins.mcp_client import MCPClientManager
+                
+                with open(mcp_config_path, "r", encoding="utf-8") as f:
+                    mcp_servers = json.load(f)
+                
+                for server_name, server_config in mcp_servers.get("mcpServers", {}).items():
+                    command = server_config.get("command")
+                    args = server_config.get("args", [])
+                    if command:
+                        try:
+                            manager = MCPClientManager(command=command, args=args)
+                            self._registry.register_plugin(manager)
+                            if self._app.logger:
+                                self._app.logger.info(f"Loaded MCP server: {server_name}")
+                        except Exception as e:
+                            if self._app.logger:
+                                self._app.logger.warning(f"Failed to load MCP server {server_name}: {e}")
+            except Exception as e:
+                if self._app.logger:
+                    self._app.logger.error(f"Error parsing mcp_servers.json: {e}")
+
         from src.memory.conversation import ConversationMemory
 
+        save_dir = app.config.paths.data_dir / "chats" if app.config else None
+
+        default_system_prompt = (
+            "You are Friday (или Пятница), an autonomous AI assistant on a "
+            "developer's computer. You answer to both names."
+        )
+        system_prompt = (
+            app.config.llm.system_prompt
+            if app.config and app.config.llm.system_prompt
+            else default_system_prompt
+        )
+
         memory = ConversationMemory(
-            system_prompt=(
-                "You are Friday (или Пятница), an autonomous AI assistant on a "
-                "developer's computer. You answer to both names."
-            )
+            system_prompt=system_prompt,
+            save_dir=save_dir,
+        )
+
+        max_iterations = (
+            app.config.llm.max_iterations if app.config else 10
         )
 
         # Initialize agent with tools
         self._agent = Agent(
             llm_provider=app.provider,
             tool_registry=self._registry,
-            max_iterations=10,
+            max_iterations=max_iterations,
             memory=memory,
         )
 
@@ -196,17 +236,17 @@ class FridayREPL:
         self._handle_message(user_input)
 
     def _handle_message(self, message: str) -> None:
-        """Send message to Agent (with function calling) and print response.
+        """Send message to Agent (with function calling).
 
         Args:
             message: User's message.
         """
         try:
             # Use agent instead of direct LLM call
-            response = self._agent.run(message)
-            print(f"\nFriday: {response}\n")
+            # The agent automatically adds its response to memory
+            self._agent.run(message)
         except Exception as exc:
-            print(f"\n❌ Error: {exc}\n")
+            self._agent.memory.add_assistant_message(f"❌ Error: {exc}")
             self._app.logger.exception("REPL error during message handling")
 
     def _handle_read_file(self, path: str) -> None:
@@ -375,42 +415,35 @@ class FridayREPL:
         """Handle the /plan command to generate and execute a multi-step plan.
 
         Args:
-            goal: The user's requested goal.
+            goal: The overarching user goal.
         """
         if not goal:
-            print(
-                "\n❌ Error: Please provide a goal "
-                "(e.g. /plan write tests for planner)\n"
-            )
             return
+            
+        from src.planner.planner import TaskPlanner
+        from src.planner.executor import PlanExecutor
 
-        print("\n⏳ Generating plan...")
-        planner = TaskPlanner(self._app.provider)
+        planner = TaskPlanner(self._agent.llm)
         try:
+            self._agent.memory.add_user_message(f"/plan {goal}")
+            self._agent.memory.add_assistant_message("Thinking about a plan... 🧠")
             plan = planner.generate_plan(goal)
-            print("\n📋 Plan generated:\n")
-            print(plan.format_status())
+            
+            plan_str = f"**Goal:** {plan.goal}\n\n"
+            for i, task in enumerate(plan.tasks, 1):
+                plan_str += f"{i}. {task.description}\n"
+            
+            self._agent.memory.add_assistant_message(f"**Generated Plan:**\n\n{plan_str}\n\nExecuting plan... 🚀")
 
-            confirm = input("\nExecute this plan? (y/n): ").strip().lower()
-            if confirm != "y":
-                print("\n❌ Plan execution cancelled.\n")
-                return
-
-            print("\n🚀 Executing plan...\n")
             executor = PlanExecutor(self._agent)
             success = executor.execute_plan(plan)
-
             if success:
-                print("\n✅ Plan executed successfully!\n")
+                self._agent.memory.add_assistant_message("✅ Plan executed successfully.")
             else:
-                print("\n❌ Plan execution failed or stopped.\n")
-
-            # Print final status
-            print(plan.format_status())
-            print()
+                self._agent.memory.add_assistant_message("❌ Plan execution failed.")
 
         except Exception as exc:
-            print(f"\n❌ Error generating or executing plan: {exc}\n")
+            self._agent.memory.add_assistant_message(f"❌ Error generating/executing plan: {exc}")
             self._app.logger.exception("Error in /plan command")
 
     def _handle_voice(self) -> None:

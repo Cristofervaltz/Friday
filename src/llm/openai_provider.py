@@ -101,7 +101,7 @@ class OpenAIProvider(BaseLLMProvider):
             self._model,
             duration_ms,
         )
-        return response_text
+        return LLMResponse(content=response_text)
 
     def generate_with_tools(
         self,
@@ -128,10 +128,29 @@ class OpenAIProvider(BaseLLMProvider):
         try:
             payload = self._send_request_with_tools(messages, tools)
             response = self._extract_response(payload)
-        except LLMError:
+        except (LLMError, ConnectionError) as exc:
+            self._logger.warning(
+                f"LLM request with tools failed ({exc}). "
+                "Retrying without tools (useful for local models)."
+            )
+            # Fallback to text generation
+            prompt = "\n".join(f"{m.get('role', 'user')}: {m.get('content', '')}" for m in messages)
+            try:
+                fallback_payload = self._send_request(prompt)
+                fallback_text = self._extract_text(fallback_payload)
+                response = LLMResponse(content=fallback_text)
+            except LLMError:
+                duration_ms = (perf_counter() - started_at) * 1000
+                self._logger.exception(
+                    "LLM fallback request failed model=%s duration_ms=%.2f",
+                    self._model,
+                    duration_ms,
+                )
+                raise
+        except Exception as exc:
             duration_ms = (perf_counter() - started_at) * 1000
             self._logger.exception(
-                "LLM request with tools failed model=%s duration_ms=%.2f",
+                "LLM request with tools failed unexpectedly model=%s duration_ms=%.2f",
                 self._model,
                 duration_ms,
             )
@@ -256,7 +275,7 @@ class OpenAIProvider(BaseLLMProvider):
     def _extract_text(self, payload: dict[str, Any]) -> str:
         choices = payload.get("choices")
         if not isinstance(choices, list) or not choices:
-            raise InvalidResponseError("LLM response did not include choices.")
+            raise InvalidResponseError(f"LLM response did not include choices. Payload: {payload}")
 
         first_choice = choices[0]
         if not isinstance(first_choice, dict):

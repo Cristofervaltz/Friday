@@ -169,6 +169,7 @@ friday
 Once inside the REPL, you can type your requests naturally, or use the following slash commands:
 
 - `/voice` - Activate microphone and speak your request.
+- `/plan <goal>` - Trigger the multi-step Task Planner to break down and execute complex goals automatically.
 - `/clear` - Clear the current conversation context.
 - `/exit` or `/quit` - Safely shut down Friday.
 
@@ -182,6 +183,8 @@ npm run tauri dev
 
 The desktop app bundles the Python backend into a highly optimized sidecar (`friday-api.exe`), meaning end-users don't need Python installed. It also features:
 - **In-App Settings:** Configure API keys, models, and providers directly via a beautiful UI modal.
+- **Task Queue & Instant Send:** View queued tasks and click ⚡ to immediately jump a task to the front of the execution queue!
+- **Workspace Selector:** Set active context directories directly from the header dropdown.
 - **Hot-Reloading:** Change your LLM or API keys and apply them instantly without restarting the application!
 - **Native System Tray:** Runs quietly in the background and can be summoned anytime.
 

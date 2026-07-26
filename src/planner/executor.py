@@ -52,9 +52,6 @@ class PlanExecutor:
             )
 
             try:
-                # Clear agent history to maintain focused context for each task
-                self.agent.clear_history()
-
                 # Run the agent
                 result_text = self.agent.run(prompt)
 

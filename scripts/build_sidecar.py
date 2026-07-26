@@ -11,8 +11,13 @@ def build_sidecar():
         [
             "pyinstaller",
             "--onefile",
+            "--clean",
             "--paths",
             ".",
+            "--hidden-import",
+            "pyaudio",
+            "--hidden-import",
+            "speech_recognition",
             "--name",
             "friday-api",
             "scripts/friday_sidecar.py",
