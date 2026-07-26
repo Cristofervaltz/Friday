@@ -111,7 +111,10 @@ class ConversationMemory:
         return self.chat_id
 
     def add_message(self, role: str, content: str, chat_id: str | None = None) -> None:
-        """Add a raw message to history, ignoring chat_id since we only have one active chat."""
+        """Add a raw message to history.
+
+        Ignores chat_id since we only have one active chat.
+        """
         if role == "user":
             self.add_user_message(content)
         elif role == "assistant":
