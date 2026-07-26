@@ -32,13 +32,13 @@ class ConversationMemory:
         self.save_dir = save_dir
         self.title = "New Chat"
         self._messages: list[dict[str, Any]] = []
-        self._on_change_callbacks = []
+        self._on_change_callbacks: list[Any] = []
 
         if self.save_dir:
             self.save_dir.mkdir(parents=True, exist_ok=True)
             self.load()
 
-    def add_on_change_callback(self, callback) -> None:
+    def add_on_change_callback(self, callback: Any) -> None:
         """Add a callback to be called when messages change."""
         self._on_change_callbacks.append(callback)
 
@@ -105,6 +105,31 @@ class ConversationMemory:
         self._enforce_max_messages()
         self.save()
         self._trigger_on_change()
+
+    @property
+    def current_chat_id(self) -> str:
+        return self.chat_id
+
+    def add_message(self, role: str, content: str, chat_id: str | None = None) -> None:
+        """Add a raw message to history, ignoring chat_id since we only have one active chat."""
+        if role == "user":
+            self.add_user_message(content)
+        elif role == "assistant":
+            self.add_assistant_message(content)
+        elif role == "system":
+            self._messages.append({"role": "system", "content": content})
+            self._enforce_max_messages()
+            self.save()
+            self._trigger_on_change()
+
+    def get_chat(self, chat_id: str) -> dict[str, Any]:
+        """Return the current chat in the format expected by the UI."""
+        return {
+            "id": self.chat_id,
+            "title": self.title,
+            "updated_at": int(time.time()),
+            "messages": self.get_messages(),
+        }
 
     def get_messages(self) -> list[dict[str, Any]]:
         """Return complete list of messages including system prompt if present.

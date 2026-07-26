@@ -97,7 +97,7 @@ def test_successful_generation(monkeypatch: pytest.MonkeyPatch) -> None:
 
     response = provider.generate("Say hello.")
 
-    assert response.content == "Hello from Friday."
+    assert response == "Hello from Friday."
 
 
 def test_invalid_configuration_raises_configuration_error() -> None:

@@ -186,7 +186,7 @@ def create_app() -> "FastAPI":
                     chat_id = friday_repl._agent.memory.current_chat_id
 
                     if path == "":
-                        os.chdir(friday_app.config.paths.app_home_dir)
+                        os.chdir(friday_app.config.paths.app_home)
                         if chat_id:
                             friday_repl._agent.memory.add_message(
                                 "system",
@@ -219,8 +219,8 @@ def create_app() -> "FastAPI":
                             search_tool = friday_repl._agent.tools.get_tool(
                                 "semantic_search"
                             )
-                            search_tool.workspace_path = path
-                            search_tool._indexer = None
+                            search_tool.workspace_path = path  # type: ignore
+                            search_tool._indexer = None  # type: ignore
                         except KeyError:
                             pass
 
@@ -279,7 +279,7 @@ def create_app() -> "FastAPI":
                                 _handle_voice_for_ws(websocket, friday_app, loop)
                             elif msg_text.strip() == "/clear":
                                 # Clear backend conversation memory
-                                friday_repl._agent._memory.clear()
+                                friday_repl._agent.memory.clear()
                             else:
                                 # Use the REPL's message handling
                                 friday_repl._handle_message(msg_text)

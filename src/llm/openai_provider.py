@@ -101,7 +101,7 @@ class OpenAIProvider(BaseLLMProvider):
             self._model,
             duration_ms,
         )
-        return LLMResponse(content=response_text)
+        return response_text
 
     def generate_with_tools(
         self,
