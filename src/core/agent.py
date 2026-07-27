@@ -6,7 +6,6 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from src.memory.conversation import ConversationMemory
-from src.memory.workspace import WorkspaceMemory
 
 if TYPE_CHECKING:
     from src.core.tool_registry import ToolRegistry
@@ -30,7 +29,6 @@ class Agent:
         tool_registry: ToolRegistry,
         max_iterations: int = 10,
         memory: ConversationMemory | None = None,
-        workspace_memory: WorkspaceMemory | None = None,
     ) -> None:
         """Initialize the agent.
 
@@ -39,26 +37,11 @@ class Agent:
             tool_registry: Registry of available tools.
             max_iterations: Maximum number of tool calling iterations.
             memory: Optional custom ConversationMemory instance.
-            workspace_memory: Optional custom WorkspaceMemory instance.
         """
         self.llm = llm_provider
         self.tools = tool_registry
         self.max_iterations = max_iterations
         self.memory = memory if memory is not None else ConversationMemory()
-        self.workspace_memory = workspace_memory
-
-        # Combine workspace context into system prompt if present
-        if self.workspace_memory is not None:
-            context = self.workspace_memory.build_system_context()
-            if context:
-                existing = self.memory.system_prompt or ""
-                new_prompt = f"{existing}\n\n{context}".strip()
-                self.memory.set_system_prompt(new_prompt)
-
-    @property
-    def _conversation_history(self) -> list[dict[str, Any]]:
-        """Backwards compatibility accessor for raw conversation history."""
-        return self.memory.get_messages()
 
     def run(self, user_input: str) -> str:
         """Process user input and return agent's response.

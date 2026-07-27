@@ -26,7 +26,7 @@ def test_app_config_reads_environment_overrides(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    monkeypatch.setenv("FRIDAY_ENV", "test")
+    monkeypatch.setenv("FRIDAY_ENVIRONMENT", "test")
     monkeypatch.setenv("FRIDAY_LOG_LEVEL", "debug")
     monkeypatch.setenv("FRIDAY_LOG_FILENAME", "runtime.log")
     monkeypatch.setenv("FRIDAY_LOG_MAX_BYTES", "2048")

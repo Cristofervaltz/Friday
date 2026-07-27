@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+import time
+from pathlib import Path
 from typing import Any
 
 
@@ -12,17 +15,40 @@ class ConversationMemory:
         self,
         system_prompt: str | None = None,
         max_messages: int = 50,
+        chat_id: str | None = None,
+        save_dir: Path | None = None,
     ) -> None:
         """Initialize ConversationMemory.
 
         Args:
             system_prompt: Optional initial system prompt.
             max_messages: Maximum number of non-system messages to retain.
+            chat_id: Optional ID to save/load this chat.
+            save_dir: Directory where chats are saved.
         """
         self.system_prompt: str | None = system_prompt
-
         self.max_messages = max_messages
+        self.chat_id = chat_id or "default"
+        self.save_dir = save_dir
+        self.title = "New Chat"
         self._messages: list[dict[str, Any]] = []
+        self._on_change_callbacks: list[Any] = []
+
+        if self.save_dir:
+            self.save_dir.mkdir(parents=True, exist_ok=True)
+            self.load()
+
+    def add_on_change_callback(self, callback: Any) -> None:
+        """Add a callback to be called when messages change."""
+        self._on_change_callbacks.append(callback)
+
+    def _trigger_on_change(self) -> None:
+        """Trigger all on_change callbacks."""
+        for cb in self._on_change_callbacks:
+            try:
+                cb()
+            except Exception:
+                pass
 
     def set_system_prompt(self, prompt: str | None) -> None:
         """Set or update the system prompt.
@@ -40,6 +66,8 @@ class ConversationMemory:
         """
         self._messages.append({"role": "user", "content": content})
         self._enforce_max_messages()
+        self.save()
+        self._trigger_on_change()
 
     def add_assistant_message(
         self,
@@ -57,6 +85,8 @@ class ConversationMemory:
             msg["tool_calls"] = tool_calls
         self._messages.append(msg)
         self._enforce_max_messages()
+        self.save()
+        self._trigger_on_change()
 
     def add_tool_result(self, tool_call_id: str, content: str) -> None:
         """Add a tool execution result to history.
@@ -73,6 +103,36 @@ class ConversationMemory:
             }
         )
         self._enforce_max_messages()
+        self.save()
+        self._trigger_on_change()
+
+    @property
+    def current_chat_id(self) -> str:
+        return self.chat_id
+
+    def add_message(self, role: str, content: str, chat_id: str | None = None) -> None:
+        """Add a raw message to history.
+
+        Ignores chat_id since we only have one active chat.
+        """
+        if role == "user":
+            self.add_user_message(content)
+        elif role == "assistant":
+            self.add_assistant_message(content)
+        elif role == "system":
+            self._messages.append({"role": "system", "content": content})
+            self._enforce_max_messages()
+            self.save()
+            self._trigger_on_change()
+
+    def get_chat(self, chat_id: str) -> dict[str, Any]:
+        """Return the current chat in the format expected by the UI."""
+        return {
+            "id": self.chat_id,
+            "title": self.title,
+            "updated_at": int(time.time()),
+            "messages": self.get_messages(),
+        }
 
     def get_messages(self) -> list[dict[str, Any]]:
         """Return complete list of messages including system prompt if present.
@@ -89,6 +149,8 @@ class ConversationMemory:
     def clear(self) -> None:
         """Clear conversation history (keeps system prompt)."""
         self._messages.clear()
+        self.save()
+        self._trigger_on_change()
 
     def _enforce_max_messages(self) -> None:
         """Trim message history if it exceeds max_messages."""
@@ -99,3 +161,97 @@ class ConversationMemory:
     def __len__(self) -> int:
         """Return count of non-system messages."""
         return len(self._messages)
+
+    def load(self) -> None:
+        if not self.save_dir:
+            return
+        file_path = self.save_dir / f"{self.chat_id}.json"
+        if file_path.exists():
+            try:
+                with open(file_path, encoding="utf-8") as f:
+                    data = json.load(f)
+                    self._messages = data.get("messages", [])
+                    self.title = data.get("title", "New Chat")
+            except Exception:
+                pass
+
+    def save(self) -> None:
+        if not self.save_dir:
+            return
+        # Generate title from first user message if title is default
+        if self.title == "New Chat":
+            for msg in self._messages:
+                if msg.get("role") == "user":
+                    self.title = msg.get("content", "New Chat")[:30] + (
+                        "..." if len(msg.get("content", "")) > 30 else ""
+                    )
+                    break
+
+        file_path = self.save_dir / f"{self.chat_id}.json"
+        data = {
+            "id": self.chat_id,
+            "title": self.title,
+            "updated_at": int(time.time()),
+            "messages": self._messages,
+        }
+        try:
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+    def switch_chat(self, new_id: str) -> None:
+        self.chat_id = new_id
+        self._messages.clear()
+        self.title = "New Chat"
+        self.load()
+
+    def get_all_chats(self) -> list[dict[str, Any]]:
+        if not self.save_dir:
+            return []
+        chats = []
+        for file_path in self.save_dir.glob("*.json"):
+            try:
+                with open(file_path, encoding="utf-8") as f:
+                    data = json.load(f)
+                    chats.append(
+                        {
+                            "id": data.get("id"),
+                            "title": data.get("title", "New Chat"),
+                            "updated_at": data.get("updated_at", 0),
+                        }
+                    )
+            except Exception:
+                pass
+        return sorted(chats, key=lambda x: x["updated_at"], reverse=True)
+
+    def rename_chat(self, chat_id: str, new_title: str) -> None:
+        if not self.save_dir:
+            return
+        file_path = self.save_dir / f"{chat_id}.json"
+        if file_path.exists():
+            try:
+                with open(file_path, encoding="utf-8") as f:
+                    data = json.load(f)
+                data["title"] = new_title
+                with open(file_path, "w", encoding="utf-8") as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+
+                # If we are renaming the active chat, update the title in memory
+                if self.chat_id == chat_id:
+                    self.title = new_title
+            except Exception:
+                pass
+
+    def delete_chat(self, chat_id: str) -> None:
+        if not self.save_dir:
+            return
+        file_path = self.save_dir / f"{chat_id}.json"
+        if file_path.exists():
+            try:
+                file_path.unlink()
+                # If we delete the active chat, reset state
+                if self.chat_id == chat_id:
+                    self.switch_chat("default")
+            except Exception:
+                pass

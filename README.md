@@ -37,11 +37,14 @@ The desktop app is built with [Tauri](https://tauri.app/) and ships with a bundl
 | Capability | How it works |
 |---|---|
 | **Autonomous task execution** | Give Friday a goal. It breaks it down, runs shell commands, edits files, handles errors — all on its own. |
+| **Interactive Permissions** | Total control over Friday's actions. Approve every shell command or file operation via an aesthetic UI, set custom whitelists, or use Turbo mode. |
+| **Agent Dashboard** | See what the agent is thinking, what tools it's calling, and its execution plan in real-time. |
+| **Rich Artifacts Viewer** | Renders Mermaid diagrams, code diffs, and structured outputs natively inside the app. |
 | **Voice input** | Say `/voice` and talk. Noise-filtered speech recognition, no cloud required. |
 | **Vision** | Friday takes screenshots and analyzes them — debug UI bugs, read diagrams, understand context. |
 | **Semantic code search (RAG)** | Your entire workspace is indexed locally with ChromaDB. Ask questions about code in natural language. |
-| **Plugins & MCP** | Extend Friday with Model Context Protocol servers — GitHub, Jira, databases, web search — without touching core code. |
-| **Dual memory** | Conversation history + persistent workspace knowledge. Friday remembers your project's stack, conventions, and structure. |
+| **Plugins & MCP** | Extend Friday with Model Context Protocol servers — GitHub, Jira, databases, web search. |
+| **Dual memory** | Conversation history + persistent workspace knowledge. |
 | **Any LLM** | OpenAI, Claude via OpenRouter, or fully offline with Ollama. Switch models on the fly. |
 
 ---
@@ -164,6 +167,13 @@ cd src/ui && npm install
 npm run tauri dev              # Development mode
 npm run tauri build            # Production .exe installer
 ```
+
+The desktop app bundles the Python backend into a highly optimized sidecar (`friday-api.exe`), meaning end-users don't need Python installed. It also features:
+- **In-App Settings:** Configure API keys, models, and providers directly via a beautiful UI modal.
+- **Task Queue & Instant Send:** View queued tasks and click ⚡ to immediately jump a task to the front of the execution queue!
+- **Workspace Selector:** Set active context directories directly from the header dropdown.
+- **Hot-Reloading:** Change your LLM or API keys and apply them instantly without restarting the application!
+- **Native System Tray:** Runs quietly in the background and can be summoned anytime.
 
 ### Running CI checks locally
 

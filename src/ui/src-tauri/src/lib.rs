@@ -8,6 +8,7 @@ use tauri_plugin_shell::ShellExt;
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
             if cfg!(debug_assertions) {
@@ -40,7 +41,11 @@ pub fn run() {
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
-                    if let tauri::tray::TrayIconEvent::Click { button: tauri::tray::MouseButton::Left, .. } = event {
+                    if let tauri::tray::TrayIconEvent::Click {
+                        button: tauri::tray::MouseButton::Left,
+                        ..
+                    } = event
+                    {
                         let app = tray.app_handle();
                         if let Some(window) = app.get_webview_window("main") {
                             let _ = window.show();
@@ -51,7 +56,10 @@ pub fn run() {
                 .build(app)?;
 
             // Spawn the Python sidecar
-            let sidecar = app.shell().sidecar("friday-api").expect("Failed to create sidecar command");
+            let sidecar = app
+                .shell()
+                .sidecar("friday-api")
+                .expect("Failed to create sidecar command");
             tauri::async_runtime::spawn(async move {
                 let (mut rx, child) = sidecar.spawn().expect("Failed to spawn sidecar");
                 // Read stdout/stderr so the buffer doesn't fill up

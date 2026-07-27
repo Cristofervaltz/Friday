@@ -34,8 +34,19 @@ class PathsConfig:
     @classmethod
     def from_base_dir(cls, base_dir: Path) -> PathsConfig:
         """Build path configuration from a repository or runtime base directory."""
+        from os import getenv
+
         resolved_base_dir = base_dir.expanduser().resolve()
-        app_home = resolved_base_dir / ".friday"
+
+        # Use FRIDAY_HOME if set (useful for tests), otherwise use global home dir
+        env_home = getenv("FRIDAY_HOME")
+        if env_home:
+            app_home = Path(env_home).expanduser().resolve()
+        else:
+            # Use a stable global app home directory so settings aren't lost when
+            # launched from different CWDs
+            app_home = Path.home() / ".friday"
+
         return cls(
             base_dir=resolved_base_dir,
             app_home=app_home,
@@ -77,6 +88,8 @@ class LLMConfig:
     base_url: str | None = None
     model: str | None = None
     timeout: float = 30.0
+    system_prompt: str | None = None
+    max_iterations: int = 10
 
 
 @dataclass(frozen=True)
@@ -90,6 +103,8 @@ class AppConfig:
     logging: LoggingConfig
     llm: LLMConfig
     speech_language: str = "ru-RU"
+    theme: str = "dark"
+    accent_color: str | None = None
 
     @classmethod
     def from_environment(cls, base_dir: Path | None = None) -> AppConfig:
@@ -147,18 +162,26 @@ class AppConfig:
             base_url=get_val("llm_base_url", "FRIDAY_LLM_BASE_URL"),
             model=get_val("llm_model", "FRIDAY_LLM_MODEL"),
             timeout=float(get_val("llm_timeout", "FRIDAY_LLM_TIMEOUT", "30.0")),
+            system_prompt=get_val("system_prompt", "FRIDAY_SYSTEM_PROMPT"),
+            max_iterations=int(
+                get_val("max_iterations", "FRIDAY_MAX_ITERATIONS", "10")
+            ),
         )
 
         return cls(
-            app_name=APP_NAME,
-            version=APP_VERSION,
-            environment=get_val("env", "FRIDAY_ENV", DEFAULT_ENVIRONMENT),
+            app_name=get_val("app_name", "FRIDAY_APP_NAME", APP_NAME),
+            version=get_val("version", "FRIDAY_VERSION", APP_VERSION),
+            environment=get_val(
+                "environment", "FRIDAY_ENVIRONMENT", DEFAULT_ENVIRONMENT
+            ),
             paths=paths,
             logging=logging_config,
             llm=llm_config,
             speech_language=get_val(
                 "speech_language", "FRIDAY_SPEECH_LANGUAGE", "ru-RU"
             ),
+            theme=get_val("theme", "FRIDAY_THEME", "dark"),
+            accent_color=get_val("accent_color", "FRIDAY_ACCENT_COLOR"),
         )
 
 

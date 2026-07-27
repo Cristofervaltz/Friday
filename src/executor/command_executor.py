@@ -104,12 +104,11 @@ class CommandExecutor:
             ValueError: If command is blocked by safety policy or rejected.
             TimeoutError: If execution exceeds specified timeout.
         """
-        if not self.is_safe(command):
-            raise ValueError(f"Command execution blocked by safety policy: {command}")
-
         if self.confirmation_callback is not None:
             if not self.confirmation_callback(command):
                 raise ValueError(f"Command execution rejected by user: {command}")
+        elif not self.is_safe(command):
+            raise ValueError(f"Command execution blocked by safety policy: {command}")
 
         effective_timeout = timeout if timeout is not None else self.default_timeout
         working_dir = cwd if cwd is not None else os.getcwd()
