@@ -187,7 +187,9 @@ class OpenAIProvider(BaseLLMProvider):
             except Exception:
                 pass
             if exc.code in {401, 403}:
-                raise AuthenticationError(f"LLM authentication failed. {error_body}") from None
+                raise AuthenticationError(
+                    f"LLM authentication failed. {error_body}"
+                ) from None
             if exc.code == 400:
                 print(f"DEBUG: 400 Bad Request. Payload: {request.data}")
             raise ConnectionError(
@@ -239,7 +241,9 @@ class OpenAIProvider(BaseLLMProvider):
             except Exception:
                 pass
             if exc.code in {401, 403}:
-                raise AuthenticationError(f"LLM authentication failed. {error_body}") from None
+                raise AuthenticationError(
+                    f"LLM authentication failed. {error_body}"
+                ) from None
             raise ConnectionError(
                 f"LLM request failed with status code {exc.code}. Body: {error_body}"
             ) from None
