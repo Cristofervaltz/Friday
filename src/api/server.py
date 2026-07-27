@@ -24,6 +24,11 @@ from ..runtime import FridayApplication
 
 logger = logging.getLogger(__name__)
 
+active_websocket: Any = None
+server_loop: asyncio.AbstractEventLoop | None = None
+permission_event: threading.Event = threading.Event()
+permission_result: bool = False
+
 
 def _handle_voice_for_ws(
     websocket: "WebSocket",
@@ -193,7 +198,7 @@ def create_app() -> "FastAPI":
 
         return original_execute(name, **kwargs)
 
-    friday_repl._registry.execute = registry_execute_with_permission
+    friday_repl._registry.execute = registry_execute_with_permission  # type: ignore
 
     # Overwrite the executor in ShellCommandTool to bypass its internal safety check
     # since we are now handling permissions at the registry level.
@@ -201,7 +206,7 @@ def create_app() -> "FastAPI":
 
     try:
         shell_tool = friday_repl._registry.get_tool("execute_command")
-        shell_tool.executor = CommandExecutor(confirmation_callback=lambda cmd: True)
+        shell_tool.executor = CommandExecutor(confirmation_callback=lambda cmd: True)  # type: ignore
     except KeyError:
         pass
 
@@ -454,7 +459,7 @@ def create_app() -> "FastAPI":
         allow_headers=["*"],
     )
 
-    @app.middleware("http")
+    @app.middleware("http")  # type: ignore
     async def add_cache_headers(request: Any, call_next: Any) -> Any:
         response = await call_next(request)
         if request.url.path == "/" or request.url.path.endswith(".html"):
