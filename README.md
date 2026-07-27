@@ -37,11 +37,14 @@ The desktop app is built with [Tauri](https://tauri.app/) and ships with a bundl
 | Capability | How it works |
 |---|---|
 | **Autonomous task execution** | Give Friday a goal. It breaks it down, runs shell commands, edits files, handles errors — all on its own. |
+| **Interactive Permissions** | Total control over Friday's actions. Approve every shell command or file operation via an aesthetic UI, set custom whitelists, or use Turbo mode. |
+| **Agent Dashboard** | See what the agent is thinking, what tools it's calling, and its execution plan in real-time. |
+| **Rich Artifacts Viewer** | Renders Mermaid diagrams, code diffs, and structured outputs natively inside the app. |
 | **Voice input** | Say `/voice` and talk. Noise-filtered speech recognition, no cloud required. |
 | **Vision** | Friday takes screenshots and analyzes them — debug UI bugs, read diagrams, understand context. |
 | **Semantic code search (RAG)** | Your entire workspace is indexed locally with ChromaDB. Ask questions about code in natural language. |
-| **Plugins & MCP** | Extend Friday with Model Context Protocol servers — GitHub, Jira, databases, web search — without touching core code. |
-| **Dual memory** | Conversation history + persistent workspace knowledge. Friday remembers your project's stack, conventions, and structure. |
+| **Plugins & MCP** | Extend Friday with Model Context Protocol servers — GitHub, Jira, databases, web search. |
+| **Dual memory** | Conversation history + persistent workspace knowledge. |
 | **Any LLM** | OpenAI, Claude via OpenRouter, or fully offline with Ollama. Switch models on the fly. |
 
 ---
