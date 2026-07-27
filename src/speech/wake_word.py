@@ -33,7 +33,8 @@ class WakeWordDetector:
         self, indata: Any, frames: int, time_info: Any, status: Any
     ) -> None:
         """This is called (from a separate thread) for each audio block."""
-        # Removed print(status, file=sys.stderr) which causes OSError on Windows GUI apps
+        # Removed print(status, file=sys.stderr) which causes OSError
+        # on Windows GUI apps
         self.q.put(bytes(indata))
 
     def _listen_loop(self) -> None:
@@ -89,7 +90,8 @@ class WakeWordDetector:
                                     self._last_triggered = now
                                     if self._callback:
                                         self._callback()
-                                # always reset recognizer on partial match to avoid re-detection
+                                # always reset recognizer on partial match
+                                # to avoid re-detection
                                 recognizer.Reset()
                                 break
         except Exception as e:

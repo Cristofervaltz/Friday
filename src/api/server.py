@@ -216,7 +216,8 @@ def create_app() -> "FastAPI":
     # We only really support one active GUI connected to the local agent
     # active_connection = None
 
-    global active_websocket, server_loop, permission_event, permission_result, wake_word_detector, active_tts
+    global active_websocket, server_loop, permission_event, permission_result
+    global wake_word_detector, active_tts
     active_websocket = None
     server_loop = None
     wake_word_detector = None
