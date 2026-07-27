@@ -1,13 +1,14 @@
-import sys
-import queue
-import threading
 import json
+import queue
+import sys
+import threading
 import time
 from pathlib import Path
 from typing import Any
 
 import sounddevice as sd  # type: ignore
 from vosk import KaldiRecognizer, Model  # type: ignore
+
 
 class WakeWordDetector:
     """Listens continuously in the background for a wake word using Vosk."""
@@ -28,13 +29,16 @@ class WakeWordDetector:
         self._last_triggered: float = 0.0
         self._cooldown: float = 2.0  # seconds between triggers
 
-    def _callback_sd(self, indata: Any, frames: int, time_info: Any, status: Any) -> None:
+    def _callback_sd(
+        self, indata: Any, frames: int, time_info: Any, status: Any
+    ) -> None:
         """This is called (from a separate thread) for each audio block."""
         # Removed print(status, file=sys.stderr) which causes OSError on Windows GUI apps
         self.q.put(bytes(indata))
 
     def _listen_loop(self) -> None:
         try:
+
             def get_base_path() -> Path:
                 if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
                     return Path(sys._MEIPASS)
