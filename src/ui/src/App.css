@@ -305,3 +305,102 @@
 .instant-send-btn:hover {
   transform: scale(1.1);
 }
+
+/* Permission Modal */
+.permission-modal {
+  background: var(--bg-panel);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  max-width: 520px;
+  width: 90%;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.permission-modal h2 {
+  font-size: 1.25rem;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+}
+
+.permission-modal p {
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  font-size: 0.95rem;
+}
+
+.command-preview {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 8px);
+  padding: 14px 18px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.9rem;
+  color: #ff9800;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin-bottom: 24px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.modal-actions .btn-primary.danger {
+  background: linear-gradient(135deg, #ff5252, #ff1744);
+  border: none;
+}
+
+.modal-actions .btn-primary.danger:hover {
+  background: linear-gradient(135deg, #ff1744, #d50000);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(255, 23, 68, 0.3);
+}
+
+/* Tool Details Accordion */
+.tool-output {
+  align-self: flex-start;
+  max-width: 90%;
+  margin-top: -8px;
+  margin-bottom: 8px;
+  background: transparent !important;
+  border: none !important;
+}
+
+.tool-details {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.tool-details summary {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  user-select: none;
+  font-weight: 500;
+}
+
+.tool-details summary:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.tool-content {
+  padding: 12px;
+  border-top: 1px solid var(--border-subtle);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: rgba(0, 0, 0, 0.4);
+  max-height: 400px;
+  overflow-y: auto;
+}
+

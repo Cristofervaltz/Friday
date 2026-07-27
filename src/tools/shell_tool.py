@@ -28,8 +28,8 @@ class ShellCommandTool(BaseTool):
     def description(self) -> str:
         """Return tool description."""
         return (
-            "Execute a shell command in the terminal and return stdout, stderr, "
-            "and exit code. Use for running tests, build scripts, git operations, "
+            "Execute a shell command in the terminal (PowerShell/CMD on Windows) and return stdout, stderr, "
+            "and exit code. Use for running tests, build scripts, file operations, "
             "or system commands."
         )
 

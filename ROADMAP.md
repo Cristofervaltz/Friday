@@ -48,9 +48,9 @@ This document outlines the evolutionary path of Friday, transitioning from a bas
 ### Stage 8: Desktop GUI & Visual Interaction (`v0.8.0`)
 > **Goal:** Provide a beautiful, interactive visual interface.
 
-- [ ] **Interactive Dashboard:** Web or native UI to display the agent's current thoughts, task plans, and background processes.
-- [ ] **Visual Permissions Management:** Aesthetic pop-ups for users to grant or deny sensitive actions.
-- [ ] **Artifacts Viewer:** View generated diagrams, code diffs, and images natively within the app.
+- [x] **Interactive Dashboard:** Web or native UI to display the agent's current thoughts, task plans, and background processes.
+- [x] **Visual Permissions Management:** Aesthetic pop-ups for users to grant or deny sensitive actions.
+- [x] **Artifacts Viewer:** View generated diagrams, code diffs, and images natively within the app.
 
 ### Stage 9: Cloud Sync & Self-Improvement (`v0.9.0`)
 > **Goal:** Scale Friday beyond a single machine and enable self-reflection.

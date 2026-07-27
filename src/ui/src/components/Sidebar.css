@@ -127,6 +127,10 @@
   min-width: 0;
 }
 
+.chat-item svg {
+  flex-shrink: 0;
+}
+
 .chat-item:hover, .chat-item-wrapper.active .chat-item {
   color: var(--text-primary);
 }

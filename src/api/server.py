@@ -89,32 +89,165 @@ def create_app() -> "FastAPI":
     # We use REPL to reuse the existing Agent and Tools wiring
     friday_repl = FridayREPL(friday_app)
 
-    # We only really support one active GUI connected to the local agent
-    # active_connection = None
+    def _get_permission_mode() -> str:
+        """Read permission_mode from saved settings."""
+        from .._compat import load_settings_safe
+
+        try:
+            s = load_settings_safe()
+            return str(s.get("permission_mode", "default"))
+        except Exception:
+            return "default"
+
+    def _get_custom_rules() -> dict[str, list[str]]:
+        """Read custom permission rules from saved settings."""
+        from .._compat import load_settings_safe
+
+        try:
+            s = load_settings_safe()
+            return {
+                "allow": [
+                    r.strip()
+                    for r in str(s.get("perm_allow", "")).split(",")
+                    if r.strip()
+                ],
+                "deny": [
+                    r.strip()
+                    for r in str(s.get("perm_deny", "")).split(",")
+                    if r.strip()
+                ],
+                "ask": [
+                    r.strip()
+                    for r in str(s.get("perm_ask", "")).split(",")
+                    if r.strip()
+                ],
+            }
+        except Exception:
+            return {"allow": [], "deny": [], "ask": []}
+
+    def _command_matches_any(command: str, patterns: list[str]) -> bool:
+        """Check if command starts with any of the given patterns."""
+        cmd_lower = command.strip().lower()
+        for p in patterns:
+            if cmd_lower.startswith(p.lower()):
+                return True
+        return False
+
+    def _ask_user_permission(command: str) -> bool:
+        """Send permission request to UI and wait for response."""
+        global active_websocket, server_loop, permission_event, permission_result
+        if active_websocket is None or server_loop is None:
+            return False
+
+        permission_event.clear()
+        asyncio.run_coroutine_threadsafe(
+            active_websocket.send_text(
+                json.dumps({"type": "permission_request", "action": command})
+            ),
+            server_loop,
+        )
+
+        # Wait up to 5 minutes for user response
+        waited = permission_event.wait(timeout=300.0)
+        if not waited:
+            return False
+        return permission_result
+
+    def gui_confirmation_callback(command: str) -> bool:
+        mode = _get_permission_mode()
+
+        if mode == "turbo":
+            return True
+
+        if mode == "custom":
+            rules = _get_custom_rules()
+            if _command_matches_any(command, rules["deny"]):
+                return False
+            if _command_matches_any(command, rules["allow"]):
+                return True
+            if _command_matches_any(command, rules["ask"]):
+                return _ask_user_permission(command)
+            # If command doesn't match any rule, ask by default
+            return _ask_user_permission(command)
+
+        # mode == "default" — ask for everything
+        return _ask_user_permission(command)
+
+    # Overwrite the execute method in ToolRegistry to intercept all tools
+    original_execute = friday_repl._registry.execute
+
+    def registry_execute_with_permission(name: str, **kwargs: object) -> Any:
+        from src.tools.base import ToolResult
+
+        cmd_str = name
+        if name == "execute_command":
+            cmd_str = str(kwargs.get("command", kwargs))
+        else:
+            args = ", ".join(f"{k}={v!r}" for k, v in kwargs.items())
+            cmd_str = f"{name}({args})"
+
+        if not gui_confirmation_callback(str(cmd_str)):
+            return ToolResult(
+                success=False, error=f"User rejected permission to run: {cmd_str}"
+            )
+
+        return original_execute(name, **kwargs)
+
+    friday_repl._registry.execute = registry_execute_with_permission
+
+    # Overwrite the executor in ShellCommandTool to bypass its internal safety check
+    # since we are now handling permissions at the registry level.
+    from src.executor.command_executor import CommandExecutor
+
+    try:
+        shell_tool = friday_repl._registry.get_tool("execute_command")
+        shell_tool.executor = CommandExecutor(confirmation_callback=lambda cmd: True)
+    except KeyError:
+        pass
 
     # We only really support one active GUI connected to the local agent
     # active_connection = None
+
+    global active_websocket, server_loop, permission_event, permission_result
+    active_websocket = None
+    server_loop = None
+    permission_event = threading.Event()
+    permission_result = False
 
     @app.websocket("/ws/chat")  # type: ignore
     async def websocket_endpoint(websocket: "WebSocket") -> None:
+        global active_websocket, server_loop
         await websocket.accept()
         loop = asyncio.get_event_loop()
+        server_loop = loop
+        active_websocket = websocket
 
         # Subscribe to agent memory changes to stream updates live
         def on_memory_change() -> None:
             chat_id = friday_repl._agent.memory.chat_id
-            asyncio.run_coroutine_threadsafe(
-                websocket.send_text(
+            # Filter out system messages — the UI should never see them
+            ui_messages = [
+                m
+                for m in friday_repl._agent.memory.get_messages()
+                if m.get("role") != "system"
+            ]
+            chats = friday_repl._agent.memory.get_all_chats()
+
+            async def send_updates() -> None:
+                await websocket.send_text(
                     json.dumps(
                         {
                             "type": "chat_history",
                             "chat_id": chat_id,
-                            "messages": friday_repl._agent.memory.get_messages(),
+                            "messages": ui_messages,
                         }
                     )
-                ),
-                loop,
-            )
+                )
+                await websocket.send_text(
+                    json.dumps({"type": "chats_list", "chats": chats})
+                )
+
+            asyncio.run_coroutine_threadsafe(send_updates(), loop)
 
         friday_repl._agent.memory.add_on_change_callback(on_memory_change)
 
@@ -123,7 +256,12 @@ def create_app() -> "FastAPI":
                 data = await websocket.receive_text()
                 payload = json.loads(data)
 
-                if payload.get("type") == "get_chats":
+                if payload.get("type") == "permission_response":
+                    global permission_result
+                    permission_result = payload.get("approved", False)
+                    permission_event.set()
+
+                elif payload.get("type") == "get_chats":
                     chats = friday_repl._agent.memory.get_all_chats()
                     await websocket.send_text(
                         json.dumps({"type": "chats_list", "chats": chats})
@@ -315,6 +453,15 @@ def create_app() -> "FastAPI":
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def add_cache_headers(request: Any, call_next: Any) -> Any:
+        response = await call_next(request)
+        if request.url.path == "/" or request.url.path.endswith(".html"):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
 
     @app.get("/health")  # type: ignore
     async def health() -> dict[str, str]:

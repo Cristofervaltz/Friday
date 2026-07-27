@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Palette, Bot, Monitor } from 'lucide-react';
+import { X, Save, Palette, Bot, Monitor, Shield } from 'lucide-react';
 import './SettingsModal.css';
 
 interface SettingsModalProps {
@@ -10,7 +10,7 @@ interface SettingsModalProps {
   onSettingsChanged?: (settings: Record<string, string>) => void;
 }
 
-type TabId = 'appearance' | 'agent' | 'app';
+type TabId = 'appearance' | 'agent' | 'security' | 'app';
 
 export function SettingsModal({ isOpen, onClose, voiceAutoSend = true, onVoiceAutoSendChange, onSettingsChanged }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<TabId>('appearance');
@@ -89,6 +89,12 @@ export function SettingsModal({ isOpen, onClose, voiceAutoSend = true, onVoiceAu
               onClick={() => setActiveTab('agent')}
             >
               <Bot size={16} /> Agent
+            </button>
+            <button 
+              className={`nav-item ${activeTab === 'security' ? 'active' : ''}`}
+              onClick={() => setActiveTab('security')}
+            >
+              <Shield size={16} /> Security
             </button>
             <button 
               className={`nav-item ${activeTab === 'app' ? 'active' : ''}`}
@@ -217,6 +223,78 @@ export function SettingsModal({ isOpen, onClose, voiceAutoSend = true, onVoiceAu
                       />
                       <p className="form-hint">Custom instructions that the agent should follow for every response.</p>
                     </div>
+                  </div>
+                )}
+
+                {/* SECURITY TAB */}
+                {activeTab === 'security' && (
+                  <div className="tab-content">
+                    <div className="form-group">
+                      <label>Permission Mode</label>
+                      <select 
+                        value={settings.permission_mode || 'default'}
+                        onChange={e => setSettings({...settings, permission_mode: e.target.value})}
+                      >
+                        <option value="default">🛡️ Default — Ask before every action</option>
+                        <option value="turbo">⚡ Turbo — Allow all actions automatically</option>
+                        <option value="custom">🔧 Custom — Define your own rules</option>
+                      </select>
+                      <p className="form-hint">
+                        {settings.permission_mode === 'turbo' 
+                          ? '⚠️ Friday will execute ANY command without asking. Use with caution!' 
+                          : settings.permission_mode === 'custom'
+                          ? 'Define comma-separated command prefixes for each category below.'
+                          : 'Friday will ask for your approval before every shell command or file operation.'}
+                      </p>
+                    </div>
+
+                    {settings.permission_mode === 'turbo' && (
+                      <div className="settings-warning" style={{ color: '#ff5252', fontSize: '0.85em', padding: '10px', background: 'rgba(255,82,82,0.1)', borderRadius: '8px', border: '1px solid rgba(255,82,82,0.3)' }}>
+                        ⚠️ <strong>Warning:</strong> In Turbo mode, Friday has full access to your system. 
+                        It can delete files, install software, and run any command without confirmation. 
+                        Only use this mode if you fully trust the AI and understand the risks.
+                      </div>
+                    )}
+
+                    {settings.permission_mode === 'custom' && (
+                      <>
+                        <div className="form-group">
+                          <label>✅ Auto-Allow (comma-separated prefixes)</label>
+                          <textarea
+                            className="system-prompt-textarea"
+                            placeholder="git, npm, python, pip, ls, dir, cd, echo"
+                            value={settings.perm_allow || ''}
+                            onChange={e => setSettings({...settings, perm_allow: e.target.value})}
+                            rows={2}
+                          />
+                          <p className="form-hint">Commands starting with these prefixes will be executed automatically.</p>
+                        </div>
+
+                        <div className="form-group">
+                          <label>❌ Always Deny (comma-separated prefixes)</label>
+                          <textarea
+                            className="system-prompt-textarea"
+                            placeholder="rm -rf /, format, shutdown, del /f"
+                            value={settings.perm_deny || ''}
+                            onChange={e => setSettings({...settings, perm_deny: e.target.value})}
+                            rows={2}
+                          />
+                          <p className="form-hint">Commands starting with these prefixes will always be blocked.</p>
+                        </div>
+
+                        <div className="form-group">
+                          <label>❓ Ask Permission (comma-separated prefixes)</label>
+                          <textarea
+                            className="system-prompt-textarea"
+                            placeholder="rm, del, move, ren"
+                            value={settings.perm_ask || ''}
+                            onChange={e => setSettings({...settings, perm_ask: e.target.value})}
+                            rows={2}
+                          />
+                          <p className="form-hint">Commands starting with these prefixes will trigger a confirmation popup. Commands not matching any rule will also ask.</p>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 

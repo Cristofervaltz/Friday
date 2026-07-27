@@ -1,15 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
-import ReactMarkdown from 'react-markdown';
 import { Sidebar } from './components/Sidebar';
 import { SettingsModal } from './components/SettingsModal';
 import { VoicePanel } from './components/VoicePanel';
 import { WorkspaceSelector } from './components/WorkspaceSelector';
 import { CreateProjectModal } from './components/CreateProjectModal';
+import { AgentDashboard } from './components/AgentDashboard';
+import { ArtifactRenderer } from './components/ArtifactRenderer';
 import './App.css';
 
 interface Message {
   id: string;
-  role: 'user' | 'bot';
+  role: 'user' | 'bot' | 'system' | 'tool' | 'assistant';
   content: string;
 }
 
@@ -21,6 +22,7 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
+  const [permissionRequest, setPermissionRequest] = useState<string | null>(null);
   
   const [chats, setChats] = useState<Array<{id: string, title: string}>>([]);
   const [currentChatId, setCurrentChatId] = useState<string>('');
@@ -173,6 +175,8 @@ function App() {
             setMessages(data.messages || []);
           } else if (data.type === 'workspace_set') {
             setCurrentWorkspace(data.path);
+          } else if (data.type === 'permission_request') {
+            setPermissionRequest(data.action);
           }
         } catch (e) {
           console.error('Failed to parse WS message', e);
@@ -257,6 +261,13 @@ function App() {
     }
     setIsThinking(true);
     ws.send(JSON.stringify({ type: 'message', content: cmd }));
+  };
+
+  const handlePermission = (approved: boolean) => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'permission_response', approved }));
+    }
+    setPermissionRequest(null);
   };
 
   const handleSubmit = (e?: React.FormEvent, forceInstant: boolean = false) => {
@@ -347,27 +358,33 @@ function App() {
             </div>
           ) : (
             <>
-              {messages.map(msg => (
-                <div key={msg.id} className={`message ${msg.role}`}>
-                  {msg.role === 'bot' ? (
-                    <div className="markdown-body">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+              {messages.filter(m => m.role !== 'system' && m.content && m.content.trim().length > 0).map((msg, idx) => {
+                if (msg.role === 'tool') {
+                  return (
+                    <div key={idx} className="message-wrapper tool-output">
+                      <details className="tool-details">
+                        <summary>🛠️ Показать вывод системы</summary>
+                        <div className="tool-content">
+                          <ArtifactRenderer content={msg.content || ""} />
+                        </div>
+                      </details>
                     </div>
-                  ) : (
-                    msg.content
-                  )}
-                </div>
-              ))}
-              {isThinking && (
-                <div className="message bot thinking-indicator">
-                  <span className="dot"></span>
-                  <span className="dot"></span>
-                  <span className="dot"></span>
-                </div>
-              )}
+                  );
+                }
+                return (
+                  <div key={idx} className={`message-wrapper ${msg.role === 'assistant' ? 'bot' : msg.role}`}>
+                    <div className="message-content">
+                      <ArtifactRenderer content={msg.content || ""} />
+                    </div>
+                  </div>
+                );
+              })}
+              
+              <AgentDashboard isThinking={isThinking} />
+
+              <div ref={messagesEndRef} />
             </>
           )}
-          <div ref={messagesEndRef} />
         </div>
         
         {messageQueue.length > 0 && (
@@ -439,6 +456,20 @@ function App() {
         onProjectCreated={(path) => handleAction('set_workspace', path)}
         onSkip={() => handleAction('set_workspace', '')}
       />
+
+      {permissionRequest && (
+        <div className="modal-overlay">
+          <div className="modal-content permission-modal">
+            <h2>⚠️ Permission Request</h2>
+            <p>Friday wants to execute the following command:</p>
+            <pre className="command-preview">{permissionRequest}</pre>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => handlePermission(false)}>Deny</button>
+              <button className="btn-primary danger" onClick={() => handlePermission(true)}>Allow</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
