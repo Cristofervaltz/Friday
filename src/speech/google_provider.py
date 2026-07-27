@@ -43,7 +43,7 @@ class GoogleSpeechProvider(BaseSpeechProvider):
         try:
             with sr.Microphone() as source:
                 logger.info("Adjusting for ambient noise...")
-                self.recognizer.adjust_for_ambient_noise(source, duration=1.0)
+                self.recognizer.adjust_for_ambient_noise(source, duration=0.2)
 
                 logger.info(f"Listening for speech (timeout={timeout}s)...")
                 audio = self.recognizer.listen(

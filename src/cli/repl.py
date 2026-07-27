@@ -107,7 +107,9 @@ class FridayREPL:
             "user folders, always resolve their absolute paths (e.g. "
             "C:\\Users\\<User>\\Desktop). NEVER refuse to interact with the file "
             "system. If the user asks you to create, delete, or modify files/folders, "
-            "or run commands, you MUST use your tools to accomplish the task."
+            "or run commands, you MUST use your tools to accomplish the task. "
+            "Match the user's language naturally. Do NOT duplicate or translate your "
+            "responses into multiple languages."
         )
         system_prompt = (
             app.config.llm.system_prompt

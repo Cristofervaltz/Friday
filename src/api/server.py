@@ -14,6 +14,7 @@ try:
     from fastapi import FastAPI, WebSocket, WebSocketDisconnect  # type: ignore
     from fastapi.responses import HTMLResponse  # type: ignore
     from fastapi.staticfiles import StaticFiles  # type: ignore
+    from src.speech.tts_provider import EdgeTTSProvider
 except ImportError:
     FastAPI = None  # type: ignore
     uvicorn = None  # type: ignore
@@ -93,6 +94,7 @@ def create_app() -> "FastAPI":
 
     # We use REPL to reuse the existing Agent and Tools wiring
     friday_repl = FridayREPL(friday_app)
+    friday_app.repl = friday_repl
 
     def _get_permission_mode() -> str:
         """Read permission_mode from saved settings."""
@@ -216,8 +218,39 @@ def create_app() -> "FastAPI":
     global active_websocket, server_loop, permission_event, permission_result
     active_websocket = None
     server_loop = None
+    wake_word_detector = None
     permission_event = threading.Event()
     permission_result = False
+
+    def _on_wake_word():
+        global active_websocket, server_loop
+        if active_websocket and server_loop:
+            try:
+                import json
+                import asyncio
+                asyncio.run_coroutine_threadsafe(
+                    active_websocket.send_text(json.dumps({"type": "wake_word"})),
+                    server_loop
+                )
+            except Exception as e:
+                print(f"Failed to send wake word signal: {e}")
+
+    def _start_wake_word():
+        global wake_word_detector
+        if wake_word_detector is None:
+            try:
+                from src.speech.wake_word import WakeWordDetector
+                wake_word_detector = WakeWordDetector()
+                wake_word_detector.start(_on_wake_word)
+            except Exception as e:
+                print(f"Failed to start Wake Word: {e}")
+
+    @app.on_event("startup")
+    async def startup_event() -> None:
+        """Initialize server resources on startup."""
+        global server_loop
+        server_loop = asyncio.get_running_loop()
+        _start_wake_word()
 
     @app.websocket("/ws/chat")  # type: ignore
     async def websocket_endpoint(websocket: "WebSocket") -> None:
@@ -256,6 +289,7 @@ def create_app() -> "FastAPI":
             asyncio.run_coroutine_threadsafe(send_updates(), loop)
 
         friday_repl._agent.memory.add_on_change_callback(on_memory_change)
+        on_memory_change()
 
         try:
             while True:
@@ -415,27 +449,63 @@ def create_app() -> "FastAPI":
                 elif payload.get("type") == "message":
                     user_text = payload.get("content", "")
 
-                    def run_friday(msg_text: str = user_text) -> None:
+                    target_chat_id = friday_repl._agent.memory.chat_id
+
+                    def run_friday(msg_text: str = user_text, chat_id: str = target_chat_id) -> None:
                         try:
                             if msg_text.strip() == "/voice":
-                                # Handle voice separately: only transcribe,
-                                # don't send to LLM. Return text to UI.
                                 _handle_voice_for_ws(websocket, friday_app, loop)
                             elif msg_text.strip() == "/clear":
-                                # Clear backend conversation memory
-                                friday_repl._agent.memory.clear()
+                                if friday_repl._agent.memory.chat_id == chat_id:
+                                    friday_repl._agent.memory.clear()
+                                else:
+                                    from src.memory.conversation import ConversationMemory
+                                    temp_mem = ConversationMemory(chat_id=chat_id, save_dir=friday_app.config.paths.data_dir / "chats" if friday_app.config else None)
+                                    temp_mem.clear()
                             else:
-                                # Use the REPL's message handling
-                                friday_repl._handle_message(msg_text)
+                                from src.memory.conversation import ConversationMemory
+                                from src.core.agent import Agent
+                                
+                                local_memory = ConversationMemory(
+                                    system_prompt=friday_app.config.llm.system_prompt if friday_app.config else None,
+                                    chat_id=chat_id,
+                                    save_dir=friday_app.config.paths.data_dir / "chats" if friday_app.config else None
+                                )
+                                local_memory.add_on_change_callback(on_memory_change)
+                                
+                                local_agent = Agent(
+                                    llm_provider=friday_app.provider,
+                                    tool_registry=friday_repl._registry,
+                                    memory=local_memory,
+                                    max_iterations=friday_app.config.llm.max_iterations if friday_app.config else 10,
+                                )
+                                local_agent.run(msg_text)
+                                
+                                try:
+                                    assistant_msgs = [m for m in local_memory.get_messages() if m.get("role") == "assistant"]
+                                    if assistant_msgs:
+                                        last_msg = assistant_msgs[-1].get("content", "")
+                                        if last_msg:
+                                            from src.speech.tts_provider import EdgeTTSProvider
+                                            tts = EdgeTTSProvider()
+                                            tts.speak(last_msg)
+                                except Exception as e:
+                                    print(f"Failed to play TTS: {e}")
+                                
+                                
+                                if friday_repl._agent.memory.chat_id == chat_id:
+                                    friday_repl._agent.memory.load()
                         except Exception as e:
-                            # Add error to agent memory directly
-                            friday_repl._agent.memory.add_assistant_message(
-                                f"Error: {str(e)}"
-                            )
+                            if friday_repl._agent.memory.chat_id == chat_id:
+                                friday_repl._agent.memory.add_assistant_message(f"Error: {str(e)}")
+                            else:
+                                from src.memory.conversation import ConversationMemory
+                                temp_mem = ConversationMemory(chat_id=chat_id, save_dir=friday_app.config.paths.data_dir / "chats" if friday_app.config else None)
+                                temp_mem.add_assistant_message(f"Error: {str(e)}")
                         finally:
                             # Signal completion
                             asyncio.run_coroutine_threadsafe(
-                                websocket.send_text(json.dumps({"type": "done"})),
+                                websocket.send_text(json.dumps({"type": "done", "command": msg_text.strip()})),
                                 loop,
                             )
 

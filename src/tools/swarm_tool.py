@@ -11,7 +11,9 @@ from src.tools.base import BaseTool, ToolResult
 class DelegateTaskTool(BaseTool):
     """Tool that spins up an isolated sub-agent to perform a specific task."""
 
-    name = "delegate_task"
+    @property
+    def name(self) -> str:
+        return "delegate_task"
 
     def __init__(self, app: Any, registry: Any) -> None:
         """Initialize the DelegateTaskTool.
@@ -34,7 +36,7 @@ class DelegateTaskTool(BaseTool):
         )
 
     @property
-    def parameters(self) -> dict[str, Any]:
+    def parameters_schema(self) -> dict[str, Any]:
         """Return tool parameters schema."""
         return {
             "type": "object",
@@ -51,16 +53,24 @@ class DelegateTaskTool(BaseTool):
             "required": ["role", "task"],
         }
 
-    def execute(self, role: str, task: str) -> ToolResult:
+    def execute(self, **kwargs: Any) -> ToolResult:
         """Execute the sub-agent task.
 
         Args:
-            role: The role for the sub-agent.
-            task: The task for the sub-agent.
+            **kwargs: Tool arguments from LLM. Expected 'role' and 'task'.
 
         Returns:
             ToolResult containing the sub-agent's final response.
         """
+        role = kwargs.get("role")
+        task = kwargs.get("task")
+
+        if not role or not task:
+            return ToolResult(
+                success=False,
+                error="Missing required parameters: 'role' and 'task' must be provided."
+            )
+
         try:
             # Generate a unique chat ID for the sub-agent
             sub_chat_id = f"sub_{uuid.uuid4().hex[:8]}"

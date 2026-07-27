@@ -37,7 +37,11 @@ dev = [
 ]
 speech = [
   "SpeechRecognition>=3.10.0",
-  "PyAudio>=0.2.14"
+  "PyAudio>=0.2.14",
+  "edge-tts>=6.0.0",
+  "pygame>=2.5.0",
+  "vosk>=0.3.45",
+  "sounddevice>=0.4.6"
 ]
 vision = [
   "mss>=9.0.0",

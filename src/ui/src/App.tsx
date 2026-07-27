@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Zap, Pencil, Trash2 } from 'lucide-react';
+import { Zap, Pencil, Trash2, Mic, ArrowRight } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { SettingsModal } from './components/SettingsModal';
 import { VoicePanel } from './components/VoicePanel';
@@ -29,6 +29,13 @@ function App() {
   const [currentChatId, setCurrentChatId] = useState<string>('');
   const [currentWorkspace, setCurrentWorkspace] = useState<string>('');
   
+  const currentChatIdRef = useRef<string>('');
+  const pendingChatIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    currentChatIdRef.current = currentChatId;
+  }, [currentChatId]);
+  
   interface QueuedMessage {
     id: string;
     text: string;
@@ -56,8 +63,9 @@ function App() {
 
   const [isListening, setIsListening] = useState(false);
   const [voiceAutoSend, setVoiceAutoSend] = useState(() => {
-    return localStorage.getItem('friday_voice_auto_send') !== 'false';
+    return localStorage.getItem('friday_voice_auto_send') === 'true';
   });
+  const [isVoicePanelOpen, setIsVoicePanelOpen] = useState(false);
 
   useEffect(() => {
     fetch('http://127.0.0.1:8000/api/settings')
@@ -154,11 +162,23 @@ function App() {
                 role: 'user',
                 content: `🎤 ${transcribedText}`
               }]);
+              setIsThinking(true);
               websocket.send(JSON.stringify({ type: 'message', content: transcribedText }));
             } else {
               // Manual mode: insert into input field for review
               setInput(prev => prev ? prev + ' ' + transcribedText : transcribedText);
             }
+          } else if (data.type === 'wake_word') {
+            import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
+              const win = getCurrentWindow();
+              win.show();
+              win.setFocus();
+            }).catch(err => console.error("Tauri window API not available", err));
+            
+            // Trigger voice recording
+            setIsListening(true);
+            setIsThinking(true);
+            websocket?.send(JSON.stringify({ type: 'message', content: '/voice' }));
           } else if (data.type === 'voice_error') {
             setIsListening(false);
             setMessages(prev => [...prev, {
@@ -168,12 +188,24 @@ function App() {
             }]);
           } else if (data.type === 'done') {
             setIsListening(false);
-            setIsThinking(false);
+            if (data.command === '/voice') {
+              const autoSend = localStorage.getItem('friday_voice_auto_send') !== 'false';
+              if (!autoSend) {
+                setIsThinking(false);
+              }
+            } else {
+              setIsThinking(false);
+            }
           } else if (data.type === 'chats_list') {
             setChats(data.chats || []);
           } else if (data.type === 'chat_history') {
-            setCurrentChatId(data.chat_id);
-            setMessages(data.messages || []);
+            if (pendingChatIdRef.current === data.chat_id || currentChatIdRef.current === data.chat_id || currentChatIdRef.current === '') {
+              setCurrentChatId(data.chat_id);
+              setMessages(data.messages || []);
+              if (pendingChatIdRef.current === data.chat_id) {
+                pendingChatIdRef.current = null;
+              }
+            }
           } else if (data.type === 'workspace_set') {
             setCurrentWorkspace(data.path);
           } else if (data.type === 'permission_request') {
@@ -233,13 +265,19 @@ function App() {
     }
     if (!ws || !connected) return;
     
+    if (cmd === '/voice') {
+      setIsListening(true);
+    }
+
     if (cmd === 'new_chat') {
       const newId = Date.now().toString();
+      pendingChatIdRef.current = newId;
       ws.send(JSON.stringify({ type: 'switch_chat', chat_id: newId }));
       ws.send(JSON.stringify({ type: 'get_chats' }));
       return;
     }
     if (cmd === 'switch_chat' && payload) {
+      pendingChatIdRef.current = payload;
       ws.send(JSON.stringify({ type: 'switch_chat', chat_id: payload }));
       return;
     }
@@ -422,20 +460,31 @@ function App() {
             />
             {isThinking && input.trim() && (
               <button type="button" onClick={(e) => handleSubmit(e, true)} title="Send Immediately" className="instant-send-btn">
-                ⚡
+                <Zap size={20} />
               </button>
             )}
-            <button type="submit" disabled={!connected || !input.trim()}>
-              {isThinking ? 'Queue' : 'Send'}
+            <button 
+              type="button" 
+              className="inline-mic-btn"
+              onClick={() => {
+                setIsVoicePanelOpen(true);
+                handleAction('/voice');
+              }}
+              title="Start Voice Input"
+            >
+              <Mic size={20} />
+            </button>
+            <button type="submit" className="send-btn" disabled={!connected || (!input.trim() && !isListening)}>
+              {isThinking ? 'Queue' : <ArrowRight size={20} />}
             </button>
           </form>
         </div>
       </section>
 
-      {/* Voice Panel on the right */}
       <VoicePanel 
+        isOpen={isVoicePanelOpen}
+        onClose={() => setIsVoicePanelOpen(false)}
         isListening={isListening} 
-        onVoiceClick={() => handleAction('/voice')} 
         connected={connected} 
       />
 
