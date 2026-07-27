@@ -44,9 +44,14 @@ class ConversationMemory:
 
     def _trigger_on_change(self) -> None:
         """Trigger all on_change callbacks."""
+        import inspect
         for cb in self._on_change_callbacks:
             try:
-                cb()
+                sig = inspect.signature(cb)
+                if len(sig.parameters) >= 1:
+                    cb(self)
+                else:
+                    cb()
             except Exception:
                 pass
 

@@ -43,6 +43,9 @@ class FridayREPL:
         self._registry.register(EditFileTool())
         self._registry.register(ListFilesTool())
         self._registry.register(ShellCommandTool())
+        
+        from src.tools.swarm_tool import DelegateTaskTool
+        self._registry.register(DelegateTaskTool(app=app, registry=self._registry))
 
         # Register optional tools
         try:

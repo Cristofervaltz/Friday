@@ -228,15 +228,16 @@ def create_app() -> "FastAPI":
         active_websocket = websocket
 
         # Subscribe to agent memory changes to stream updates live
-        def on_memory_change() -> None:
-            chat_id = friday_repl._agent.memory.chat_id
+        def on_memory_change(memory_instance: Any = None) -> None:
+            mem = memory_instance or friday_repl._agent.memory
+            chat_id = mem.chat_id
             # Filter out system messages — the UI should never see them
             ui_messages = [
                 m
-                for m in friday_repl._agent.memory.get_messages()
+                for m in mem.get_messages()
                 if m.get("role") != "system"
             ]
-            chats = friday_repl._agent.memory.get_all_chats()
+            chats = mem.get_all_chats()
 
             async def send_updates() -> None:
                 await websocket.send_text(
