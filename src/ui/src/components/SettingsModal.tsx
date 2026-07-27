@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Palette, Bot, Monitor, Shield } from 'lucide-react';
+import { X, Save, Palette, Bot, Monitor, Shield, AlertTriangle, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
 import './SettingsModal.css';
 
 interface SettingsModalProps {
@@ -235,13 +235,13 @@ export function SettingsModal({ isOpen, onClose, voiceAutoSend = true, onVoiceAu
                         value={settings.permission_mode || 'default'}
                         onChange={e => setSettings({...settings, permission_mode: e.target.value})}
                       >
-                        <option value="default">🛡️ Default — Ask before every action</option>
-                        <option value="turbo">⚡ Turbo — Allow all actions automatically</option>
-                        <option value="custom">🔧 Custom — Define your own rules</option>
+                        <option value="default">Default — Ask before every action</option>
+                        <option value="turbo">Turbo — Allow all actions automatically</option>
+                        <option value="custom">Custom — Define your own rules</option>
                       </select>
                       <p className="form-hint">
                         {settings.permission_mode === 'turbo' 
-                          ? '⚠️ Friday will execute ANY command without asking. Use with caution!' 
+                          ? <><AlertTriangle size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }}/> Friday will execute ANY command without asking. Use with caution!</>
                           : settings.permission_mode === 'custom'
                           ? 'Define comma-separated command prefixes for each category below.'
                           : 'Friday will ask for your approval before every shell command or file operation.'}
@@ -249,17 +249,20 @@ export function SettingsModal({ isOpen, onClose, voiceAutoSend = true, onVoiceAu
                     </div>
 
                     {settings.permission_mode === 'turbo' && (
-                      <div className="settings-warning" style={{ color: '#ff5252', fontSize: '0.85em', padding: '10px', background: 'rgba(255,82,82,0.1)', borderRadius: '8px', border: '1px solid rgba(255,82,82,0.3)' }}>
-                        ⚠️ <strong>Warning:</strong> In Turbo mode, Friday has full access to your system. 
-                        It can delete files, install software, and run any command without confirmation. 
-                        Only use this mode if you fully trust the AI and understand the risks.
+                      <div className="settings-warning" style={{ color: '#ff5252', fontSize: '0.85em', padding: '10px', background: 'rgba(255,82,82,0.1)', borderRadius: '8px', border: '1px solid rgba(255,82,82,0.3)', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                        <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+                        <div>
+                          <strong>Warning:</strong> In Turbo mode, Friday has full access to your system. 
+                          It can delete files, install software, and run any command without confirmation. 
+                          Only use this mode if you fully trust the AI and understand the risks.
+                        </div>
                       </div>
                     )}
 
                     {settings.permission_mode === 'custom' && (
                       <>
                         <div className="form-group">
-                          <label>✅ Auto-Allow (comma-separated prefixes)</label>
+                          <label><CheckCircle size={14} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '4px', color: '#10b981' }}/> Auto-Allow (comma-separated prefixes)</label>
                           <textarea
                             className="system-prompt-textarea"
                             placeholder="git, npm, python, pip, ls, dir, cd, echo"
@@ -271,7 +274,7 @@ export function SettingsModal({ isOpen, onClose, voiceAutoSend = true, onVoiceAu
                         </div>
 
                         <div className="form-group">
-                          <label>❌ Always Deny (comma-separated prefixes)</label>
+                          <label><XCircle size={14} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '4px', color: '#ef4444' }}/> Always Deny (comma-separated prefixes)</label>
                           <textarea
                             className="system-prompt-textarea"
                             placeholder="rm -rf /, format, shutdown, del /f"
@@ -283,7 +286,7 @@ export function SettingsModal({ isOpen, onClose, voiceAutoSend = true, onVoiceAu
                         </div>
 
                         <div className="form-group">
-                          <label>❓ Ask Permission (comma-separated prefixes)</label>
+                          <label><HelpCircle size={14} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '4px', color: '#eab308' }}/> Ask Permission (comma-separated prefixes)</label>
                           <textarea
                             className="system-prompt-textarea"
                             placeholder="rm, del, move, ren"

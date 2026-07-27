@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Zap, Pencil, Trash2 } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { SettingsModal } from './components/SettingsModal';
 import { VoicePanel } from './components/VoicePanel';
@@ -394,9 +395,9 @@ function App() {
               <div key={msg.id} className="queue-item">
                 <span className="queue-text truncate">{msg.text}</span>
                 <div className="queue-actions">
-                  <button onClick={() => handleInstantSend(msg.id)} title="Send Immediately" className="instant-btn">⚡</button>
-                  <button onClick={() => handleEditQueue(msg.id)} title="Edit" className="edit-btn">✏️</button>
-                  <button onClick={() => setMessageQueue(prev => prev.filter(m => m.id !== msg.id))} title="Delete" className="del-btn">❌</button>
+                  <button onClick={() => handleInstantSend(msg.id)} title="Send Immediately" className="instant-btn"><Zap size={14} /></button>
+                  <button onClick={() => handleEditQueue(msg.id)} title="Edit" className="edit-btn"><Pencil size={14} /></button>
+                  <button onClick={() => setMessageQueue(prev => prev.filter(m => m.id !== msg.id))} title="Delete" className="del-btn"><Trash2 size={14} /></button>
                 </div>
               </div>
             ))}
