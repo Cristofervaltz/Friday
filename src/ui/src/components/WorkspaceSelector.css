@@ -1,7 +1,7 @@
 .workspace-selector-container {
   position: relative;
   display: inline-block;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
   z-index: 50;
 }
 
@@ -10,23 +10,23 @@
   border: none;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   color: var(--text-secondary);
-  font-family: monospace;
-  font-size: 0.85rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
   cursor: pointer;
-  padding: 4px 8px;
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
 }
 
 .workspace-trigger:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .workspace-name {
-  max-width: 200px;
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -36,48 +36,49 @@
   position: absolute;
   bottom: 100%;
   left: 0;
-  margin-bottom: 8px;
-  background: var(--bg-panel);
+  margin-bottom: var(--space-2);
+  background: var(--bg-panel-solid);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: 8px;
+  padding: var(--space-2);
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 250px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  animation: fadeIn 0.15s ease-out;
+  gap: var(--space-1);
+  min-width: 260px;
+  box-shadow: var(--shadow-lg), 0 0 20px rgba(0,0,0,0.5);
+  animation: slideUpFade var(--transition-fast);
 }
 
 .dropdown-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   background: transparent;
   border: none;
   width: 100%;
   text-align: left;
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 
 .dropdown-item.active {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
   border: 1px solid var(--border-subtle);
+  box-shadow: inset 1px 0 0 var(--color-primary-500);
 }
 
 .dropdown-item.action {
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
   font-family: var(--font-sans);
 }
 
 .dropdown-item.action:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.12);
   color: var(--text-primary);
 }
 

@@ -318,6 +318,38 @@ export function SettingsModal({ isOpen, onClose, voiceAutoSend = true, onVoiceAu
                     </div>
 
                     <div className="form-group">
+                      <label>Enable Voice Responses (TTS)</label>
+                      <div className="toggle-group">
+                        <label className="toggle-label">
+                          <input
+                            type="checkbox"
+                            checked={settings.tts_enabled !== 'false'}
+                            onChange={e => setSettings({...settings, tts_enabled: e.target.checked ? 'true' : 'false'})}
+                          />
+                          <span className="toggle-slider"></span>
+                          <span className="toggle-text">
+                            {settings.tts_enabled !== 'false' ? 'Enabled' : 'Disabled'}
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label>TTS Voice</label>
+                      <select 
+                        value={settings.tts_voice || 'ru-RU-SvetlanaNeural'}
+                        onChange={e => setSettings({...settings, tts_voice: e.target.value})}
+                      >
+                        <option value="ru-RU-SvetlanaNeural">ru-RU-SvetlanaNeural (Female)</option>
+                        <option value="ru-RU-DmitryNeural">ru-RU-DmitryNeural (Male)</option>
+                        <option value="en-US-AriaNeural">en-US-AriaNeural (Female)</option>
+                        <option value="en-US-GuyNeural">en-US-GuyNeural (Male)</option>
+                        <option value="en-US-JennyNeural">en-US-JennyNeural (Female)</option>
+                      </select>
+                      <p className="form-hint">Select the voice used to read out responses.</p>
+                    </div>
+
+                    <div className="form-group">
                       <label>Voice Mode</label>
                       <div className="toggle-group">
                         <label className="toggle-label">

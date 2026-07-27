@@ -3,7 +3,7 @@ import subprocess
 from pathlib import Path
 
 
-def build_sidecar():
+def build_sidecar() -> None:
     print("Building Python Sidecar using PyInstaller...")
 
     # Run PyInstaller

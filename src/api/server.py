@@ -14,7 +14,6 @@ try:
     from fastapi import FastAPI, WebSocket, WebSocketDisconnect  # type: ignore
     from fastapi.responses import HTMLResponse  # type: ignore
     from fastapi.staticfiles import StaticFiles  # type: ignore
-    from src.speech.tts_provider import EdgeTTSProvider
 except ImportError:
     FastAPI = None  # type: ignore
     uvicorn = None  # type: ignore
@@ -29,6 +28,8 @@ active_websocket: Any = None
 server_loop: asyncio.AbstractEventLoop | None = None
 permission_event: threading.Event = threading.Event()
 permission_result: bool = False
+wake_word_detector: Any = None
+active_tts: Any = None
 
 
 def _handle_voice_for_ws(
@@ -94,7 +95,7 @@ def create_app() -> "FastAPI":
 
     # We use REPL to reuse the existing Agent and Tools wiring
     friday_repl = FridayREPL(friday_app)
-    friday_app.repl = friday_repl
+    friday_app.repl = friday_repl  # type: ignore
 
     def _get_permission_mode() -> str:
         """Read permission_mode from saved settings."""
@@ -215,35 +216,42 @@ def create_app() -> "FastAPI":
     # We only really support one active GUI connected to the local agent
     # active_connection = None
 
-    global active_websocket, server_loop, permission_event, permission_result
+    global active_websocket, server_loop, permission_event, permission_result, \
+        wake_word_detector, active_tts
     active_websocket = None
     server_loop = None
     wake_word_detector = None
+    active_tts = None
     permission_event = threading.Event()
     permission_result = False
 
-    def _on_wake_word():
+    def _on_wake_word() -> None:
         global active_websocket, server_loop
         if active_websocket and server_loop:
             try:
-                import json
                 import asyncio
+                import json
+
                 asyncio.run_coroutine_threadsafe(
                     active_websocket.send_text(json.dumps({"type": "wake_word"})),
-                    server_loop
+                    server_loop,
                 )
             except Exception as e:
                 print(f"Failed to send wake word signal: {e}")
 
-    def _start_wake_word():
+    def _start_wake_word() -> None:
         global wake_word_detector
         if wake_word_detector is None:
             try:
-                from src.speech.wake_word import WakeWordDetector
+                from ..speech.wake_word import WakeWordDetector
+
                 wake_word_detector = WakeWordDetector()
                 wake_word_detector.start(_on_wake_word)
+                print("Wake Word detector started successfully.")
             except Exception as e:
+                import traceback
                 print(f"Failed to start Wake Word: {e}")
+                traceback.print_exc()
 
     @app.on_event("startup")
     async def startup_event() -> None:
@@ -267,7 +275,7 @@ def create_app() -> "FastAPI":
             # Filter out system messages — the UI should never see them
             ui_messages = [
                 m
-                for m in mem.get_messages()
+                for m in mem.get_messages(inject_system=False)
                 if m.get("role") != "system"
             ]
             chats = mem.get_all_chats()
@@ -356,6 +364,14 @@ def create_app() -> "FastAPI":
                         await websocket.send_text(
                             json.dumps({"type": "chats_list", "chats": chats})
                         )
+
+                elif payload.get("type") == "stop_tts":
+                    global active_tts
+                    if active_tts:
+                        try:
+                            active_tts.stop()
+                        except Exception as e:
+                            print(f"Failed to stop TTS: {e}")
 
                 elif payload.get("type") == "set_workspace":
                     import os
@@ -451,7 +467,9 @@ def create_app() -> "FastAPI":
 
                     target_chat_id = friday_repl._agent.memory.chat_id
 
-                    def run_friday(msg_text: str = user_text, chat_id: str = target_chat_id) -> None:
+                    def run_friday(
+                        msg_text: str = user_text, chat_id: str = target_chat_id
+                    ) -> None:
                         try:
                             if msg_text.strip() == "/voice":
                                 _handle_voice_for_ws(websocket, friday_app, loop)
@@ -459,53 +477,155 @@ def create_app() -> "FastAPI":
                                 if friday_repl._agent.memory.chat_id == chat_id:
                                     friday_repl._agent.memory.clear()
                                 else:
-                                    from src.memory.conversation import ConversationMemory
-                                    temp_mem = ConversationMemory(chat_id=chat_id, save_dir=friday_app.config.paths.data_dir / "chats" if friday_app.config else None)
+                                    from src.memory.conversation import (
+                                        ConversationMemory,
+                                    )
+
+                                    temp_mem = ConversationMemory(
+                                        chat_id=chat_id,
+                                        save_dir=(
+                                            friday_app.config.paths.data_dir / "chats"
+                                            if friday_app.config
+                                            else None
+                                        ),
+                                    )
                                     temp_mem.clear()
                             else:
-                                from src.memory.conversation import ConversationMemory
                                 from src.core.agent import Agent
-                                
+                                from src.memory.conversation import ConversationMemory
+
                                 local_memory = ConversationMemory(
-                                    system_prompt=friday_app.config.llm.system_prompt if friday_app.config else None,
+                                    system_prompt=(
+                                        friday_repl._agent.memory.system_prompt
+                                        if friday_repl
+                                        and hasattr(friday_repl, "_agent")
+                                        else (
+                                            friday_app.config.llm.system_prompt
+                                            if friday_app.config
+                                            else None
+                                        )
+                                    ),
                                     chat_id=chat_id,
-                                    save_dir=friday_app.config.paths.data_dir / "chats" if friday_app.config else None
+                                    save_dir=(
+                                        friday_app.config.paths.data_dir / "chats"
+                                        if friday_app.config
+                                        else None
+                                    ),
                                 )
                                 local_memory.add_on_change_callback(on_memory_change)
-                                
+
                                 local_agent = Agent(
                                     llm_provider=friday_app.provider,
                                     tool_registry=friday_repl._registry,
                                     memory=local_memory,
-                                    max_iterations=friday_app.config.llm.max_iterations if friday_app.config else 10,
+                                    max_iterations=(
+                                        friday_app.config.llm.max_iterations
+                                        if friday_app.config
+                                        else 10
+                                    ),
                                 )
                                 local_agent.run(msg_text)
-                                
+
                                 try:
-                                    assistant_msgs = [m for m in local_memory.get_messages() if m.get("role") == "assistant"]
+                                    assistant_msgs = [
+                                        m
+                                        for m in local_memory.get_messages()
+                                        if m.get("role") == "assistant"
+                                    ]
                                     if assistant_msgs:
                                         last_msg = assistant_msgs[-1].get("content", "")
                                         if last_msg:
-                                            from src.speech.tts_provider import EdgeTTSProvider
-                                            tts = EdgeTTSProvider()
-                                            tts.speak(last_msg)
+                                            from .._compat import load_settings_safe
+
+                                            s = load_settings_safe()
+                                            tts_enabled = (
+                                                str(
+                                                    s.get("tts_enabled", "true")
+                                                ).lower()
+                                                == "true"
+                                            )
+                                            if tts_enabled:
+                                                with open(
+                                                    r"c:\Users\Klim\OneDrive\Desktop\Friday\tts_debug.log",
+                                                    "a",
+                                                    encoding="utf-8",
+                                                ) as f:
+                                                    f.write(
+                                                        f"Speak: {last_msg[:50]}...\n"
+                                                    )
+                                                from src.speech.tts_provider import (
+                                                    EdgeTTSProvider,
+                                                )
+
+                                                global active_tts
+                                                tts_voice = str(
+                                                    s.get(
+                                                        "tts_voice",
+                                                        "ru-RU-SvetlanaNeural",
+                                                    )
+                                                )
+                                                active_tts = EdgeTTSProvider(
+                                                    voice=tts_voice
+                                                )
+                                                asyncio.run_coroutine_threadsafe(
+                                                    websocket.send_text(json.dumps({"type": "tts_state", "playing": True})),
+                                                    loop,
+                                                )
+                                                active_tts.speak(last_msg)
+                                                active_tts = None
+                                                asyncio.run_coroutine_threadsafe(
+                                                    websocket.send_text(json.dumps({"type": "tts_state", "playing": False})),
+                                                    loop,
+                                                )
                                 except Exception as e:
-                                    print(f"Failed to play TTS: {e}")
-                                
-                                
+                                    with open(
+                                        r"c:\Users\Klim\OneDrive\Desktop\Friday\tts_debug.log",
+                                        "a",
+                                        encoding="utf-8",
+                                    ) as f:
+                                        import traceback
+
+                                        f.write(
+                                            f"TTS fail: {e}\n{traceback.format_exc()}\n"
+                                        )
+
                                 if friday_repl._agent.memory.chat_id == chat_id:
                                     friday_repl._agent.memory.load()
                         except Exception as e:
+                            import traceback
+
+                            with open(
+                                r"c:\Users\Klim\OneDrive\Desktop\Friday\agent_crash.log",
+                                "a",
+                                encoding="utf-8",
+                            ) as f:
+                                f.write(
+                                    f"Agent crashed: {e}\n{traceback.format_exc()}\n"
+                                )
                             if friday_repl._agent.memory.chat_id == chat_id:
-                                friday_repl._agent.memory.add_assistant_message(f"Error: {str(e)}")
+                                friday_repl._agent.memory.add_assistant_message(
+                                    f"Error: {str(e)}"
+                                )
                             else:
                                 from src.memory.conversation import ConversationMemory
-                                temp_mem = ConversationMemory(chat_id=chat_id, save_dir=friday_app.config.paths.data_dir / "chats" if friday_app.config else None)
+
+                                temp_mem = ConversationMemory(
+                                    chat_id=chat_id,
+                                    save_dir=(
+                                        friday_app.config.paths.data_dir / "chats"
+                                        if friday_app.config
+                                        else None
+                                    ),
+                                )
                                 temp_mem.add_assistant_message(f"Error: {str(e)}")
                         finally:
                             # Signal completion
                             asyncio.run_coroutine_threadsafe(
-                                websocket.send_text(json.dumps({"type": "done", "command": msg_text.strip()})),
+                                websocket.send_text(
+                                    json.dumps(
+                                        {"type": "done", "command": msg_text.strip()}
+                                    )
+                                ),
                                 loop,
                             )
 
@@ -557,12 +677,25 @@ def create_app() -> "FastAPI":
         friday_app.reload_config()
         # Update the active agent's provider so it applies immediately without restart
         friday_repl._agent.llm = friday_app.provider
+        if friday_app.config and friday_app.config.llm.system_prompt:
+            friday_repl._agent.memory.system_prompt = (
+                friday_app.config.llm.system_prompt
+            )
         return {"status": "ok"}
 
     # Serve Vite build if it exists
     ui_dist = Path(__file__).parent.parent / "ui" / "dist"
     if ui_dist.exists() and ui_dist.is_dir():
-        app.mount("/", StaticFiles(directory=str(ui_dist), html=True), name="ui")
+        from fastapi.responses import FileResponse
+
+        @app.get("/")
+        async def serve_index() -> Any:
+            return FileResponse(
+                str(ui_dist / "index.html"),
+                headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+            )
+
+        app.mount("/", StaticFiles(directory=str(ui_dist), html=False), name="ui")
     else:
 
         @app.get("/")  # type: ignore

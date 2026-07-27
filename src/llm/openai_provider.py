@@ -181,10 +181,17 @@ class OpenAIProvider(BaseLLMProvider):
             with urlopen(request, timeout=self._timeout) as response:
                 raw_response = response.read().decode("utf-8")
         except HTTPError as exc:
+            error_body = ""
+            try:
+                error_body = exc.read().decode("utf-8")
+            except Exception:
+                pass
             if exc.code in {401, 403}:
-                raise AuthenticationError("LLM authentication failed.") from None
+                raise AuthenticationError(f"LLM authentication failed. {error_body}") from None
+            if exc.code == 400:
+                print(f"DEBUG: 400 Bad Request. Payload: {request.data}")
             raise ConnectionError(
-                f"LLM request failed with status code {exc.code}."
+                f"LLM request failed with status code {exc.code}. Body: {error_body}"
             ) from None
         except builtins.TimeoutError:
             raise TimeoutError("LLM request timed out.") from None
@@ -226,10 +233,15 @@ class OpenAIProvider(BaseLLMProvider):
             with urlopen(request, timeout=self._timeout) as response:
                 raw_response = response.read().decode("utf-8")
         except HTTPError as exc:
+            error_body = ""
+            try:
+                error_body = exc.read().decode("utf-8")
+            except Exception:
+                pass
             if exc.code in {401, 403}:
-                raise AuthenticationError("LLM authentication failed.") from None
+                raise AuthenticationError(f"LLM authentication failed. {error_body}") from None
             raise ConnectionError(
-                f"LLM request failed with status code {exc.code}."
+                f"LLM request failed with status code {exc.code}. Body: {error_body}"
             ) from None
         except builtins.TimeoutError:
             raise TimeoutError("LLM request timed out.") from None
@@ -254,6 +266,7 @@ class OpenAIProvider(BaseLLMProvider):
             key: value.format(api_key=self._api_key)
             for key, value in _JSON_HEADERS.items()
         }
+        print("DEBUG FALLBACK PAYLOAD:", payload)
         return Request(
             url=f"{self._base_url}/chat/completions",
             data=request_body,

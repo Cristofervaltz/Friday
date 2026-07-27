@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Zap, Pencil, Trash2, Mic, ArrowRight } from 'lucide-react';
+import { Zap, Pencil, Trash2, Mic, ArrowRight, StopCircle } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { SettingsModal } from './components/SettingsModal';
 import { VoicePanel } from './components/VoicePanel';
@@ -62,6 +62,7 @@ function App() {
   }, [input]);
 
   const [isListening, setIsListening] = useState(false);
+  const [isTtsPlaying, setIsTtsPlaying] = useState(false);
   const [voiceAutoSend, setVoiceAutoSend] = useState(() => {
     return localStorage.getItem('friday_voice_auto_send') === 'true';
   });
@@ -168,6 +169,8 @@ function App() {
               // Manual mode: insert into input field for review
               setInput(prev => prev ? prev + ' ' + transcribedText : transcribedText);
             }
+          } else if (data.type === 'tts_state') {
+            setIsTtsPlaying(data.playing);
           } else if (data.type === 'wake_word') {
             import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
               const win = getCurrentWindow();
@@ -474,6 +477,22 @@ function App() {
             >
               <Mic size={20} />
             </button>
+            {isTtsPlaying && (
+              <button 
+                type="button" 
+                className="inline-mic-btn"
+                onClick={() => {
+                  if (ws && connected) {
+                    ws.send(JSON.stringify({ type: 'stop_tts' }));
+                    setIsTtsPlaying(false);
+                  }
+                }}
+                title="Stop TTS Audio"
+                style={{ color: '#ef4444' }}
+              >
+                <StopCircle size={20} />
+              </button>
+            )}
             <button type="submit" className="send-btn" disabled={!connected || (!input.trim() && !isListening)}>
               {isThinking ? 'Queue' : <ArrowRight size={20} />}
             </button>

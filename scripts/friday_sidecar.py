@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 
 
-def main():
+def main() -> None:
     print("Starting Friday sidecar (thin wrapper)...")
 
     # Tauri sets the CWD differently depending on whether it's run in dev mode,

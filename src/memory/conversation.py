@@ -45,6 +45,7 @@ class ConversationMemory:
     def _trigger_on_change(self) -> None:
         """Trigger all on_change callbacks."""
         import inspect
+
         for cb in self._on_change_callbacks:
             try:
                 sig = inspect.signature(cb)
@@ -139,16 +140,19 @@ class ConversationMemory:
             "messages": self.get_messages(),
         }
 
-    def get_messages(self) -> list[dict[str, Any]]:
+    def get_messages(self, inject_system: bool = True) -> list[dict[str, Any]]:
         """Return complete list of messages including system prompt if present.
 
-        Returns:
-            List of message dictionaries compatible with LLM providers.
+        Args:
+            inject_system: Ignored, kept for backward compatibility.
         """
         full_list: list[dict[str, Any]] = []
+
         if self.system_prompt is not None and self.system_prompt.strip():
             full_list.append({"role": "system", "content": self.system_prompt.strip()})
+
         full_list.extend(self._messages)
+
         return full_list
 
     def clear(self) -> None:
