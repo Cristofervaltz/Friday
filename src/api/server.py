@@ -269,6 +269,21 @@ def create_app() -> "FastAPI":
         server_loop = loop
         active_websocket = websocket
 
+        # On connection, sync backend OS directory with current chat's workspace
+        import os
+        from pathlib import Path
+        initial_ws = friday_repl._agent.memory.workspace
+        if not initial_ws:
+            os.chdir(friday_app.config.paths.app_home)
+        elif Path(initial_ws).exists():
+            os.chdir(initial_ws)
+        try:
+            search_tool = friday_repl._agent.tools.get_tool("semantic_search")
+            search_tool.workspace_path = initial_ws or "."
+            search_tool._indexer = None
+        except KeyError:
+            pass
+
         # Subscribe to agent memory changes to stream updates live
         def on_memory_change(memory_instance: Any = None) -> None:
             mem = memory_instance or friday_repl._agent.memory
@@ -293,6 +308,9 @@ def create_app() -> "FastAPI":
                 )
                 await websocket.send_text(
                     json.dumps({"type": "chats_list", "chats": chats})
+                )
+                await websocket.send_text(
+                    json.dumps({"type": "workspace_set", "path": mem.workspace})
                 )
 
             asyncio.run_coroutine_threadsafe(send_updates(), loop)
@@ -320,6 +338,22 @@ def create_app() -> "FastAPI":
                     chat_id = payload.get("chat_id")
                     if chat_id:
                         friday_repl._agent.memory.switch_chat(chat_id)
+                        
+                        # Apply this chat's workspace
+                        import os
+                        ws_path = friday_repl._agent.memory.workspace
+                        if not ws_path:
+                            os.chdir(friday_app.config.paths.app_home)
+                        elif Path(ws_path).exists():
+                            os.chdir(ws_path)
+                            
+                        try:
+                            search_tool = friday_repl._agent.tools.get_tool("semantic_search")
+                            search_tool.workspace_path = ws_path or "."
+                            search_tool._indexer = None
+                        except KeyError:
+                            pass
+
                         # Also send back the messages for this chat
                         await websocket.send_text(
                             json.dumps(
@@ -330,6 +364,9 @@ def create_app() -> "FastAPI":
                                     "messages": friday_repl._agent.memory._messages,
                                 }
                             )
+                        )
+                        await websocket.send_text(
+                            json.dumps({"type": "workspace_set", "path": ws_path})
                         )
 
                 elif payload.get("type") == "get_workspaces":
@@ -379,6 +416,9 @@ def create_app() -> "FastAPI":
 
                     path = payload.get("path")
                     chat_id = friday_repl._agent.memory.current_chat_id
+                    
+                    friday_repl._agent.memory.workspace = path
+                    friday_repl._agent.memory.save()
 
                     if path == "":
                         os.chdir(friday_app.config.paths.app_home)

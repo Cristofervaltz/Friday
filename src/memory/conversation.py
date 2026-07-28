@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -31,8 +32,10 @@ class ConversationMemory:
         self.chat_id = chat_id or "default"
         self.save_dir = save_dir
         self.title = "New Chat"
+        self.workspace: str = ""
         self._messages: list[dict[str, Any]] = []
         self._on_change_callbacks: list[Any] = []
+        self._lock = threading.Lock()
 
         if self.save_dir:
             self.save_dir.mkdir(parents=True, exist_ok=True)
@@ -70,9 +73,10 @@ class ConversationMemory:
         Args:
             content: User message text.
         """
-        self._messages.append({"role": "user", "content": content})
-        self._enforce_max_messages()
-        self.save()
+        with self._lock:
+            self._messages.append({"role": "user", "content": content})
+            self._enforce_max_messages()
+            self._save_unsafe()
         self._trigger_on_change()
 
     def add_assistant_message(
@@ -89,9 +93,10 @@ class ConversationMemory:
         msg: dict[str, Any] = {"role": "assistant", "content": content}
         if tool_calls is not None:
             msg["tool_calls"] = tool_calls
-        self._messages.append(msg)
-        self._enforce_max_messages()
-        self.save()
+        with self._lock:
+            self._messages.append(msg)
+            self._enforce_max_messages()
+            self._save_unsafe()
         self._trigger_on_change()
 
     def add_tool_result(self, tool_call_id: str, content: str) -> None:
@@ -126,9 +131,10 @@ class ConversationMemory:
         elif role == "assistant":
             self.add_assistant_message(content)
         elif role == "system":
-            self._messages.append({"role": "system", "content": content})
-            self._enforce_max_messages()
-            self.save()
+            with self._lock:
+                self._messages.append({"role": "system", "content": content})
+                self._enforce_max_messages()
+                self._save_unsafe()
             self._trigger_on_change()
 
     def get_chat(self, chat_id: str) -> dict[str, Any]:
@@ -136,6 +142,7 @@ class ConversationMemory:
         return {
             "id": self.chat_id,
             "title": self.title,
+            "workspace": self.workspace,
             "updated_at": int(time.time()),
             "messages": self.get_messages(),
         }
@@ -157,8 +164,9 @@ class ConversationMemory:
 
     def clear(self) -> None:
         """Clear conversation history (keeps system prompt)."""
-        self._messages.clear()
-        self.save()
+        with self._lock:
+            self._messages.clear()
+            self._save_unsafe()
         self._trigger_on_change()
 
     def _enforce_max_messages(self) -> None:
@@ -181,10 +189,15 @@ class ConversationMemory:
                     data = json.load(f)
                     self._messages = data.get("messages", [])
                     self.title = data.get("title", "New Chat")
+                    self.workspace = data.get("workspace", "")
             except Exception:
                 pass
 
     def save(self) -> None:
+        with self._lock:
+            self._save_unsafe()
+
+    def _save_unsafe(self) -> None:
         if not self.save_dir:
             return
         # Generate title from first user message if title is default
@@ -200,6 +213,7 @@ class ConversationMemory:
         data = {
             "id": self.chat_id,
             "title": self.title,
+            "workspace": self.workspace,
             "updated_at": int(time.time()),
             "messages": self._messages,
         }
@@ -213,6 +227,7 @@ class ConversationMemory:
         self.chat_id = new_id
         self._messages.clear()
         self.title = "New Chat"
+        self.workspace = ""
         self.load()
 
     def get_all_chats(self) -> list[dict[str, Any]]:

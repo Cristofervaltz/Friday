@@ -1,5 +1,6 @@
 """Tool for delegating tasks to sub-agents (Multi-Agent Swarm)."""
 
+import threading
 import uuid
 from typing import Any
 
@@ -32,7 +33,7 @@ class DelegateTaskTool(BaseTool):
             "Delegate a complex task to a specialized sub-agent. The sub-agent "
             "will have its own isolated context and tools. Use this to break down "
             "large problems or to perform specialized research without cluttering "
-            "your own context. Wait for it to finish and return its result."
+            "your own context. You can wait for it to finish or run it in the background."
         )
 
     @property
@@ -49,6 +50,10 @@ class DelegateTaskTool(BaseTool):
                     "type": "string",
                     "description": "Detailed task for sub-agent.",
                 },
+                "run_in_background": {
+                    "type": "boolean",
+                    "description": "If true, delegates the task asynchronously and returns immediately. The sub-agent will inject its result into your chat when done.",
+                },
             },
             "required": ["role", "task"],
         }
@@ -57,13 +62,14 @@ class DelegateTaskTool(BaseTool):
         """Execute the sub-agent task.
 
         Args:
-            **kwargs: Tool arguments from LLM. Expected 'role' and 'task'.
+            **kwargs: Tool arguments from LLM. Expected 'role', 'task', 'run_in_background'.
 
         Returns:
-            ToolResult containing the sub-agent's final response.
+            ToolResult containing the sub-agent's final response or status.
         """
         role = kwargs.get("role")
         task = kwargs.get("task")
+        run_in_background = kwargs.get("run_in_background", False)
 
         if not role or not task:
             return ToolResult(
@@ -96,10 +102,12 @@ class DelegateTaskTool(BaseTool):
             # UI prefix for sub-agents
             memory.title = f"[Sub-Agent] {role}"
 
-            # Copy WebSocket callbacks from main agent for UI live updates
-            if hasattr(self.app, "repl") and self.app.repl:
-                main_memory = self.app.repl._agent.memory
-                for cb in main_memory._on_change_callbacks:
+            # Get parent agent if available in context
+            parent_agent = getattr(self.registry.context, "agent", None)
+
+            # Copy WebSocket callbacks from parent agent for UI live updates
+            if parent_agent and hasattr(parent_agent, "memory"):
+                for cb in parent_agent.memory._on_change_callbacks:
                     memory.add_on_change_callback(cb)
 
             # Trigger initial UI update so the chat appears in the sidebar immediately
@@ -115,13 +123,45 @@ class DelegateTaskTool(BaseTool):
                 ),
             )
 
-            # Run the task sequentially
-            final_response = sub_agent.run(task)
+            if run_in_background:
+                def _run_sub_agent() -> None:
+                    try:
+                        final_response = sub_agent.run(task)
+                        if parent_agent and hasattr(parent_agent, "memory"):
+                            # Inject result into parent chat
+                            parent_agent.memory.add_assistant_message(
+                                f"🤖 **Sub-Agent '{role}' finished its background task!**\n\n**Result:**\n{final_response}"
+                            )
+                            parent_agent.memory._trigger_on_change()
+                    except Exception as exc:
+                        if parent_agent and hasattr(parent_agent, "memory"):
+                            parent_agent.memory.add_assistant_message(
+                                f"❌ **Sub-Agent '{role}' encountered an error:** {exc}"
+                            )
+                            parent_agent.memory._trigger_on_change()
+                    finally:
+                        memory.delete_chat(sub_chat_id)
+                        if parent_agent and hasattr(parent_agent, "memory"):
+                            parent_agent.memory._trigger_on_change()
 
-            return ToolResult(
-                success=True,
-                output=f"Sub-agent '{role}' done. Response:\n{final_response}",
-            )
+                # Spawn background thread
+                threading.Thread(target=_run_sub_agent, daemon=True).start()
+                return ToolResult(
+                    success=True,
+                    output=f"Sub-agent '{role}' spawned in the background. It will inject the results into the chat when done.",
+                )
+            else:
+                try:
+                    # Run the task sequentially
+                    final_response = sub_agent.run(task)
+                    return ToolResult(
+                        success=True,
+                        output=f"Sub-agent '{role}' done. Response:\n{final_response}",
+                    )
+                finally:
+                    memory.delete_chat(sub_chat_id)
+                    if parent_agent and hasattr(parent_agent, "memory"):
+                        parent_agent.memory._trigger_on_change()
         except Exception as e:
             return ToolResult(
                 success=False,
