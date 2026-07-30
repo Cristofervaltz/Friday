@@ -660,7 +660,8 @@ def create_app() -> "FastAPI":
                                             )
                                             if tts_enabled:
                                                 with open(
-                                                    friday_app.config.paths.data_dir / "tts_debug.log",
+                                                    friday_app.config.paths.data_dir
+                                                    / "tts_debug.log",
                                                     "a",
                                                     encoding="utf-8",
                                                 ) as f:
@@ -707,7 +708,8 @@ def create_app() -> "FastAPI":
                                                 )
                                 except Exception as e:
                                     with open(
-                                        friday_app.config.paths.data_dir / "tts_debug.log",
+                                        friday_app.config.paths.data_dir
+                                        / "tts_debug.log",
                                         "a",
                                         encoding="utf-8",
                                     ) as f:
