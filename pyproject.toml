@@ -92,6 +92,7 @@ exclude = [
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "N"]
+ignore = ["E501"]
 
 # Ignore E402 (module level import not at top) for examples
 # Examples need to modify sys.path before importing project modules

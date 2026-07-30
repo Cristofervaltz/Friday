@@ -10,7 +10,7 @@ def main() -> None:
 
     if getattr(sys, "frozen", False):
         # If running as a PyInstaller bundle, the root is the temporary extraction folder
-        project_root = Path(getattr(sys, "_MEIPASS"))
+        project_root = Path(sys._MEIPASS)
         sys.path.insert(0, str(project_root))
         # Do not change cwd, server.py will handle workspace switching
     else:
