@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Friday",
-  "version": "0.8.0",
+  "version": "1.0.0",
   "identifier": "com.friday.app",
   "build": {
     "frontendDist": "../dist",
