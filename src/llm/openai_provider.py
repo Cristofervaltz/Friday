@@ -350,7 +350,7 @@ class OpenAIProvider(BaseLLMProvider):
             if choices[0].get("finish_reason"):
                 finish_reason = choices[0]["finish_reason"]
 
-        message = {"role": "assistant"}
+        message: dict[str, Any] = {"role": "assistant"}
         if full_content:
             message["content"] = full_content
 

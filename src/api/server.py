@@ -280,8 +280,8 @@ def create_app() -> "FastAPI":
             os.chdir(initial_ws)
         try:
             search_tool = friday_repl._agent.tools.get_tool("semantic_search")
-            search_tool.workspace_path = initial_ws or "."
-            search_tool._indexer = None
+            search_tool.workspace_path = initial_ws or "."  # type: ignore[attr-defined]
+            search_tool._indexer = None  # type: ignore[attr-defined]
         except KeyError:
             pass
 
@@ -359,8 +359,8 @@ def create_app() -> "FastAPI":
                             search_tool = friday_repl._agent.tools.get_tool(
                                 "semantic_search"
                             )
-                            search_tool.workspace_path = ws_path or "."
-                            search_tool._indexer = None
+                            search_tool.workspace_path = ws_path or "."  # type: ignore[attr-defined]
+                            search_tool._indexer = None  # type: ignore[attr-defined]
                         except KeyError:
                             pass
 
@@ -597,7 +597,7 @@ def create_app() -> "FastAPI":
                                         getattr(tool_copy, "name", None)
                                         == "delegate_task"
                                     ):
-                                        tool_copy.registry = local_registry
+                                        tool_copy.registry = local_registry  # type: ignore[attr-defined]
 
                                     local_registry.register(tool_copy)
 
