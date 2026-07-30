@@ -164,8 +164,13 @@ pip install -e .[gui,speech,vision,rag,dev]
 
 # Frontend (Tauri)
 cd src/ui && npm install
-npm run tauri dev              # Development mode
-npm run tauri build            # Production .exe installer
+
+# Build the Python sidecar executable (Required for production build)
+# Run this from the root directory:
+# python scripts/build_sidecar.py
+
+npm run tauri dev              # Development mode (uses local python)
+npm run tauri build            # Production .exe installer (requires sidecar)
 ```
 
 The desktop app bundles the Python backend into a highly optimized sidecar (`friday-api.exe`), meaning end-users don't need Python installed. It also features:
