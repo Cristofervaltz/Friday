@@ -24,12 +24,32 @@ pub fn run() {
             let show_i = MenuItem::with_id(app, "show", "Show Friday", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
 
+            // Spawn the Python sidecar
+            let sidecar = app
+                .shell()
+                .sidecar("friday-api")
+                .expect("Failed to create sidecar command");
+            let (mut rx, child) = sidecar.spawn().expect("Failed to spawn sidecar");
+            
+            let child_arc = std::sync::Arc::new(std::sync::Mutex::new(Some(child)));
+            let child_for_menu = child_arc.clone();
+
+            tauri::async_runtime::spawn(async move {
+                // Read stdout/stderr so the buffer doesn't fill up
+                while let Some(_) = rx.recv().await {
+                    // Just consume
+                }
+            });
+
             // Setup tray icon
             let _tray = TrayIconBuilder::new()
                 .menu(&menu)
                 .icon(app.default_window_icon().unwrap().clone())
-                .on_menu_event(|app, event| match event.id.as_ref() {
+                .on_menu_event(move |app, event| match event.id.as_ref() {
                     "quit" => {
+                        if let Some(child) = child_for_menu.lock().unwrap().take() {
+                            let _ = child.kill();
+                        }
                         app.exit(0);
                     }
                     "show" => {
@@ -54,20 +74,6 @@ pub fn run() {
                     }
                 })
                 .build(app)?;
-
-            // Spawn the Python sidecar
-            let sidecar = app
-                .shell()
-                .sidecar("friday-api")
-                .expect("Failed to create sidecar command");
-            tauri::async_runtime::spawn(async move {
-                let (mut rx, child) = sidecar.spawn().expect("Failed to spawn sidecar");
-                // Read stdout/stderr so the buffer doesn't fill up
-                while let Some(_) = rx.recv().await {
-                    // Just consume
-                }
-                // child is dropped here when process exits
-            });
 
             Ok(())
         })

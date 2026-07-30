@@ -269,6 +269,22 @@ def create_app() -> "FastAPI":
         server_loop = loop
         active_websocket = websocket
 
+        # On connection, sync backend OS directory with current chat's workspace
+        import os
+        from pathlib import Path
+
+        initial_ws = friday_repl._agent.memory.workspace
+        if not initial_ws:
+            os.chdir(friday_app.config.paths.app_home)
+        elif Path(initial_ws).exists():
+            os.chdir(initial_ws)
+        try:
+            search_tool = friday_repl._agent.tools.get_tool("semantic_search")
+            search_tool.workspace_path = initial_ws or "."
+            search_tool._indexer = None
+        except KeyError:
+            pass
+
         # Subscribe to agent memory changes to stream updates live
         def on_memory_change(memory_instance: Any = None) -> None:
             mem = memory_instance or friday_repl._agent.memory
@@ -293,6 +309,15 @@ def create_app() -> "FastAPI":
                 )
                 await websocket.send_text(
                     json.dumps({"type": "chats_list", "chats": chats})
+                )
+                await websocket.send_text(
+                    json.dumps(
+                        {
+                            "type": "workspace_set",
+                            "path": mem.workspace,
+                            "chat_id": chat_id,
+                        }
+                    )
                 )
 
             asyncio.run_coroutine_threadsafe(send_updates(), loop)
@@ -320,6 +345,25 @@ def create_app() -> "FastAPI":
                     chat_id = payload.get("chat_id")
                     if chat_id:
                         friday_repl._agent.memory.switch_chat(chat_id)
+
+                        # Apply this chat's workspace
+                        import os
+
+                        ws_path = friday_repl._agent.memory.workspace
+                        if not ws_path:
+                            os.chdir(friday_app.config.paths.app_home)
+                        elif Path(ws_path).exists():
+                            os.chdir(ws_path)
+
+                        try:
+                            search_tool = friday_repl._agent.tools.get_tool(
+                                "semantic_search"
+                            )
+                            search_tool.workspace_path = ws_path or "."
+                            search_tool._indexer = None
+                        except KeyError:
+                            pass
+
                         # Also send back the messages for this chat
                         await websocket.send_text(
                             json.dumps(
@@ -328,6 +372,15 @@ def create_app() -> "FastAPI":
                                     "chat_id": chat_id,
                                     "title": friday_repl._agent.memory.title,
                                     "messages": friday_repl._agent.memory._messages,
+                                }
+                            )
+                        )
+                        await websocket.send_text(
+                            json.dumps(
+                                {
+                                    "type": "workspace_set",
+                                    "path": ws_path,
+                                    "chat_id": chat_id,
                                 }
                             )
                         )
@@ -380,6 +433,9 @@ def create_app() -> "FastAPI":
                     path = payload.get("path")
                     chat_id = friday_repl._agent.memory.current_chat_id
 
+                    friday_repl._agent.memory.workspace = path
+                    friday_repl._agent.memory.save()
+
                     if path == "":
                         os.chdir(friday_app.config.paths.app_home)
                         if chat_id:
@@ -405,7 +461,13 @@ def create_app() -> "FastAPI":
                                 )
                             )
                         await websocket.send_text(
-                            json.dumps({"type": "workspace_set", "path": ""})
+                            json.dumps(
+                                {
+                                    "type": "workspace_set",
+                                    "path": "",
+                                    "chat_id": chat_id,
+                                }
+                            )
                         )
 
                     elif path and Path(path).exists():
@@ -460,7 +522,13 @@ def create_app() -> "FastAPI":
                             json.dumps(workspaces[:10]), encoding="utf-8"
                         )
                         await websocket.send_text(
-                            json.dumps({"type": "workspace_set", "path": path})
+                            json.dumps(
+                                {
+                                    "type": "workspace_set",
+                                    "path": path,
+                                    "chat_id": chat_id,
+                                }
+                            )
                         )
 
                 elif payload.get("type") == "message":
@@ -494,6 +562,8 @@ def create_app() -> "FastAPI":
                             else:
                                 from src.core.agent import Agent
                                 from src.memory.conversation import ConversationMemory
+                                from src.core.tool_registry import ToolRegistry
+                                import copy
 
                                 local_memory = ConversationMemory(
                                     system_prompt=(
@@ -515,9 +585,52 @@ def create_app() -> "FastAPI":
                                 )
                                 local_memory.add_on_change_callback(on_memory_change)
 
+                                local_registry = ToolRegistry()
+                                for tool_name in friday_repl._registry.list_tools():
+                                    tool = friday_repl._registry.get_tool(tool_name)
+                                    try:
+                                        tool_copy = copy.copy(tool)
+                                    except Exception:
+                                        tool_copy = tool
+
+                                    if (
+                                        getattr(tool_copy, "name", None)
+                                        == "delegate_task"
+                                    ):
+                                        tool_copy.registry = local_registry
+
+                                    local_registry.register(tool_copy)
+
+                                try:
+                                    search_tool = local_registry.get_tool(
+                                        "semantic_search"
+                                    )
+                                    search_tool.workspace_path = (  # type: ignore[attr-defined]
+                                        local_memory.workspace or "."
+                                    )
+                                    search_tool._indexer = None  # type: ignore[attr-defined]
+                                except KeyError:
+                                    pass
+
+                                original_local_execute = local_registry.execute
+
+                                def local_registry_execute(
+                                    name: str, **kwargs: Any
+                                ) -> Any:
+                                    if (
+                                        name == "execute_command"
+                                        and "cwd" not in kwargs
+                                    ):
+                                        kwargs["cwd"] = local_memory.workspace or str(
+                                            friday_app.config.paths.app_home
+                                        )
+                                    return original_local_execute(name, **kwargs)
+
+                                local_registry.execute = local_registry_execute  # type: ignore[method-assign]
+
                                 local_agent = Agent(
                                     llm_provider=friday_app.provider,
-                                    tool_registry=friday_repl._registry,
+                                    tool_registry=local_registry,
                                     memory=local_memory,
                                     max_iterations=(
                                         friday_app.config.llm.max_iterations

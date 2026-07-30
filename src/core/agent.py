@@ -72,10 +72,17 @@ class Agent:
             if response.tool_calls:
                 for tool_call in response.tool_calls:
                     try:
-                        tool_result = self.tools.execute(
-                            tool_call["name"],
-                            **tool_call["arguments"],
-                        )
+                        # Inject current agent into tool context
+                        previous_agent = getattr(self.tools.context, "agent", None)
+                        self.tools.context.agent = self
+                        try:
+                            tool_result = self.tools.execute(
+                                tool_call["name"],
+                                **tool_call["arguments"],
+                            )
+                        finally:
+                            self.tools.context.agent = previous_agent
+
                         if tool_result.success:
                             result_content = (
                                 tool_result.output

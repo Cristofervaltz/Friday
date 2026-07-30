@@ -56,7 +56,7 @@ This document outlines the evolutionary path of Friday, transitioning from a bas
 > **Goal:** Scale Friday beyond a single machine and enable self-reflection.
 
 - [ ] **Cloud Context Sync:** Synchronize memory and workspace context securely across multiple devices.
-- [ ] **Agent Swarms:** Allow multiple Friday instances to collaborate on team projects.
+- [x] **Agent Swarms:** Allow multiple Friday instances to collaborate on team projects.
 - [ ] **Self-Improvement Mechanisms:** Enable the agent to analyze past failures, update its own system prompts, and write new local tools.
 
 ---

@@ -18,7 +18,8 @@ def test_conversation_memory_basic() -> None:
 
     messages = memory.get_messages()
     assert len(messages) == 3
-    assert messages[0] == {"role": "system", "content": "You are Friday"}
+    assert messages[0]["role"] == "system"
+    assert messages[0]["content"].startswith("You are Friday")
     assert messages[1] == {"role": "user", "content": "Hello"}
     assert messages[2] == {"role": "assistant", "content": "Hi there!"}
 

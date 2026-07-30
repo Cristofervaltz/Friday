@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+import threading
 
 if TYPE_CHECKING:
     from src.plugins.base import BasePluginManager
@@ -19,6 +20,7 @@ class ToolRegistry:
     def __init__(self) -> None:
         """Initialize an empty tool registry."""
         self._tools: dict[str, BaseTool] = {}
+        self.context = threading.local()
 
     def register(self, tool: BaseTool) -> None:
         """Register a tool in the registry.
