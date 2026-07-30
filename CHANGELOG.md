@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on *Keep a Changelog*, and this project follows semantic versioning principles as it matures.
 
+## [1.0.0] - 2026-07-30
+
+### Added
+- **Official Stable Release** — full launch of the Friday GUI Application!
+- **Tauri UI Frontend** — beautiful, native desktop interface for seamless interaction.
+- **Agent Swarms (MVP)** — initial capability to spawn parallel background agents (`DelegateTaskTool`).
+- **Websocket API** — real-time communication between the Python backend and React frontend.
+
+### Fixed
+- **Release Blockers** — removed development hardcoded paths and fixed `PyInstaller MEIPASS` resolution in `friday_sidecar.py` for production distribution.
+- **OmniRoute Compatibility** — added resilient fallback parser for SSE streaming payloads sent by proxies when non-streaming is expected.
+- **Process Lifecycle** — resolved zombie python processes by bundling the API server directly in the sidecar instead of spawning detached subprocesses.
+
 ## [0.7.0] - 2026-07-25
 ### Added
 - Proactive Background Daemon (`src.daemon` module) enabling zero-GUI background execution.

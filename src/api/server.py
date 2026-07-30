@@ -660,7 +660,7 @@ def create_app() -> "FastAPI":
                                             )
                                             if tts_enabled:
                                                 with open(
-                                                    r"c:\Users\Klim\OneDrive\Desktop\Friday\tts_debug.log",
+                                                    friday_app.config.paths.data_dir / "tts_debug.log",
                                                     "a",
                                                     encoding="utf-8",
                                                 ) as f:
@@ -707,7 +707,7 @@ def create_app() -> "FastAPI":
                                                 )
                                 except Exception as e:
                                     with open(
-                                        r"c:\Users\Klim\OneDrive\Desktop\Friday\tts_debug.log",
+                                        friday_app.config.paths.data_dir / "tts_debug.log",
                                         "a",
                                         encoding="utf-8",
                                     ) as f:
@@ -723,7 +723,7 @@ def create_app() -> "FastAPI":
                             import traceback
 
                             with open(
-                                r"c:\Users\Klim\OneDrive\Desktop\Friday\agent_crash.log",
+                                friday_app.config.paths.data_dir / "agent_crash.log",
                                 "a",
                                 encoding="utf-8",
                             ) as f:
