@@ -560,10 +560,11 @@ def create_app() -> "FastAPI":
                                     )
                                     temp_mem.clear()
                             else:
-                                from src.core.agent import Agent
-                                from src.memory.conversation import ConversationMemory
-                                from src.core.tool_registry import ToolRegistry
                                 import copy
+
+                                from src.core.agent import Agent
+                                from src.core.tool_registry import ToolRegistry
+                                from src.memory.conversation import ConversationMemory
 
                                 local_memory = ConversationMemory(
                                     system_prompt=(

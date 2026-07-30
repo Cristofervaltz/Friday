@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 import threading
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from src.plugins.base import BasePluginManager
