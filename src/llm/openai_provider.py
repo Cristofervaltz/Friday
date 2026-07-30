@@ -29,6 +29,9 @@ from .exceptions import (
 _JSON_HEADERS = {
     "Authorization": "Bearer {api_key}",
     "Content-Type": "application/json",
+    "User-Agent": "Friday-Agent/1.0",
+    "HTTP-Referer": "https://github.com/friday-ai",
+    "X-Title": "Friday AI Agent",
 }
 
 
@@ -191,7 +194,7 @@ class OpenAIProvider(BaseLLMProvider):
                     f"LLM authentication failed. {error_body}"
                 ) from None
             if exc.code == 400:
-                print(f"DEBUG: 400 Bad Request. Payload: {request.data}")
+                pass
             raise ConnectionError(
                 f"LLM request failed with status code {exc.code}. Body: {error_body}"
             ) from None
@@ -218,6 +221,7 @@ class OpenAIProvider(BaseLLMProvider):
             "model": self._model,
             "messages": messages,
             "tools": tools,
+            "stream": False,
         }
         request_body = json.dumps(payload).encode("utf-8")
         request_headers = {
@@ -264,13 +268,14 @@ class OpenAIProvider(BaseLLMProvider):
         payload = {
             "model": self._model,
             "messages": [{"role": "user", "content": prompt}],
+            "stream": False,
         }
         request_body = json.dumps(payload).encode("utf-8")
         request_headers = {
             key: value.format(api_key=self._api_key)
             for key, value in _JSON_HEADERS.items()
         }
-        print("DEBUG FALLBACK PAYLOAD:", payload)
+
         return Request(
             url=f"{self._base_url}/chat/completions",
             data=request_body,
@@ -284,12 +289,75 @@ class OpenAIProvider(BaseLLMProvider):
 
         try:
             payload = json.loads(raw_response)
-        except JSONDecodeError as exc:
-            raise InvalidResponseError("LLM response was not valid JSON.") from exc
+        except json.JSONDecodeError as exc:
+            # Fallback for OmniRoute / proxies that force SSE (stream: true)
+            # even when stream: false is requested.
+            if "data: " in raw_response:
+                try:
+                    return self._parse_sse_to_payload(raw_response)
+                except Exception as sse_exc:
+                    self._logger.error(f"Failed to parse SSE fallback: {sse_exc}")
+                    pass
+
+            preview = raw_response[:200]
+            raise InvalidResponseError(
+                f"LLM response was not valid JSON. Response starts with:\n```\n{preview}\n```"
+            ) from exc
 
         if not isinstance(payload, dict) or not payload:
             raise InvalidResponseError("LLM response payload was invalid.")
         return payload
+
+    def _parse_sse_to_payload(self, raw_response: str) -> dict[str, Any]:
+        """Convert an SSE stream response into a single unified JSON payload."""
+        full_content = ""
+        tool_calls = {}
+        finish_reason = "stop"
+
+        for line in raw_response.splitlines():
+            line = line.strip()
+            if not line.startswith("data: "):
+                continue
+            data_str = line[6:].strip()
+            if data_str == "[DONE]":
+                break
+
+            try:
+                chunk = json.loads(data_str)
+            except json.JSONDecodeError:
+                continue
+
+            choices = chunk.get("choices", [])
+            if not choices:
+                continue
+            delta = choices[0].get("delta", {})
+
+            if "content" in delta and delta["content"]:
+                full_content += delta["content"]
+
+            if "tool_calls" in delta:
+                for tc in delta["tool_calls"]:
+                    idx = tc.get("index", 0)
+                    if idx not in tool_calls:
+                        tool_calls[idx] = tc
+                    else:
+                        if "function" in tc:
+                            if "arguments" in tc["function"]:
+                                tool_calls[idx]["function"]["arguments"] += tc[
+                                    "function"
+                                ]["arguments"]
+
+            if choices[0].get("finish_reason"):
+                finish_reason = choices[0]["finish_reason"]
+
+        message = {"role": "assistant"}
+        if full_content:
+            message["content"] = full_content
+
+        if tool_calls:
+            message["tool_calls"] = [tool_calls[k] for k in sorted(tool_calls.keys())]
+
+        return {"choices": [{"message": message, "finish_reason": finish_reason}]}
 
     def _extract_text(self, payload: dict[str, Any]) -> str:
         choices = payload.get("choices")

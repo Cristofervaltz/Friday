@@ -156,7 +156,14 @@ class ConversationMemory:
         full_list: list[dict[str, Any]] = []
 
         if self.system_prompt is not None and self.system_prompt.strip():
-            full_list.append({"role": "system", "content": self.system_prompt.strip()})
+            prompt_text = self.system_prompt.strip()
+
+            if self.workspace:
+                prompt_text += f"\n\n[System Info]\nActive Workspace: {self.workspace}\nYou are operating in this specific project directory. File paths should be relative to this directory."
+            else:
+                prompt_text += "\n\n[System Info]\nActive Workspace: None (No Project)\nYou are operating in the default global environment."
+
+            full_list.append({"role": "system", "content": prompt_text})
 
         full_list.extend(self._messages)
 

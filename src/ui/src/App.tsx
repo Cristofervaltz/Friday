@@ -204,13 +204,20 @@ function App() {
           } else if (data.type === 'chat_history') {
             if (pendingChatIdRef.current === data.chat_id || currentChatIdRef.current === data.chat_id || currentChatIdRef.current === '') {
               setCurrentChatId(data.chat_id);
+              currentChatIdRef.current = data.chat_id;
               setMessages(data.messages || []);
               if (pendingChatIdRef.current === data.chat_id) {
                 pendingChatIdRef.current = null;
               }
             }
           } else if (data.type === 'workspace_set') {
-            setCurrentWorkspace(data.path);
+            console.log("Received workspace_set:", data, "currentChatId:", currentChatIdRef.current, "pendingChatId:", pendingChatIdRef.current);
+            if (!data.chat_id || pendingChatIdRef.current === data.chat_id || currentChatIdRef.current === data.chat_id || currentChatIdRef.current === '') {
+              console.log("Setting workspace to:", data.path);
+              setCurrentWorkspace(data.path);
+            } else {
+              console.log("Ignoring workspace_set because chat_id mismatch");
+            }
           } else if (data.type === 'permission_request') {
             setPermissionRequest(data.action);
           }

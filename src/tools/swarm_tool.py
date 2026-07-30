@@ -124,6 +124,7 @@ class DelegateTaskTool(BaseTool):
             )
 
             if run_in_background:
+
                 def _run_sub_agent() -> None:
                     try:
                         final_response = sub_agent.run(task)

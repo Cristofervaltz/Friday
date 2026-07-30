@@ -88,6 +88,7 @@ def test_successful_generation(monkeypatch: pytest.MonkeyPatch) -> None:
         assert payload == {
             "model": "gpt-4.1-mini",
             "messages": [{"role": "user", "content": "Say hello."}],
+            "stream": False,
         }
         return MockHTTPResponse(
             {"choices": [{"message": {"content": " Hello from Friday. "}}]}
