@@ -23,7 +23,7 @@ def main() -> None:
 
         if not (project_root / "src" / "api" / "server.py").exists():
             print("Failed to find project root.")
-        
+
         # Set working directory to project root so relative paths work in dev
         os.chdir(str(project_root))
         sys.path.insert(0, str(project_root))
