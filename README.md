@@ -40,7 +40,7 @@ The desktop app is built with [Tauri](https://tauri.app/) and ships with a bundl
 | **Interactive Permissions** | Total control over Friday's actions. Approve every shell command or file operation via an aesthetic UI, set custom whitelists, or use Turbo mode. |
 | **Agent Dashboard** | See what the agent is thinking, what tools it's calling, and its execution plan in real-time. |
 | **Rich Artifacts Viewer** | Renders Mermaid diagrams, code diffs, and structured outputs natively inside the app. |
-| **Voice input** | Say `/voice` and talk. Noise-filtered speech recognition, no cloud required. |
+| **Voice input** | Press `Ctrl+Alt+Space` or use a Wake Word anywhere on your computer. Noise-filtered speech recognition, no cloud required. |
 | **Vision** | Friday takes screenshots and analyzes them — debug UI bugs, read diagrams, understand context. |
 | **Semantic code search (RAG)** | Your entire workspace is indexed locally with ChromaDB. Ask questions about code in natural language. |
 | **Plugins & MCP** | Extend Friday with Model Context Protocol servers — GitHub, Jira, databases, web search. |
