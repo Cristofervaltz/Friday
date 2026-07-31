@@ -58,7 +58,7 @@ Everything is configured **inside the app**. No `.env` files needed.
 3. Paste your API key, choose a model.
 4. Hit **Save**.
 
-> 💡 **Tip for free top-tier LLMs:** We recommend using [OmniRoute](https://github.com/diegosouzapw/OmniRoute) — it's the easiest and freest way to connect top-tier models to Friday without paying for expensive API keys. Just run OmniRoute locally and point Friday to its local endpoint!
+> 💡 **Tip for free top-tier LLMs:** I recommend using [OmniRoute](https://github.com/diegosouzapw/OmniRoute) — it's the easiest and freest way to connect top-tier models to Friday without paying for expensive API keys. Just run OmniRoute locally and point Friday to its local endpoint!
 
 Changes apply instantly via hot-reload — no restart required.
 
