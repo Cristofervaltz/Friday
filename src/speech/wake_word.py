@@ -19,7 +19,7 @@ class WakeWordDetector:
         wake_words: list[str] | None = None,
     ):
         if wake_words is None:
-            wake_words = ["пятница", "эй пятница", "friday", "фрайдей"]
+            wake_words = ["friday", "hey friday", "пятница", "эй пятница"]
         self.wake_words = [w.lower() for w in wake_words]
         self.model_path = model_path
         self.running = False
