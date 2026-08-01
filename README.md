@@ -1,4 +1,5 @@
 <div align="center">
+  <img src="assets/banner.jpg" alt="Friday AI Assistant Banner" width="100%" />
 
 # Friday
 
