@@ -15,13 +15,13 @@ class WakeWordDetector:
 
     def __init__(
         self,
-        model_path: str = "assets/models/vosk-model-ru",
-        wake_words: list[str] | None = None,
+        model_path_ru: str = "assets/models/vosk-model-ru",
+        model_path_en: str = "assets/models/vosk-model-small-en-us-0.15",
     ):
-        if wake_words is None:
-            wake_words = ["friday", "hey friday", "пятница", "эй пятница"]
-        self.wake_words = [w.lower() for w in wake_words]
-        self.model_path = model_path
+        self.wake_words_ru = ["пятница", "эй пятница"]
+        self.wake_words_en = ["friday", "hey friday"]
+        self.model_path_ru = model_path_ru
+        self.model_path_en = model_path_en
         self.running = False
         self.thread: threading.Thread | None = None
         self.q: queue.Queue[bytes] = queue.Queue()
@@ -45,14 +45,20 @@ class WakeWordDetector:
                     return Path(sys._MEIPASS)
                 return Path(__file__).resolve().parent.parent.parent
 
-            model_dir = get_base_path() / self.model_path
-            if not model_dir.exists():
-                print(f"Wake word model not found at: {model_dir}")
+            model_dir_ru = get_base_path() / self.model_path_ru
+            model_dir_en = get_base_path() / self.model_path_en
+
+            if not model_dir_ru.exists() or not model_dir_en.exists():
+                print(
+                    f"Wake word models not found. RU: {model_dir_ru.exists()}, EN: {model_dir_en.exists()}"
+                )
                 return
 
-            model = Model(str(model_dir))
+            model_ru = Model(str(model_dir_ru))
+            model_en = Model(str(model_dir_en))
             samplerate = 16000
-            recognizer = KaldiRecognizer(model, samplerate)
+            recognizer_ru = KaldiRecognizer(model_ru, samplerate)
+            recognizer_en = KaldiRecognizer(model_en, samplerate)
 
             with sd.RawInputStream(
                 samplerate=samplerate,
@@ -62,15 +68,19 @@ class WakeWordDetector:
                 channels=1,
                 callback=self._callback_sd,
             ):
-                print(f"Listening for wake words: {self.wake_words}")
+                print(
+                    f"Listening for wake words: {self.wake_words_ru + self.wake_words_en}"
+                )
                 while self.running:
                     data = self.q.get()
-                    if recognizer.AcceptWaveform(data):
-                        result = json.loads(recognizer.Result())
+
+                    # Process Russian model
+                    if recognizer_ru.AcceptWaveform(data):
+                        result = json.loads(recognizer_ru.Result())
                         text = result.get("text", "").lower()
                         if text:
-                            print(f"Heard: {text}")
-                            for w in self.wake_words:
+                            # print(f"Heard (RU): {text}")
+                            for w in self.wake_words_ru:
                                 if w in text:
                                     now = time.monotonic()
                                     if now - self._last_triggered >= self._cooldown:
@@ -80,9 +90,9 @@ class WakeWordDetector:
                                             self._callback()
                                     break
                     else:
-                        partial = json.loads(recognizer.PartialResult())
+                        partial = json.loads(recognizer_ru.PartialResult())
                         text = partial.get("partial", "").lower()
-                        for w in self.wake_words:
+                        for w in self.wake_words_ru:
                             if w in text:
                                 now = time.monotonic()
                                 if now - self._last_triggered >= self._cooldown:
@@ -90,9 +100,36 @@ class WakeWordDetector:
                                     self._last_triggered = now
                                     if self._callback:
                                         self._callback()
-                                # always reset recognizer on partial match
-                                # to avoid re-detection
-                                recognizer.Reset()
+                                recognizer_ru.Reset()
+                                break
+
+                    # Process English model
+                    if recognizer_en.AcceptWaveform(data):
+                        result = json.loads(recognizer_en.Result())
+                        text = result.get("text", "").lower()
+                        if text:
+                            # print(f"Heard (EN): {text}")
+                            for w in self.wake_words_en:
+                                if w in text:
+                                    now = time.monotonic()
+                                    if now - self._last_triggered >= self._cooldown:
+                                        print(f"WAKE WORD DETECTED: {w}")
+                                        self._last_triggered = now
+                                        if self._callback:
+                                            self._callback()
+                                    break
+                    else:
+                        partial = json.loads(recognizer_en.PartialResult())
+                        text = partial.get("partial", "").lower()
+                        for w in self.wake_words_en:
+                            if w in text:
+                                now = time.monotonic()
+                                if now - self._last_triggered >= self._cooldown:
+                                    print(f"WAKE WORD DETECTED (partial): {w}")
+                                    self._last_triggered = now
+                                    if self._callback:
+                                        self._callback()
+                                recognizer_en.Reset()
                                 break
         except Exception as e:
             print(f"WakeWordDetector error: {e}")

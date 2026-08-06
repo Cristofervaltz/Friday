@@ -93,7 +93,9 @@ class MCPClientManager(BasePluginManager):
                 "function": {
                     "name": tool.name,
                     "description": tool.description or "",
-                    "parameters": tool.input_schema,
+                    "parameters": getattr(
+                        tool, "input_schema", getattr(tool, "inputSchema", {})
+                    ),
                 },
             }
             tools.append(schema)
@@ -114,7 +116,7 @@ class MCPClientManager(BasePluginManager):
             logger.exception("Failed to call tool.")
             raise RuntimeError(f"Failed to call tool: {exc}") from exc
 
-        if result.is_error:
+        if getattr(result, "is_error", getattr(result, "isError", False)):
             return f"Error: {result.content}"
 
         # Extract text content
