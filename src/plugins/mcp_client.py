@@ -93,7 +93,9 @@ class MCPClientManager(BasePluginManager):
                 "function": {
                     "name": tool.name,
                     "description": tool.description or "",
-                    "parameters": getattr(tool, "input_schema", getattr(tool, "inputSchema", {})),
+                    "parameters": getattr(
+                        tool, "input_schema", getattr(tool, "inputSchema", {})
+                    ),
                 },
             }
             tools.append(schema)
