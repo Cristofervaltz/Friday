@@ -881,6 +881,7 @@ def main() -> int:
         pass
     finally:
         from src.utils.port import cleanup_runtime_port
+
         cleanup_runtime_port()
 
     return 0

@@ -73,7 +73,9 @@ class WakeWordDetector:
                     safe_print("No microphone found. Wake word detection disabled.")
                     return
             except Exception:
-                safe_print("Could not query audio devices. Wake word detection disabled.")
+                safe_print(
+                    "Could not query audio devices. Wake word detection disabled."
+                )
                 return
 
             try:
@@ -86,7 +88,9 @@ class WakeWordDetector:
                     callback=self._callback_sd,
                 )
             except Exception as audio_err:
-                safe_print(f"Could not open microphone: {audio_err}. Wake word detection disabled.")
+                safe_print(
+                    f"Could not open microphone: {audio_err}. Wake word detection disabled."
+                )
                 return
 
             with stream:

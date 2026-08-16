@@ -10,7 +10,9 @@ _PORT_RANGE_SIZE = 100  # Try ports 8000–8099
 _RUNTIME_PORT_FILENAME = "runtime_port"
 
 
-def find_free_port(start: int = _DEFAULT_PORT, range_size: int = _PORT_RANGE_SIZE) -> int:
+def find_free_port(
+    start: int = _DEFAULT_PORT, range_size: int = _PORT_RANGE_SIZE
+) -> int:
     """Find the first available TCP port starting from *start*.
 
     Tries each port in [start, start + range_size) by attempting to bind.

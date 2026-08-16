@@ -108,5 +108,7 @@ if __name__ == "__main__":
         print(f"Server is ready on port {port}")
         open_wv(port)
     else:
-        print(f"Warning: Server health check timed out on port {port}, opening anyway...")
+        print(
+            f"Warning: Server health check timed out on port {port}, opening anyway..."
+        )
         open_wv(port)

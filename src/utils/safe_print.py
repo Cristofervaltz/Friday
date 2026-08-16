@@ -27,9 +27,7 @@ def safe_print(*args: object, **kwargs: object) -> None:
                 text.encode(sys.stdout.encoding or "utf-8")
                 safe_args.append(text)
             except (UnicodeEncodeError, LookupError):
-                safe_args.append(
-                    text.encode("ascii", errors="replace").decode("ascii")
-                )
+                safe_args.append(text.encode("ascii", errors="replace").decode("ascii"))
         try:
             print(*safe_args, **kwargs)
         except Exception:
