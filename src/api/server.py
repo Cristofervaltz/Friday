@@ -849,7 +849,7 @@ def start_server(host: str = "127.0.0.1", port: int | None = None) -> None:
         print("Error: uvicorn not installed.")
         sys.exit(1)
 
-    from src.utils.port import find_free_port, write_runtime_port, cleanup_runtime_port
+    from src.utils.port import cleanup_runtime_port, find_free_port, write_runtime_port
 
     if port is None:
         port = find_free_port()

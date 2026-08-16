@@ -1,7 +1,6 @@
 """Launch the Friday GUI (webview window + API server)."""
 
 import atexit
-import os
 import subprocess
 import sys
 import threading

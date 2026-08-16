@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import sys
+from typing import Any
 
 
-def safe_print(*args: object, **kwargs: object) -> None:
+def safe_print(*args: object, **kwargs: Any) -> None:
     """Print that never crashes, even without a console or on non-UTF-8 locales.
 
     Handles three failure modes common on Windows:
