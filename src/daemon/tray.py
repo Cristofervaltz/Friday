@@ -49,7 +49,10 @@ class TrayManager:
         self, icon: "pystray.Icon", item: "pystray.MenuItem"
     ) -> None:
         """Handler for the Dashboard menu item."""
-        webbrowser.open("http://127.0.0.1:8000")
+        from src.utils.port import read_runtime_port
+
+        port = read_runtime_port()
+        webbrowser.open(f"http://127.0.0.1:{port}")
 
     def _on_menu_exit(self, icon: "pystray.Icon", item: "pystray.MenuItem") -> None:
         """Handler for the Exit menu item."""

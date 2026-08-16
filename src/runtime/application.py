@@ -15,6 +15,7 @@ from src.llm import (
     OpenRouterProvider,
 )
 from src.logger import LoggerFactory
+from src.utils.safe_print import safe_print
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -79,7 +80,7 @@ class FridayApplication:
             if self._logger:
                 self._logger.exception("Runtime initialization failed: %s", exc)
             else:
-                print(f"Runtime initialization failed: {exc}")
+                safe_print(f"Runtime initialization failed: {exc}")
             self.shutdown()
             raise
 
@@ -91,7 +92,7 @@ class FridayApplication:
         if self._logger:
             self._logger.info("Reloading configuration...")
         else:
-            print("Reloading configuration...")
+            safe_print("Reloading configuration...")
 
         self._load_configuration()
         self._initialize_provider()
@@ -178,7 +179,7 @@ class FridayApplication:
         if self._logger:
             self._logger.info("Loading configuration...")
         else:
-            print("Loading configuration...")
+            safe_print("Loading configuration...")
 
         # Load .env file before reading configuration
         load_dotenv()
@@ -190,14 +191,14 @@ class FridayApplication:
         if self._logger:
             self._logger.info("Creating runtime directories...")
         else:
-            print("Creating runtime directories...")
+            safe_print("Creating runtime directories...")
 
         assert self._config is not None
         self._config.paths.ensure_directories()
 
     def _configure_logging(self) -> None:
         """Configure the logging subsystem."""
-        print("Initializing logger...")
+        safe_print("Initializing logger...")
 
         assert self._config is not None
         logger_factory = LoggerFactory()
@@ -268,7 +269,7 @@ class FridayApplication:
             f"{self._config.app_name} v{self._config.version} initialized "
             f"in {self._config.environment} mode."
         )
-        print(message)
+        safe_print(message)
         self._logger.info(message)
 
     def _ensure_initialized(self) -> None:
