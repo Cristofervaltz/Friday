@@ -69,7 +69,8 @@ function App() {
   const [isVoicePanelOpen, setIsVoicePanelOpen] = useState(false);
 
   useEffect(() => {
-    fetch('http://127.0.0.1:8000/api/settings')
+    const apiHost = window.location.host || '127.0.0.1:8000';
+    fetch(`http://${apiHost}/api/settings`)
       .then(res => res.json())
       .then(data => {
         applyTheme(data.theme, data.accent_color);
@@ -103,7 +104,9 @@ function App() {
     let isMounted = true;
 
     const connect = () => {
-      websocket = new WebSocket('ws://127.0.0.1:8000/ws/chat');
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsHost = window.location.host || '127.0.0.1:8000';
+      websocket = new WebSocket(`${wsProtocol}//${wsHost}/ws/chat`);
       
       websocket.onopen = () => {
         if (!isMounted) return;

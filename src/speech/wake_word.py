@@ -9,6 +9,8 @@ from typing import Any
 import sounddevice as sd  # type: ignore
 from vosk import KaldiRecognizer, Model  # type: ignore
 
+from src.utils.safe_print import safe_print
+
 
 class WakeWordDetector:
     """Listens continuously in the background for a wake word using Vosk."""
@@ -49,7 +51,7 @@ class WakeWordDetector:
             model_dir_en = get_base_path() / self.model_path_en
 
             if not model_dir_ru.exists() or not model_dir_en.exists():
-                print(
+                safe_print(
                     f"Wake word models not found. RU: {model_dir_ru.exists()}, EN: {model_dir_en.exists()}"
                 )
                 return
@@ -60,15 +62,35 @@ class WakeWordDetector:
             recognizer_ru = KaldiRecognizer(model_ru, samplerate)
             recognizer_en = KaldiRecognizer(model_en, samplerate)
 
-            with sd.RawInputStream(
-                samplerate=samplerate,
-                blocksize=8000,
-                device=None,
-                dtype="int16",
-                channels=1,
-                callback=self._callback_sd,
-            ):
-                print(
+            # Check if any audio input device is available
+            try:
+                devices = sd.query_devices()
+                has_input = any(
+                    d.get("max_input_channels", 0) > 0
+                    for d in (devices if isinstance(devices, list) else [devices])
+                )
+                if not has_input:
+                    safe_print("No microphone found. Wake word detection disabled.")
+                    return
+            except Exception:
+                safe_print("Could not query audio devices. Wake word detection disabled.")
+                return
+
+            try:
+                stream = sd.RawInputStream(
+                    samplerate=samplerate,
+                    blocksize=8000,
+                    device=None,
+                    dtype="int16",
+                    channels=1,
+                    callback=self._callback_sd,
+                )
+            except Exception as audio_err:
+                safe_print(f"Could not open microphone: {audio_err}. Wake word detection disabled.")
+                return
+
+            with stream:
+                safe_print(
                     f"Listening for wake words: {self.wake_words_ru + self.wake_words_en}"
                 )
                 while self.running:
@@ -84,7 +106,7 @@ class WakeWordDetector:
                                 if w in text:
                                     now = time.monotonic()
                                     if now - self._last_triggered >= self._cooldown:
-                                        print(f"WAKE WORD DETECTED: {w}")
+                                        safe_print(f"WAKE WORD DETECTED: {w}")
                                         self._last_triggered = now
                                         if self._callback:
                                             self._callback()
@@ -96,7 +118,7 @@ class WakeWordDetector:
                             if w in text:
                                 now = time.monotonic()
                                 if now - self._last_triggered >= self._cooldown:
-                                    print(f"WAKE WORD DETECTED (partial): {w}")
+                                    safe_print(f"WAKE WORD DETECTED (partial): {w}")
                                     self._last_triggered = now
                                     if self._callback:
                                         self._callback()
@@ -113,7 +135,7 @@ class WakeWordDetector:
                                 if w in text:
                                     now = time.monotonic()
                                     if now - self._last_triggered >= self._cooldown:
-                                        print(f"WAKE WORD DETECTED: {w}")
+                                        safe_print(f"WAKE WORD DETECTED: {w}")
                                         self._last_triggered = now
                                         if self._callback:
                                             self._callback()
@@ -125,14 +147,14 @@ class WakeWordDetector:
                             if w in text:
                                 now = time.monotonic()
                                 if now - self._last_triggered >= self._cooldown:
-                                    print(f"WAKE WORD DETECTED (partial): {w}")
+                                    safe_print(f"WAKE WORD DETECTED (partial): {w}")
                                     self._last_triggered = now
                                     if self._callback:
                                         self._callback()
                                 recognizer_en.Reset()
                                 break
         except Exception as e:
-            print(f"WakeWordDetector error: {e}")
+            safe_print(f"WakeWordDetector error: {e}")
 
     def start(self, callback: Any) -> None:
         if self.running:

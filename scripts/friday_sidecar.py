@@ -33,7 +33,7 @@ def main() -> None:
 
     try:
         print(f"Launching API server in {project_root}")
-        start_server(host="127.0.0.1", port=8000)
+        start_server(host="127.0.0.1")  # Port is auto-discovered
     except KeyboardInterrupt:
         print("Sidecar stopped.")
 

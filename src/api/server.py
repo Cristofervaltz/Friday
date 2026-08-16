@@ -838,14 +838,31 @@ def create_app() -> "FastAPI":
     return app
 
 
-def start_server(host: str = "127.0.0.1", port: int = 8000) -> None:
-    """Start the FastAPI server."""
+def start_server(host: str = "127.0.0.1", port: int | None = None) -> None:
+    """Start the FastAPI server.
+
+    If *port* is ``None`` (the default), automatically finds a free port
+    starting from 8000 and writes it to ``~/.friday/runtime_port`` so that
+    the UI and other components can discover it.
+    """
     if uvicorn is None:
         print("Error: uvicorn not installed.")
         sys.exit(1)
 
+    from src.utils.port import find_free_port, write_runtime_port, cleanup_runtime_port
+
+    if port is None:
+        port = find_free_port()
+
+    port_file = write_runtime_port(port)
+    print(f"Friday API server starting on http://{host}:{port}")
+    print(f"Port written to {port_file}")
+
     app = create_app()
-    uvicorn.run(app, host=host, port=port, log_level="error")
+    try:
+        uvicorn.run(app, host=host, port=port, log_level="error")
+    finally:
+        cleanup_runtime_port()
 
 
 def main() -> int:
@@ -853,8 +870,6 @@ def main() -> int:
     # Run the server in a daemon thread so it stops when webview closes
     server_thread = threading.Thread(target=start_server, daemon=True)
     server_thread.start()
-
-    # webbrowser.open("http://127.0.0.1:8000")
 
     print("API server running. Press Ctrl+C to stop.")
     try:
@@ -864,6 +879,9 @@ def main() -> int:
             time.sleep(1)
     except KeyboardInterrupt:
         pass
+    finally:
+        from src.utils.port import cleanup_runtime_port
+        cleanup_runtime_port()
 
     return 0
 
