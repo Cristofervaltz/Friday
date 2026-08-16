@@ -5,6 +5,7 @@ from __future__ import annotations
 import builtins
 import json
 import logging
+import time
 from json import JSONDecodeError
 from time import perf_counter
 from typing import Any, Self
@@ -15,6 +16,7 @@ from urllib.request import Request, urlopen
 from src.config import LLMConfig
 from src.constants import APP_NAME
 from src.logger import LoggerFactory
+from src.utils.json_repair import repair_json
 
 from .base import BaseLLMProvider, LLMResponse
 from .exceptions import (
@@ -44,6 +46,8 @@ class OpenAIProvider(BaseLLMProvider):
         model: str | None = None,
         base_url: str | None = None,
         timeout: float | None = None,
+        max_retries: int | None = None,
+        retry_delay: float | None = None,
         config: LLMConfig | None = None,
     ) -> None:
         resolved_config = config or LLMConfig()
@@ -61,13 +65,24 @@ class OpenAIProvider(BaseLLMProvider):
         self._timeout = self._validate_timeout(
             timeout if timeout is not None else resolved_config.timeout,
         )
+        self._max_retries = (
+            max_retries
+            if max_retries is not None
+            else getattr(resolved_config, "max_retries", 3)
+        )
+        self._retry_delay = (
+            retry_delay
+            if retry_delay is not None
+            else getattr(resolved_config, "retry_delay", 0.5)
+        )
         self._logger = _get_logger("llm.openai_provider")
 
         self._logger.info(
-            "Initialized OpenAIProvider model=%s base_url=%s timeout=%s",
+            "Initialized OpenAIProvider model=%s base_url=%s timeout=%s retries=%s",
             self._model,
             self._base_url,
             self._timeout,
+            self._max_retries,
         )
 
     @classmethod
@@ -131,15 +146,28 @@ class OpenAIProvider(BaseLLMProvider):
         try:
             payload = self._send_request_with_tools(messages, tools)
             response = self._extract_response(payload)
-        except (LLMError, ConnectionError) as exc:
+        except (AuthenticationError, ConnectionError, TimeoutError):
+            # Fast fail without redundant fallback when credentials or network fail
+            duration_ms = (perf_counter() - started_at) * 1000
+            self._logger.exception(
+                "LLM request with tools failed with network/auth error model=%s duration_ms=%.2f",
+                self._model,
+                duration_ms,
+            )
+            raise
+        except LLMError as exc:
             self._logger.warning(
                 f"LLM request with tools failed ({exc}). "
                 "Retrying without tools (useful for local models)."
             )
             # Fallback to text generation
-            prompt = "\n".join(
-                f"{m.get('role', 'user')}: {m.get('content', '')}" for m in messages
-            )
+            prompt_parts = []
+            for m in messages:
+                role = m.get("role", "user")
+                content = m.get("content")
+                if content:
+                    prompt_parts.append(f"{role}: {content}")
+            prompt = "\n".join(prompt_parts) if prompt_parts else "Please proceed."
             try:
                 fallback_payload = self._send_request(prompt)
                 fallback_text = self._extract_text(fallback_payload)
@@ -177,38 +205,131 @@ class OpenAIProvider(BaseLLMProvider):
         """Return the configured upstream model name."""
         return self._model
 
+    def _send_http_with_retry(self, request: Request) -> str:
+        """Send HTTP request with retry mechanism for transient network errors."""
+        last_exception: Exception | None = None
+        max_attempts = max(1, self._max_retries)
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                with urlopen(request, timeout=self._timeout) as response:
+                    raw_bytes: bytes = response.read()
+                    return raw_bytes.decode("utf-8", errors="replace")
+            except HTTPError as exc:
+                error_body = ""
+                try:
+                    error_body = exc.read().decode("utf-8", errors="replace")
+                except Exception:
+                    pass
+
+                # Non-retryable auth failures
+                if exc.code in {401, 403}:
+                    raise AuthenticationError(
+                        f"LLM authentication failed. {error_body}"
+                    ) from None
+
+                # Non-retryable 4xx client errors (except 429 rate limit)
+                if 400 <= exc.code < 500 and exc.code != 429:
+                    raise ConnectionError(
+                        f"LLM request failed with status code {exc.code}. Body: {error_body}"
+                    ) from None
+
+                last_exception = ConnectionError(
+                    f"LLM request failed with status code {exc.code}. Body: {error_body}"
+                )
+
+                if attempt < max_attempts:
+                    self._logger.warning(
+                        "LLM HTTP error %d (attempt %d/%d). Retrying in %.2fs...",
+                        exc.code,
+                        attempt,
+                        max_attempts,
+                        self._retry_delay,
+                    )
+                    time.sleep(self._retry_delay)
+                else:
+                    raise last_exception from None
+
+            except builtins.TimeoutError:
+                last_exception = TimeoutError("LLM request timed out.")
+                if attempt < max_attempts:
+                    self._logger.warning(
+                        "LLM request timed out (attempt %d/%d). Retrying in %.2fs...",
+                        attempt,
+                        max_attempts,
+                        self._retry_delay,
+                    )
+                    time.sleep(self._retry_delay)
+                else:
+                    raise last_exception from None
+
+            except TimeoutError as exc:
+                last_exception = exc
+                if attempt < max_attempts:
+                    self._logger.warning(
+                        "LLM request timed out (attempt %d/%d). Retrying in %.2fs...",
+                        attempt,
+                        max_attempts,
+                        self._retry_delay,
+                    )
+                    time.sleep(self._retry_delay)
+                else:
+                    raise last_exception from None
+
+            except URLError as exc:
+                if (
+                    isinstance(exc.reason, builtins.TimeoutError)
+                    or "timed out" in str(exc.reason).lower()
+                ):
+                    last_exception = TimeoutError("LLM request timed out.")
+                else:
+                    last_exception = ConnectionError(
+                        f"LLM connection failed: {exc.reason}"
+                    )
+
+                if attempt < max_attempts:
+                    self._logger.warning(
+                        "LLM connection error: %s (attempt %d/%d). Retrying in %.2fs...",
+                        exc.reason,
+                        attempt,
+                        max_attempts,
+                        self._retry_delay,
+                    )
+                    time.sleep(self._retry_delay)
+                else:
+                    raise last_exception from None
+
+            except OSError as exc:
+                last_exception = ConnectionError(f"LLM connection failed: {exc}")
+                if attempt < max_attempts:
+                    self._logger.warning(
+                        "LLM socket error: %s (attempt %d/%d). Retrying in %.2fs...",
+                        exc,
+                        attempt,
+                        max_attempts,
+                        self._retry_delay,
+                    )
+                    time.sleep(self._retry_delay)
+                else:
+                    raise last_exception from None
+
+        if last_exception is not None:
+            raise last_exception
+        raise ConnectionError("LLM request failed after retries.")
+
+    def _build_safe_headers(self) -> dict[str, str]:
+        """Build HTTP headers with safe encoding to prevent UnicodeEncodeError."""
+        headers = {}
+        for key, value in _JSON_HEADERS.items():
+            rendered = value.format(api_key=self._api_key)
+            safe_key = key.encode("latin-1", errors="ignore").decode("latin-1")
+            safe_val = rendered.encode("latin-1", errors="replace").decode("latin-1")
+            headers[safe_key] = safe_val
+        return headers
+
     def _send_request(self, prompt: str) -> dict[str, Any]:
         request = self._build_request(prompt)
-
-        try:
-            with urlopen(request, timeout=self._timeout) as response:
-                raw_response = response.read().decode("utf-8")
-        except HTTPError as exc:
-            error_body = ""
-            try:
-                error_body = exc.read().decode("utf-8")
-            except Exception:
-                pass
-            if exc.code in {401, 403}:
-                raise AuthenticationError(
-                    f"LLM authentication failed. {error_body}"
-                ) from None
-            if exc.code == 400:
-                pass
-            raise ConnectionError(
-                f"LLM request failed with status code {exc.code}. Body: {error_body}"
-            ) from None
-        except builtins.TimeoutError:
-            raise TimeoutError("LLM request timed out.") from None
-        except TimeoutError:
-            raise
-        except URLError as exc:
-            if isinstance(exc.reason, builtins.TimeoutError):
-                raise TimeoutError("LLM request timed out.") from None
-            raise ConnectionError(f"LLM connection failed: {exc.reason}") from None
-        except OSError as exc:
-            raise ConnectionError(f"LLM connection failed: {exc}") from None
-
+        raw_response = self._send_http_with_retry(request)
         return self._parse_payload(raw_response)
 
     def _send_request_with_tools(
@@ -223,11 +344,8 @@ class OpenAIProvider(BaseLLMProvider):
             "tools": tools,
             "stream": False,
         }
-        request_body = json.dumps(payload).encode("utf-8")
-        request_headers = {
-            key: value.format(api_key=self._api_key)
-            for key, value in _JSON_HEADERS.items()
-        }
+        request_body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        request_headers = self._build_safe_headers()
         request = Request(
             url=f"{self._base_url}/chat/completions",
             data=request_body,
@@ -235,33 +353,7 @@ class OpenAIProvider(BaseLLMProvider):
             method="POST",
         )
 
-        try:
-            with urlopen(request, timeout=self._timeout) as response:
-                raw_response = response.read().decode("utf-8")
-        except HTTPError as exc:
-            error_body = ""
-            try:
-                error_body = exc.read().decode("utf-8")
-            except Exception:
-                pass
-            if exc.code in {401, 403}:
-                raise AuthenticationError(
-                    f"LLM authentication failed. {error_body}"
-                ) from None
-            raise ConnectionError(
-                f"LLM request failed with status code {exc.code}. Body: {error_body}"
-            ) from None
-        except builtins.TimeoutError:
-            raise TimeoutError("LLM request timed out.") from None
-        except TimeoutError:
-            raise
-        except URLError as exc:
-            if isinstance(exc.reason, builtins.TimeoutError):
-                raise TimeoutError("LLM request timed out.") from None
-            raise ConnectionError(f"LLM connection failed: {exc.reason}") from None
-        except OSError as exc:
-            raise ConnectionError(f"LLM connection failed: {exc}") from None
-
+        raw_response = self._send_http_with_retry(request)
         return self._parse_payload(raw_response)
 
     def _build_request(self, prompt: str) -> Request:
@@ -270,11 +362,8 @@ class OpenAIProvider(BaseLLMProvider):
             "messages": [{"role": "user", "content": prompt}],
             "stream": False,
         }
-        request_body = json.dumps(payload).encode("utf-8")
-        request_headers = {
-            key: value.format(api_key=self._api_key)
-            for key, value in _JSON_HEADERS.items()
-        }
+        request_body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        request_headers = self._build_safe_headers()
 
         return Request(
             url=f"{self._base_url}/chat/completions",
@@ -292,12 +381,20 @@ class OpenAIProvider(BaseLLMProvider):
         except json.JSONDecodeError as exc:
             # Fallback for OmniRoute / proxies that force SSE (stream: true)
             # even when stream: false is requested.
-            if "data: " in raw_response:
+            if "data:" in raw_response:
                 try:
                     return self._parse_sse_to_payload(raw_response)
                 except Exception as sse_exc:
                     self._logger.error(f"Failed to parse SSE fallback: {sse_exc}")
                     pass
+
+            # Local JSON repair attempt
+            try:
+                repaired = repair_json(raw_response)
+                if isinstance(repaired, dict) and repaired:
+                    return repaired
+            except Exception:
+                pass
 
             preview = raw_response[:200]
             raise InvalidResponseError(
@@ -311,14 +408,14 @@ class OpenAIProvider(BaseLLMProvider):
     def _parse_sse_to_payload(self, raw_response: str) -> dict[str, Any]:
         """Convert an SSE stream response into a single unified JSON payload."""
         full_content = ""
-        tool_calls = {}
+        tool_calls: dict[int, dict[str, Any]] = {}
         finish_reason = "stop"
 
         for line in raw_response.splitlines():
             line = line.strip()
-            if not line.startswith("data: "):
+            if not line.startswith("data:"):
                 continue
-            data_str = line[6:].strip()
+            data_str = line[5:].strip()
             if data_str == "[DONE]":
                 break
 
@@ -335,17 +432,39 @@ class OpenAIProvider(BaseLLMProvider):
             if "content" in delta and delta["content"]:
                 full_content += delta["content"]
 
-            if "tool_calls" in delta:
+            if "tool_calls" in delta and isinstance(delta["tool_calls"], list):
                 for tc in delta["tool_calls"]:
-                    idx = tc.get("index", 0)
+                    if not isinstance(tc, dict):
+                        continue
+                    raw_idx = tc.get("index")
+                    idx = 0 if raw_idx is None else int(raw_idx)
                     if idx not in tool_calls:
-                        tool_calls[idx] = tc
+                        tool_calls[idx] = {
+                            "index": idx,
+                            "id": tc.get("id") or f"call_{idx}",
+                            "type": tc.get("type", "function"),
+                            "function": {
+                                "name": tc.get("function", {}).get("name", ""),
+                                "arguments": tc.get("function", {}).get(
+                                    "arguments", ""
+                                ),
+                            },
+                        }
                     else:
-                        if "function" in tc:
-                            if "arguments" in tc["function"]:
-                                tool_calls[idx]["function"]["arguments"] += tc[
-                                    "function"
-                                ]["arguments"]
+                        if "id" in tc and tc["id"]:
+                            tool_calls[idx]["id"] = tc["id"]
+                        if "type" in tc and tc["type"]:
+                            tool_calls[idx]["type"] = tc["type"]
+                        if "function" in tc and isinstance(tc["function"], dict):
+                            fn = tc["function"]
+                            if "name" in fn and fn["name"]:
+                                tool_calls[idx]["function"]["name"] = (
+                                    tool_calls[idx]["function"]["name"] or ""
+                                ) + fn["name"]
+                            if "arguments" in fn and fn["arguments"]:
+                                tool_calls[idx]["function"]["arguments"] = (
+                                    tool_calls[idx]["function"]["arguments"] or ""
+                                ) + fn["arguments"]
 
             if choices[0].get("finish_reason"):
                 finish_reason = choices[0]["finish_reason"]
@@ -418,10 +537,17 @@ class OpenAIProvider(BaseLLMProvider):
                 name = function.get("name")
                 arguments_str = function.get("arguments", "{}")
 
-                try:
-                    arguments = json.loads(arguments_str)
-                except JSONDecodeError:
-                    arguments = {}
+                if isinstance(arguments_str, dict):
+                    arguments = arguments_str
+                else:
+                    try:
+                        arguments = json.loads(arguments_str)
+                    except (JSONDecodeError, TypeError):
+                        try:
+                            repaired = repair_json(str(arguments_str))
+                            arguments = repaired if isinstance(repaired, dict) else {}
+                        except Exception:
+                            arguments = {}
 
                 tool_calls.append(
                     {

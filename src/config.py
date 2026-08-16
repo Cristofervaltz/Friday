@@ -90,6 +90,8 @@ class LLMConfig:
     timeout: float = 30.0
     system_prompt: str | None = None
     max_iterations: int = 10
+    max_retries: int = 3
+    retry_delay: float = 0.5
 
 
 @dataclass(frozen=True)
@@ -165,6 +167,10 @@ class AppConfig:
             system_prompt=get_val("system_prompt", "FRIDAY_SYSTEM_PROMPT"),
             max_iterations=int(
                 get_val("max_iterations", "FRIDAY_MAX_ITERATIONS", "10")
+            ),
+            max_retries=int(get_val("llm_max_retries", "FRIDAY_LLM_MAX_RETRIES", "3")),
+            retry_delay=float(
+                get_val("llm_retry_delay", "FRIDAY_LLM_RETRY_DELAY", "0.5")
             ),
         )
 

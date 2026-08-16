@@ -14,20 +14,27 @@ def safe_print(*args: object, **kwargs: Any) -> None:
     2. UnicodeEncodeError (Cyrillic/emoji on cp1252/cp866 consoles)
     3. OSError (broken pipe, closed handle, etc.)
     """
-    if sys.stdout is None:
+    target = kwargs.get("file")
+    if target is None:
+        target = sys.stdout
+
+    if target is None:
         return
 
     try:
         print(*args, **kwargs)
     except UnicodeEncodeError:
-        # Replace characters the console can't render
+        encoding = getattr(target, "encoding", None) or "ascii"
         safe_args = []
         for a in args:
             text = str(a)
             try:
-                text.encode(sys.stdout.encoding or "utf-8")
-                safe_args.append(text)
-            except (UnicodeEncodeError, LookupError):
+                safe_args.append(
+                    text.encode(encoding, errors="replace").decode(
+                        encoding, errors="replace"
+                    )
+                )
+            except Exception:
                 safe_args.append(text.encode("ascii", errors="replace").decode("ascii"))
         try:
             print(*safe_args, **kwargs)

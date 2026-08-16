@@ -106,7 +106,34 @@ class Plan:
 
     @classmethod
     def from_json(cls, json_str: str) -> Plan:
-        """Create a Plan instance from JSON string."""
-        data = json.loads(json_str)
-        tasks = [Task.from_dict(t) for t in data.get("tasks", [])]
-        return cls(goal=data["goal"], tasks=tasks)
+        """Create a Plan instance from JSON string with fault-tolerant repair."""
+        from src.utils.json_repair import repair_json
+
+        try:
+            data = repair_json(json_str)
+        except Exception:
+            data = json.loads(json_str)
+
+        if isinstance(data, list):
+            tasks = [
+                (
+                    Task.from_dict(t)
+                    if isinstance(t, dict)
+                    else Task(description=str(t), expected_outcome="")
+                )
+                for t in data
+            ]
+            return cls(goal="", tasks=tasks)
+
+        if isinstance(data, dict):
+            tasks = [
+                (
+                    Task.from_dict(t)
+                    if isinstance(t, dict)
+                    else Task(description=str(t), expected_outcome="")
+                )
+                for t in data.get("tasks", [])
+            ]
+            return cls(goal=data.get("goal", ""), tasks=tasks)
+
+        raise ValueError(f"Invalid Plan JSON payload: {json_str}")

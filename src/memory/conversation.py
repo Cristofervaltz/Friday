@@ -35,7 +35,7 @@ class ConversationMemory:
         self.workspace: str = ""
         self._messages: list[dict[str, Any]] = []
         self._on_change_callbacks: list[Any] = []
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
 
         if self.save_dir:
             self.save_dir.mkdir(parents=True, exist_ok=True)
@@ -106,15 +106,16 @@ class ConversationMemory:
             tool_call_id: Unique ID of tool call.
             content: Tool result string.
         """
-        self._messages.append(
-            {
-                "role": "tool",
-                "tool_call_id": tool_call_id,
-                "content": content,
-            }
-        )
-        self._enforce_max_messages()
-        self.save()
+        with self._lock:
+            self._messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": tool_call_id,
+                    "content": content,
+                }
+            )
+            self._enforce_max_messages()
+            self._save_unsafe()
         self._trigger_on_change()
 
     @property
@@ -139,12 +140,17 @@ class ConversationMemory:
 
     def get_chat(self, chat_id: str) -> dict[str, Any]:
         """Return the current chat in the format expected by the UI."""
+        with self._lock:
+            messages = self.get_messages()
+            title = self.title
+            workspace = self.workspace
+            current_id = self.chat_id
         return {
-            "id": self.chat_id,
-            "title": self.title,
-            "workspace": self.workspace,
+            "id": current_id,
+            "title": title,
+            "workspace": workspace,
             "updated_at": int(time.time()),
-            "messages": self.get_messages(),
+            "messages": messages,
         }
 
     def get_messages(self, inject_system: bool = True) -> list[dict[str, Any]]:
@@ -165,7 +171,8 @@ class ConversationMemory:
 
             full_list.append({"role": "system", "content": prompt_text})
 
-        full_list.extend(self._messages)
+        with self._lock:
+            full_list.extend(self._messages)
 
         return full_list
 
@@ -184,7 +191,8 @@ class ConversationMemory:
 
     def __len__(self) -> int:
         """Return count of non-system messages."""
-        return len(self._messages)
+        with self._lock:
+            return len(self._messages)
 
     def load(self) -> None:
         if not self.save_dir:
@@ -194,9 +202,10 @@ class ConversationMemory:
             try:
                 with open(file_path, encoding="utf-8") as f:
                     data = json.load(f)
-                    self._messages = data.get("messages", [])
-                    self.title = data.get("title", "New Chat")
-                    self.workspace = data.get("workspace", "")
+                    with self._lock:
+                        self._messages = data.get("messages", [])
+                        self.title = data.get("title", "New Chat")
+                        self.workspace = data.get("workspace", "")
             except Exception:
                 pass
 

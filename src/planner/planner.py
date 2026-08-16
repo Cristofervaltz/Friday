@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING, Any
 
 from src.planner.models import Plan, Task
+from src.utils.json_repair import repair_json
 
 if TYPE_CHECKING:
     from src.llm.base import BaseLLMProvider
@@ -95,18 +95,29 @@ class TaskPlanner:
                 args = tool_call.get("arguments", {})
                 if isinstance(args, str):
                     try:
-                        args = json.loads(args)
-                    except json.JSONDecodeError as exc:
+                        args = repair_json(args)
+                    except Exception as exc:
                         raise RuntimeError("Failed to parse LLM tool call.") from exc
 
-                raw_tasks = args.get("tasks", [])
-                tasks = [
-                    Task(
-                        description=t.get("description", "Unknown task"),
-                        expected_outcome=t.get("expected_outcome", ""),
-                    )
-                    for t in raw_tasks
-                ]
+                if isinstance(args, dict):
+                    raw_tasks = args.get("tasks", [])
+                elif isinstance(args, list):
+                    raw_tasks = args
+                else:
+                    raw_tasks = []
+
+                tasks = []
+                for t in raw_tasks:
+                    if isinstance(t, dict):
+                        tasks.append(
+                            Task(
+                                description=t.get("description", "Unknown task"),
+                                expected_outcome=t.get("expected_outcome", ""),
+                            )
+                        )
+                    elif isinstance(t, str):
+                        tasks.append(Task(description=t, expected_outcome=""))
+
                 return Plan(goal=goal, tasks=tasks)
 
         raise RuntimeError("LLM called tools, but missing 'create_plan'.")

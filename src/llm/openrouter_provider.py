@@ -27,6 +27,8 @@ class OpenRouterProvider(OpenAIProvider):
         model: str | None = None,
         base_url: str | None = None,
         timeout: float | None = None,
+        max_retries: int | None = None,
+        retry_delay: float | None = None,
         config: LLMConfig | None = None,
     ) -> None:
         """Create a new OpenRouter provider.
@@ -36,6 +38,8 @@ class OpenRouterProvider(OpenAIProvider):
             model: Model identifier (e.g., "openai/gpt-4-turbo").
             base_url: OpenRouter API base URL (defaults to openrouter.ai).
             timeout: Request timeout in seconds.
+            max_retries: Maximum number of retry attempts.
+            retry_delay: Delay in seconds between retries.
             config: Optional Friday LLMConfig to load settings from.
         """
         resolved_base_url = (
@@ -60,6 +64,8 @@ class OpenRouterProvider(OpenAIProvider):
             model=resolved_model,
             base_url=resolved_base_url,
             timeout=timeout,
+            max_retries=max_retries,
+            retry_delay=retry_delay,
             config=config,
         )
 

@@ -6,10 +6,46 @@ import logging
 import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from .config import LoggingConfig
 from .constants import APP_NAME, DATE_FORMAT, LOG_FORMAT
+
+
+class SafeStreamHandler(logging.StreamHandler[Any]):
+    """Console stream handler that prevents UnicodeEncodeError on Windows / limited-encoding consoles."""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            msg = self.format(record)
+            stream = self.stream
+            if stream is None:
+                return
+            try:
+                stream.write(msg + self.terminator)
+                self.flush()
+            except UnicodeEncodeError:
+                encoding = getattr(stream, "encoding", None) or "ascii"
+                safe_msg = msg.encode(encoding, errors="replace").decode(
+                    encoding, errors="replace"
+                )
+                try:
+                    stream.write(safe_msg + self.terminator)
+                    self.flush()
+                except UnicodeEncodeError:
+                    ascii_msg = msg.encode("ascii", errors="replace").decode("ascii")
+                    try:
+                        stream.write(ascii_msg + self.terminator)
+                        self.flush()
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+            except OSError:
+                # Handle GUI mode / closed pipe / broken stdout
+                pass
+        except Exception:
+            self.handleError(record)
 
 
 class LoggerFactory:
@@ -56,7 +92,7 @@ class LoggerFactory:
 
     def _build_console_handler(self, formatter: logging.Formatter) -> logging.Handler:
         """Create a console log handler bound to stdout."""
-        handler = logging.StreamHandler(sys.stdout)
+        handler = SafeStreamHandler(sys.stdout)
         handler.setFormatter(formatter)
         return handler
 
@@ -72,6 +108,7 @@ class LoggerFactory:
             maxBytes=config.max_bytes,
             backupCount=config.backup_count,
             encoding="utf-8",
+            errors="replace",
         )
         handler.setFormatter(formatter)
         return handler

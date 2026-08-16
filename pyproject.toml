@@ -76,7 +76,7 @@ include = ["src*"]
 [tool.black]
 line-length = 88
 target-version = ["py312"]
-extend-exclude = '''src/ui/.*'''
+extend-exclude = '''(src/ui/.*|\.agents/.*)'''
 
 [tool.ruff]
 line-length = 88
@@ -87,7 +87,8 @@ exclude = [
     ".ruff_cache",
     "venv",
     ".env",
-    "src/ui"
+    "src/ui",
+    ".agents"
 ]
 
 [tool.ruff.lint]
@@ -119,6 +120,7 @@ exclude = [
     ".ruff_cache",
     "venv",
     ".env",
-    "src/ui"
+    "src/ui",
+    ".agents"
 ]
 files = ["src", "tests"]

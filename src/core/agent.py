@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import TYPE_CHECKING, Any
 
+from src.constants import APP_NAME
+from src.logger import LoggerFactory
 from src.memory.conversation import ConversationMemory
+from src.utils.json_repair import repair_json
 
 if TYPE_CHECKING:
     from src.core.tool_registry import ToolRegistry
@@ -42,6 +46,7 @@ class Agent:
         self.tools = tool_registry
         self.max_iterations = max_iterations
         self.memory = memory if memory is not None else ConversationMemory()
+        self._logger = _get_logger("core.agent")
 
     def run(self, user_input: str) -> str:
         """Process user input and return agent's response.
@@ -50,7 +55,8 @@ class Agent:
             user_input: User's message/request.
 
         Returns:
-            Agent's final response after tool execution (if any).
+            Agent's final response after tool execution (if any),
+            or a graceful error message on failure.
 
         Raises:
             RuntimeError: If max iterations exceeded (infinite loop).
@@ -64,53 +70,105 @@ class Agent:
             iteration += 1
 
             messages = self.memory.get_messages()
-            response = self.llm.generate_with_tools(
-                messages=messages,
-                tools=tools_schema,
-            )
+            try:
+                response = self.llm.generate_with_tools(
+                    messages=messages,
+                    tools=tools_schema,
+                )
+            except Exception as exc:
+                self._logger.exception("LLM generation failed: %s", exc)
+                error_msg = f"❌ Error communicating with LLM: {exc}"
+                self.memory.add_assistant_message(content=error_msg)
+                return error_msg
 
             if response.tool_calls:
-                for tool_call in response.tool_calls:
-                    try:
-                        # Inject current agent into tool context
-                        previous_agent = getattr(self.tools.context, "agent", None)
-                        self.tools.context.agent = self
+                formatted_calls = []
+                parsed_tool_calls = []
+
+                for idx, tool_call in enumerate(response.tool_calls):
+                    if not isinstance(tool_call, dict):
+                        continue
+                    call_id = tool_call.get("id") or f"call_{idx + 1}"
+                    name = tool_call.get("name") or "unknown_tool"
+                    raw_args = tool_call.get("arguments", {})
+                    parse_error = None
+                    parsed_args: dict[str, Any] = {}
+
+                    if isinstance(raw_args, str):
                         try:
-                            tool_result = self.tools.execute(
-                                tool_call["name"],
-                                **tool_call["arguments"],
-                            )
-                        finally:
-                            self.tools.context.agent = previous_agent
+                            repaired = repair_json(raw_args)
+                            if isinstance(repaired, dict):
+                                parsed_args = repaired
+                            else:
+                                parsed_args = {}
+                        except Exception as exc:
+                            parse_error = str(exc)
+                            parsed_args = {}
+                    elif isinstance(raw_args, dict):
+                        parsed_args = raw_args
 
-                        if tool_result.success:
-                            result_content = (
-                                tool_result.output
-                                if tool_result.output is not None
-                                else "Tool executed successfully."
-                            )
-                        else:
-                            result_content = (
-                                f"Error: {tool_result.error or 'Unknown tool error'}"
-                            )
-                    except Exception as exc:
-                        result_content = f"Error executing tool: {exc}"
+                    tool_call["id"] = call_id
+                    tool_call["name"] = name
+                    tool_call["arguments"] = parsed_args
+                    parsed_tool_calls.append((tool_call, raw_args, parse_error))
 
-                    formatted_calls = [
+                    formatted_calls.append(
                         {
-                            "id": tool_call.get("id", "call_1"),
+                            "id": call_id,
                             "type": "function",
                             "function": {
-                                "name": tool_call["name"],
-                                "arguments": json.dumps(tool_call["arguments"]),
+                                "name": name,
+                                "arguments": json.dumps(
+                                    parsed_args,
+                                    ensure_ascii=False,
+                                ),
                             },
                         }
-                    ]
-                    self.memory.add_assistant_message(
-                        content=None, tool_calls=formatted_calls
                     )
+
+                self.memory.add_assistant_message(
+                    content=None, tool_calls=formatted_calls
+                )
+
+                for tool_call, raw_args, parse_error in parsed_tool_calls:
+                    call_id = tool_call["id"]
+                    name = tool_call["name"]
+                    arguments = tool_call["arguments"]
+
+                    if parse_error is not None:
+                        result_content = f"Error: Failed to parse tool arguments from model: {raw_args}"
+                    else:
+                        try:
+                            context = getattr(self.tools, "context", None)
+                            if context is not None:
+                                previous_agent = getattr(context, "agent", None)
+                                context.agent = self
+                                try:
+                                    tool_result = self.tools.execute(
+                                        name,
+                                        **arguments,
+                                    )
+                                finally:
+                                    context.agent = previous_agent
+                            else:
+                                tool_result = self.tools.execute(
+                                    name,
+                                    **arguments,
+                                )
+
+                            if tool_result.success:
+                                result_content = (
+                                    str(tool_result.output)
+                                    if tool_result.output is not None
+                                    else "Tool executed successfully."
+                                )
+                            else:
+                                result_content = f"Error: {tool_result.error if tool_result.error is not None else 'Unknown tool error'}"
+                        except Exception as exc:
+                            result_content = f"Error executing tool: {exc}"
+
                     self.memory.add_tool_result(
-                        tool_call_id=tool_call.get("id", "call_1"),
+                        tool_call_id=call_id,
                         content=result_content,
                     )
 
@@ -137,3 +195,11 @@ class Agent:
             List of conversation messages.
         """
         return self.memory.get_messages()
+
+
+def _get_logger(name: str) -> logging.Logger:
+    """Return Friday's configured logger when available, otherwise a safe fallback."""
+    try:
+        return LoggerFactory().get_logger(name)
+    except RuntimeError:
+        return logging.getLogger(f"{APP_NAME}.{name}")
