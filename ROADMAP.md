@@ -13,6 +13,7 @@ This document outlines the evolutionary path of Friday, transitioning from a bas
 ### Stage 1: Foundation (`v0.1.0`)
 - [x] **Project Architecture:** Implemented strict typing, linting (Black, Ruff, MyPy).
 - [x] **LLM Abstraction Layer:** Unified support for multiple providers (OpenAI, OpenRouter, Ollama).
+- [x] **Ollama Tool Calling:** Native support for local model function calling.
 
 ### Stage 2: Interactive Core (`v0.2.0`)
 - [x] **Basic Terminal Interface:** Interactive REPL setup.
@@ -25,6 +26,7 @@ This document outlines the evolutionary path of Friday, transitioning from a bas
 ### Stage 4: Autonomy & Planning (`v0.4.0`)
 - [x] **Task Planner:** Autonomous agent capability to plan complex, multi-step tasks.
 - [x] **Execution Engine:** Safe execution of planned steps with error recovery.
+- [x] **Fault-Tolerance:** Advanced JSON parsing recovery, network retries, and unicode safety.
 
 ### Stage 5: Extensibility & Voice (`v0.5.0`)
 - [x] **Speech Subsystem:** High-quality voice command recognition via `/voice`.

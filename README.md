@@ -46,7 +46,8 @@ The desktop app is built with [Tauri](https://tauri.app/) and ships with a bundl
 | **Semantic code search (RAG)** | Your entire workspace is indexed locally with ChromaDB. Ask questions about code in natural language. |
 | **Plugins & MCP** | Extend Friday with Model Context Protocol servers — GitHub, Jira, databases, web search. |
 | **Dual memory** | Conversation history + persistent workspace knowledge. |
-| **Any LLM** | OpenAI, Claude via OpenRouter, or fully offline with Ollama. Switch models on the fly. |
+| **Any LLM** | OpenAI, Claude via OpenRouter, or fully offline with Ollama (with Native Tool Calling). Switch models on the fly. |
+| **Fault-Tolerant** | Gracefully handles LLM network drops, repairs broken JSON responses, and prevents Unicode crashes. |
 
 ---
 
@@ -100,7 +101,7 @@ Friday
 │   ├── tools/        # Built-in tool registry
 │   ├── ui/           # Tauri + React + Vite frontend
 │   └── vision/       # Screenshot capture & analysis
-├── tests/            # 129 tests, fully typed
+├── tests/            # 189 tests, fully typed
 └── pyproject.toml
 ```
 
@@ -194,7 +195,7 @@ The desktop app bundles the Python backend into a highly optimized sidecar (`fri
 black .          # Formatting
 ruff check .     # Linting
 mypy src tests   # Type checking
-pytest           # 129 tests
+pytest           # 189 tests
 ```
 
 ---
@@ -211,6 +212,7 @@ pytest           # 129 tests
 | Background daemon & system triggers | ✅ Done |
 | Native desktop app (Tauri) | ✅ Done |
 | In-app settings & hot-reload config | ✅ Done |
+| Fault-Tolerance & Ollama Native Tool Calling | ✅ Done |
 | Global integrations & expansion | 🚧 Next |
 
 See the full [development roadmap](future_roadmap.md) for details.
