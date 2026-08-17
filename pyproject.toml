@@ -25,6 +25,11 @@ classifiers = [
 dependencies = [
   "urllib3>=2.0.0",
   "mcp>=1.0.0",
+  "requests>=2.31.0",
+  "beautifulsoup4>=4.12.0",
+  "pygetwindow>=0.0.9",
+  "pyautogui>=0.9.54",
+  "tzdata>=2024.1",
 ]
 
 [project.optional-dependencies]
@@ -33,7 +38,9 @@ dev = [
   "black>=24.0.0",
   "ruff>=0.2.0",
   "mypy>=1.8.0",
-  "types-requests"
+  "types-requests",
+  "types-beautifulsoup4",
+  "types-pyautogui",
 ]
 speech = [
   "SpeechRecognition>=3.10.0",

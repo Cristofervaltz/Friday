@@ -8,9 +8,15 @@ from src.core import Agent, ToolRegistry
 from src.speech import GoogleSpeechProvider
 from src.tools import (
     EditFileTool,
+    FetchWebPageTool,
     ListFilesTool,
+    OpenBrowserTool,
     ReadFileTool,
     ShellCommandTool,
+    TimeTool,
+    WeatherTool,
+    WebSearchTool,
+    WindowManagementTool,
     WriteFileTool,
 )
 from src.tools.search_tool import SemanticSearchTool
@@ -43,6 +49,12 @@ class FridayREPL:
         self._registry.register(EditFileTool())
         self._registry.register(ListFilesTool())
         self._registry.register(ShellCommandTool())
+        self._registry.register(WebSearchTool())
+        self._registry.register(FetchWebPageTool())
+        self._registry.register(OpenBrowserTool())
+        self._registry.register(TimeTool())
+        self._registry.register(WeatherTool())
+        self._registry.register(WindowManagementTool())
 
         from src.tools.swarm_tool import DelegateTaskTool
 

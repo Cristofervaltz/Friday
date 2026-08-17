@@ -8,11 +8,12 @@ interface SettingsModalProps {
   voiceAutoSend?: boolean;
   onVoiceAutoSendChange?: (val: boolean) => void;
   onSettingsChanged?: (settings: Record<string, string>) => void;
+  apiPort?: number | null;
 }
 
 type TabId = 'appearance' | 'agent' | 'security' | 'app';
 
-export function SettingsModal({ isOpen, onClose, voiceAutoSend = true, onVoiceAutoSendChange, onSettingsChanged }: SettingsModalProps) {
+export function SettingsModal({ isOpen, onClose, voiceAutoSend = true, onVoiceAutoSendChange, onSettingsChanged, apiPort }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<TabId>('appearance');
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -30,7 +31,8 @@ export function SettingsModal({ isOpen, onClose, voiceAutoSend = true, onVoiceAu
     setLoading(true);
     setError(null);
     try {
-      const apiHost = window.location.host || '127.0.0.1:8000';
+      const port = apiPort || 8000;
+      const apiHost = window.__TAURI_INTERNALS__ ? `127.0.0.1:${port}` : (window.location.host || '127.0.0.1:8000');
       const response = await fetch(`http://${apiHost}/api/settings`);
       if (!response.ok) throw new Error('Failed to load settings');
       const data = await response.json();
@@ -48,7 +50,8 @@ export function SettingsModal({ isOpen, onClose, voiceAutoSend = true, onVoiceAu
     setError(null);
     setSuccess(null);
     try {
-      const apiHost = window.location.host || '127.0.0.1:8000';
+      const port = apiPort || 8000;
+      const apiHost = window.__TAURI_INTERNALS__ ? `127.0.0.1:${port}` : (window.location.host || '127.0.0.1:8000');
       const response = await fetch(`http://${apiHost}/api/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

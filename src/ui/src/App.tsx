@@ -67,9 +67,28 @@ function App() {
     return localStorage.getItem('friday_voice_auto_send') === 'true';
   });
   const [isVoicePanelOpen, setIsVoicePanelOpen] = useState(false);
+  const [apiPort, setApiPort] = useState<number | null>(null);
 
   useEffect(() => {
-    const apiHost = window.location.host || '127.0.0.1:8000';
+    const fetchPort = async () => {
+      try {
+        if (window.__TAURI_INTERNALS__) {
+          const { invoke } = await import('@tauri-apps/api/core');
+          const port = await invoke('get_runtime_port');
+          setApiPort(port as number);
+        } else {
+          setApiPort(8000);
+        }
+      } catch (e) {
+        setApiPort(8000);
+      }
+    };
+    fetchPort();
+  }, []);
+
+  useEffect(() => {
+    if (apiPort === null) return;
+    const apiHost = window.__TAURI_INTERNALS__ ? `127.0.0.1:${apiPort}` : (window.location.host || '127.0.0.1:8000');
     fetch(`http://${apiHost}/api/settings`)
       .then(res => res.json())
       .then(data => {
@@ -79,7 +98,7 @@ function App() {
         }
       })
       .catch(err => console.error("Failed to load initial settings", err));
-  }, []);
+  }, [apiPort]);
 
   const applyTheme = (theme?: string, accentColor?: string) => {
     const root = document.documentElement;
@@ -99,13 +118,14 @@ function App() {
   };
 
   useEffect(() => {
+    if (apiPort === null) return;
     let reconnectTimeout: ReturnType<typeof setTimeout>;
     let websocket: WebSocket | null = null;
     let isMounted = true;
 
     const connect = () => {
       const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsHost = window.location.host || '127.0.0.1:8000';
+      const wsHost = window.__TAURI_INTERNALS__ ? `127.0.0.1:${apiPort}` : (window.location.host || '127.0.0.1:8000');
       websocket = new WebSocket(`${wsProtocol}//${wsHost}/ws/chat`);
       
       websocket.onopen = () => {
@@ -254,7 +274,7 @@ function App() {
         websocket.close();
       }
     };
-  }, []);
+  }, [apiPort]);
 
   // Process queue automatically when done thinking
   useEffect(() => {
@@ -521,6 +541,7 @@ function App() {
         isOpen={isSettingsOpen} 
         onClose={() => setIsSettingsOpen(false)}
         voiceAutoSend={voiceAutoSend}
+        apiPort={apiPort}
         onVoiceAutoSendChange={(val: boolean) => {
           setVoiceAutoSend(val);
           localStorage.setItem('friday_voice_auto_send', val.toString());

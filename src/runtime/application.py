@@ -165,14 +165,13 @@ class FridayApplication:
         return self._logger
 
     @property
-    def provider(self) -> BaseLLMProvider:
-        """Return the LLM provider.
+    def provider(self) -> BaseLLMProvider | None:
+        """Return the LLM provider, or None if not configured.
 
         Raises:
             RuntimeError: If accessed before initialization.
         """
         self._ensure_initialized()
-        assert self._provider is not None
         return self._provider
 
     def _load_configuration(self) -> None:

@@ -29,7 +29,7 @@ class Agent:
 
     def __init__(
         self,
-        llm_provider: BaseLLMProvider,
+        llm_provider: BaseLLMProvider | None,
         tool_registry: ToolRegistry,
         max_iterations: int = 10,
         memory: ConversationMemory | None = None,
@@ -62,6 +62,11 @@ class Agent:
             RuntimeError: If max iterations exceeded (infinite loop).
         """
         self.memory.add_user_message(user_input)
+
+        if self.llm is None:
+            msg = "⚠️ Не настроена нейросеть. Пожалуйста, откройте настройки (иконка шестеренки) и укажите ваш API ключ."
+            self.memory.add_assistant_message(content=msg)
+            return msg
 
         tools_schema = self.tools.get_tools_schema()
 

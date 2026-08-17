@@ -6,8 +6,23 @@ use tauri::{
 };
 use tauri_plugin_shell::ShellExt;
 
+#[tauri::command]
+fn get_runtime_port(app_handle: tauri::AppHandle) -> u16 {
+    let mut port = 8000;
+    if let Ok(home) = app_handle.path().home_dir() {
+        let port_file = home.join(".friday").join("runtime_port");
+        if let Ok(contents) = std::fs::read_to_string(port_file) {
+            if let Ok(p) = contents.trim().parse::<u16>() {
+                port = p;
+            }
+        }
+    }
+    port
+}
+
 pub fn run() {
     tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![get_runtime_port])
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
