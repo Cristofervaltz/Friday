@@ -456,7 +456,9 @@ class FridayREPL:
         from src.planner.planner import TaskPlanner
 
         if self._agent.llm is None:
-            self._agent.memory.add_assistant_message("⚠️ Не настроена нейросеть. Пожалуйста, укажите ваш API ключ.")
+            self._agent.memory.add_assistant_message(
+                "⚠️ Не настроена нейросеть. Пожалуйста, укажите ваш API ключ."
+            )
             return
 
         planner = TaskPlanner(self._agent.llm)
