@@ -1,57 +1,57 @@
-# Стратегический план развития Friday (Этапы 5-10)
+# Friday Strategic Development Plan (Stages 5-10)
 
-Проанализировав текущий фундамент (LLM, Память, Планировщик задач, Терминал, Голос), мы выделили глобальные шаги, которые превращают Friday из просто "умного чат-бота в консоли" в **полноценного автономного ИИ-агента операционной системы**.
-
----
-
-## 🧩 Этап 5: Система Плагинов и MCP (Model Context Protocol) ✅ Выполнено
-
-**Суть:** Научить Friday использовать сторонние инструменты без изменения исходного кода ядра.
-**Что реализовано:**
-1. **Поддержка MCP (Model Context Protocol)** — интеграции, которые работают как изолированные серверы.
-2. **Менеджер плагинов (`src/plugins`)** — динамическая загрузка модулей.
-3. **Система разрешений (Permissions)** — контроль безопасности.
+After analyzing the current foundation (LLM, Memory, Task Planner, Terminal, Voice), we have outlined the global steps that transform Friday from just a "smart console chatbot" into a **fully autonomous OS AI agent**.
 
 ---
 
-## 👁️ Этап 6: Пространственное восприятие (Vision + RAG) ✅ Выполнено
+## 🧩 Stage 5: Plugin System and MCP (Model Context Protocol) ✅ Done
 
-**Суть:** Дать Friday "глаза" и способность мгновенно ориентироваться в гигантских объемах данных.
-**Что реализовано:**
-1. **Подсистема Vision (`src/vision`)** — создание и анализ скриншотов.
-2. **Семантический поиск / RAG (`src/retrieval`)** — локальная индекс-база (ChromaDB) для поиска контекста по проекту.
-
----
-
-## 🤖 Этап 7: Фоновый Демон и События (Proactive Agent) ✅ Выполнено
-
-**Суть:** Отвязать Friday от консоли и научить его проявлять инициативу.
-**Что реализовано:**
-1. **Фоновая служба (Daemon)** — Friday висит в системном трее, потребляя минимум ресурсов.
-2. **Событийная архитектура (`src/daemon`)** — реакция на триггеры файловой системы и глобальные хоткеи.
+**Core idea:** Teach Friday to use third-party tools without modifying the core source code.
+**Implemented:**
+1. **MCP Support (Model Context Protocol)** — integrations that run as isolated servers.
+2. **Plugin Manager (`src/plugins`)** — dynamic module loading.
+3. **Permissions System** — security and access control.
 
 ---
 
-## 🖥️ Этап 8: Нативное Desktop Приложение (GUI) ✅ Выполнено
+## 👁️ Stage 6: Spatial Perception (Vision + RAG) ✅ Done
 
-**Суть:** Создать удобное, самостоятельное графическое приложение для пользователей.
-**Что реализовано:**
-1. **FastAPI Backend (`src/api`)** — HTTP/WebSocket сервер в качестве автономного движка (Sidecar).
-2. **Vite + React + Tauri Frontend (`src/ui`)** — красивое нативное десктоп-приложение с Glassmorphism UI.
-3. **In-App Настройки и Конфигурация** — модальное окно настроек (`config.json`) с мгновенным применением (Hot-Reloading) без перезагрузки программы.
-
----
-
-## 🚀 Этап 9: Глобальное Расширение и Интеграции (В ПЛАНАХ)
-
-**Суть:** Наращивание "мышц" агента для выполнения комплексных задач и интеграций с другими сервисами (постановка очень крупной и тяжелой задачи).
-**Планы будут уточнены после завершения текущего спринта и получения новых требований.**
+**Core idea:** Give Friday "eyes" and the ability to instantly navigate huge amounts of data.
+**Implemented:**
+1. **Vision Subsystem (`src/vision`)** — creating and analyzing screenshots.
+2. **Semantic Search / RAG (`src/retrieval`)** — local index database (ChromaDB) for finding context across the project.
 
 ---
 
-## 🛡️ Этап 10: Глобальная отказоустойчивость и Оффлайн-Агенты ✅ Выполнено
+## 🤖 Stage 7: Background Daemon and Events (Proactive Agent) ✅ Done
 
-**Суть:** Сделать агента непробиваемым для сетевых и форматных ошибок, а также обеспечить полную автономность без интернета.
-**Что реализовано:**
-1. **Fault-Tolerance:** Автоматические ретраи при падении сети, stateful-парсер для починки сломанного JSON от LLM, защита от крашей кодировок (Unicode).
-2. **Ollama Native Tool Calling:** Локальные модели теперь могут нативно вызывать инструменты (подобно OpenAI), что делает Friday полноценно автономным оффлайн-помощником.
+**Core idea:** Untie Friday from the console and teach it to take initiative.
+**Implemented:**
+1. **Background Service (Daemon)** — Friday runs in the system tray, consuming minimal resources.
+2. **Event Architecture (`src/daemon`)** — reacting to file system triggers and global hotkeys.
+
+---
+
+## 🖥️ Stage 8: Native Desktop Application (GUI) ✅ Done
+
+**Core idea:** Create a convenient, standalone graphical application for users.
+**Implemented:**
+1. **FastAPI Backend (`src/api`)** — HTTP/WebSocket server acting as an autonomous engine (Sidecar).
+2. **Vite + React + Tauri Frontend (`src/ui`)** — beautiful native desktop app with a Glassmorphism UI.
+3. **In-App Settings and Configuration** — settings modal (`config.json`) with instant application (Hot-Reloading) without restarting the program.
+
+---
+
+## 🚀 Stage 9: Global Expansion and Integrations (PLANNED)
+
+**Core idea:** Building up the agent's "muscles" to perform complex tasks and integrations with other services (setting up a very large and heavy task).
+**Plans will be refined after the current sprint is completed and new requirements are received.**
+
+---
+
+## 🛡️ Stage 10: Global Fault-Tolerance and Offline Agents ✅ Done
+
+**Core idea:** Make the agent bulletproof against network and format errors, and ensure full autonomy without an internet connection.
+**Implemented:**
+1. **Fault-Tolerance:** Automatic retries on network drops, a stateful parser for repairing broken LLM JSON, and protection against encoding crashes (Unicode).
+2. **Ollama Native Tool Calling:** Local models can now natively call tools (similar to OpenAI), making Friday a fully autonomous offline assistant.
