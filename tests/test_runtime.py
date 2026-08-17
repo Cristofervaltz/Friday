@@ -110,8 +110,7 @@ def test_application_handles_provider_initialization_failure(
     assert app.logger is not None
 
     # Provider should be None
-    with pytest.raises(AssertionError):
-        _ = app.provider
+    assert app.provider is None
 
 
 def test_application_creates_runtime_directories(tmp_path: Path) -> None:
