@@ -35,8 +35,6 @@ class WakeWordDetector:
         self, indata: Any, frames: int, time_info: Any, status: Any
     ) -> None:
         """This is called (from a separate thread) for each audio block."""
-        # Removed print(status, file=sys.stderr) which causes OSError
-        # on Windows GUI apps
         self.q.put(bytes(indata))
 
     def _listen_loop(self) -> None:
@@ -58,23 +56,35 @@ class WakeWordDetector:
 
             model_ru = Model(str(model_dir_ru))
             model_en = Model(str(model_dir_en))
-            samplerate = 16000
-            recognizer_ru = KaldiRecognizer(model_ru, samplerate)
-            recognizer_en = KaldiRecognizer(model_en, samplerate)
 
-            # Check if any audio input device is available
+            samplerate = 16000
+
+            def build_grammar(words: list[str]) -> str:
+                words_set = set()
+                for phrase in words:
+                    for word in phrase.split():
+                        words_set.add(word)
+                return json.dumps(list(words_set) + ["[unk]"], ensure_ascii=False)
+
+            grammar_ru = build_grammar(self.wake_words_ru)
+            grammar_en = build_grammar(self.wake_words_en)
+
+            recognizer_ru = KaldiRecognizer(model_ru, samplerate, grammar_ru)
+            recognizer_en = KaldiRecognizer(model_en, samplerate, grammar_en)
+
             try:
                 devices = sd.query_devices()
+                device_iter = devices if not isinstance(devices, dict) else [devices]
                 has_input = any(
                     d.get("max_input_channels", 0) > 0
-                    for d in (devices if isinstance(devices, list) else [devices])
+                    for d in device_iter
                 )
                 if not has_input:
                     safe_print("No microphone found. Wake word detection disabled.")
                     return
-            except Exception:
+            except Exception as e:
                 safe_print(
-                    "Could not query audio devices. Wake word detection disabled."
+                    f"Could not query audio devices ({e}). Wake word detection disabled."
                 )
                 return
 
@@ -95,68 +105,69 @@ class WakeWordDetector:
 
             with stream:
                 safe_print(
-                    f"Listening for wake words: {self.wake_words_ru + self.wake_words_en}"
+                    f"Listening for wake words at {samplerate}Hz: {self.wake_words_ru + self.wake_words_en}"
                 )
                 while self.running:
                     data = self.q.get()
 
-                    # Process Russian model
+                    def handle_detection(
+                        text: str,
+                        words: list[str],
+                        recognizer: KaldiRecognizer,
+                        is_partial: bool,
+                    ) -> bool:
+                        for w in words:
+                            if w in text:
+                                now = time.monotonic()
+                                if now - self._last_triggered >= self._cooldown:
+                                    prefix = (
+                                        "(partial)" if is_partial else "full result"
+                                    )
+                                    safe_print(
+                                        f"Wake word detected in {prefix}: {text}"
+                                    )
+                                    self._last_triggered = now
+                                    if self._callback:
+                                        self._callback()
+                                recognizer.Reset()
+                                with self.q.mutex:
+                                    self.q.queue.clear()
+                                return True
+                        return False
+
                     if recognizer_ru.AcceptWaveform(data):
                         result = json.loads(recognizer_ru.Result())
                         text = result.get("text", "").lower()
                         if text:
-                            # print(f"Heard (RU): {text}")
-                            for w in self.wake_words_ru:
-                                if w in text:
-                                    now = time.monotonic()
-                                    if now - self._last_triggered >= self._cooldown:
-                                        safe_print(f"WAKE WORD DETECTED: {w}")
-                                        self._last_triggered = now
-                                        if self._callback:
-                                            self._callback()
-                                    break
+                            handle_detection(
+                                text, self.wake_words_ru, recognizer_ru, False
+                            )
                     else:
                         partial = json.loads(recognizer_ru.PartialResult())
                         text = partial.get("partial", "").lower()
-                        for w in self.wake_words_ru:
-                            if w in text:
-                                now = time.monotonic()
-                                if now - self._last_triggered >= self._cooldown:
-                                    safe_print(f"WAKE WORD DETECTED (partial): {w}")
-                                    self._last_triggered = now
-                                    if self._callback:
-                                        self._callback()
-                                recognizer_ru.Reset()
-                                break
+                        if text:
+                            if handle_detection(
+                                text, self.wake_words_ru, recognizer_ru, True
+                            ):
+                                recognizer_en.Reset()
+                                continue
 
-                    # Process English model
                     if recognizer_en.AcceptWaveform(data):
                         result = json.loads(recognizer_en.Result())
                         text = result.get("text", "").lower()
                         if text:
-                            # print(f"Heard (EN): {text}")
-                            for w in self.wake_words_en:
-                                if w in text:
-                                    now = time.monotonic()
-                                    if now - self._last_triggered >= self._cooldown:
-                                        safe_print(f"WAKE WORD DETECTED: {w}")
-                                        self._last_triggered = now
-                                        if self._callback:
-                                            self._callback()
-                                    break
+                            handle_detection(
+                                text, self.wake_words_en, recognizer_en, False
+                            )
                     else:
                         partial = json.loads(recognizer_en.PartialResult())
                         text = partial.get("partial", "").lower()
-                        for w in self.wake_words_en:
-                            if w in text:
-                                now = time.monotonic()
-                                if now - self._last_triggered >= self._cooldown:
-                                    safe_print(f"WAKE WORD DETECTED (partial): {w}")
-                                    self._last_triggered = now
-                                    if self._callback:
-                                        self._callback()
-                                recognizer_en.Reset()
-                                break
+                        if text:
+                            if handle_detection(
+                                text, self.wake_words_en, recognizer_en, True
+                            ):
+                                recognizer_ru.Reset()
+
         except Exception as e:
             safe_print(f"WakeWordDetector error: {e}")
 
