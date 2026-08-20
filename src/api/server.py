@@ -709,35 +709,44 @@ def create_app() -> "FastAPI":
                             )
                         )
 
-                elif payload.get("type") == "message":
+                elif payload.get("type") in ["message", "edit_message", "regenerate_message"]:
+                    msg_type = payload.get("type")
                     user_text = payload.get("content", "")
-
                     target_chat_id = friday_repl._agent.memory.chat_id
+                    
+                    if msg_type == "edit_message":
+                        msg_id = payload.get("message_id")
+                        if msg_id:
+                            friday_repl._agent.memory.truncate_messages(msg_id, inclusive=False)
+                    elif msg_type == "regenerate_message":
+                        msg_id = payload.get("message_id")
+                        if msg_id:
+                            friday_repl._agent.memory.truncate_messages(msg_id, inclusive=False)
+                            user_text = None  # Use None so agent.run() doesn't add an empty message
 
                     def run_friday(
-                        msg_text: str = user_text, chat_id: str = target_chat_id
+                        msg_text: str | None = user_text, chat_id: str = target_chat_id
                     ) -> None:
                         try:
-                            if msg_text.strip() == "/voice":
+                            if msg_text and msg_text.strip() == "/voice":
                                 _handle_voice_for_ws(websocket, friday_app, loop)
-                            elif msg_text.strip() == "/clear":
+                            elif msg_text and msg_text.strip() == "/clear":
                                 if friday_repl._agent.memory.chat_id == chat_id:
                                     friday_repl._agent.memory.clear()
                                 else:
-                                    from src.memory.conversation import (
-                                        ConversationMemory,
-                                    )
-
+                                    from src.memory.conversation import ConversationMemory
                                     temp_mem = ConversationMemory(
                                         chat_id=chat_id,
-                                        save_dir=(
-                                            friday_app.config.paths.data_dir / "chats"
-                                            if friday_app.config
-                                            else None
-                                        ),
+                                        save_dir=(friday_app.config.paths.data_dir / "chats" if friday_app.config else None),
                                     )
                                     temp_mem.clear()
                             else:
+                                if msg_text and msg_text.strip().startswith("/grill-me"):
+                                    msg_text = msg_text.replace("/grill-me", "").strip()
+                                    if not msg_text:
+                                        msg_text = "I have a new project or idea."
+                                    msg_text += "\n\n[SYSTEM]: The user has invoked the /grill-me command. Please conduct an interactive survey by asking ONE clarifying question at a time to gather detailed requirements. Do not provide a final solution until you fully understand the user's intent. Start by asking your first question."
+                                
                                 import copy
 
                                 from src.core.agent import Agent

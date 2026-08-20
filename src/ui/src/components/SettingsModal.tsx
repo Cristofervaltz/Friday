@@ -179,43 +179,65 @@ export const SettingsModal = React.memo(function SettingsModal({ isOpen, onClose
                 {activeTab === 'agent' && (
                   <div className="tab-content">
                     <div className="form-group">
-                      <label>{t('settings.provider')}</label>
-                      <select 
-                        value={settings.llm_provider || 'openai'}
-                        onChange={e => setSettings({...settings, llm_provider: e.target.value})}
-                      >
-                        <option value="openai">OpenAI</option>
-                        <option value="gemini">Gemini (Google AI Studio)</option>
-                        <option value="anthropic">Anthropic</option>
-                        <option value="ollama">Ollama (Local)</option>
-                        <option value="openrouter">OpenRouter</option>
-                      </select>
-                      {settings.llm_provider === 'ollama' && (
-                        <div className="settings-warning" style={{ color: '#ff9800', fontSize: '0.85em', marginTop: '5px' }}>
-                          {t('settings.ollama_warning')}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="form-group">
-                      <label>{t('settings.api_key')}</label>
+                      <label>OpenAI API Key</label>
                       <input 
                         type="password"
-                        placeholder="sk-..."
-                        value={settings.llm_api_key || ''}
-                        onChange={e => setSettings({...settings, llm_api_key: e.target.value})}
+                        placeholder="sk-proj-..."
+                        value={settings.openai_api_key || settings.llm_api_key || ''}
+                        onChange={e => setSettings({...settings, openai_api_key: e.target.value})}
                       />
                     </div>
 
                     <div className="form-group">
-                      <label>{t('settings.model')}</label>
+                      <label>Anthropic API Key</label>
                       <input 
-                        type="text"
-                        placeholder={t('settings.model_placeholder')}
-                        value={settings.llm_model || ''}
-                        onChange={e => setSettings({...settings, llm_model: e.target.value})}
+                        type="password"
+                        placeholder="sk-ant-..."
+                        value={settings.anthropic_api_key || ''}
+                        onChange={e => setSettings({...settings, anthropic_api_key: e.target.value})}
                       />
                     </div>
+
+                    <div className="form-group">
+                      <label>Gemini API Key</label>
+                      <input 
+                        type="password"
+                        placeholder="AIza..."
+                        value={settings.gemini_api_key || ''}
+                        onChange={e => setSettings({...settings, gemini_api_key: e.target.value})}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>OpenRouter API Key</label>
+                      <input 
+                        type="password"
+                        placeholder="sk-or-v1-..."
+                        value={settings.openrouter_api_key || ''}
+                        onChange={e => setSettings({...settings, openrouter_api_key: e.target.value})}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Ollama Base URL</label>
+                      <input 
+                        type="text"
+                        placeholder="http://localhost:11434"
+                        value={settings.ollama_base_url || 'http://localhost:11434'}
+                        onChange={e => setSettings({...settings, ollama_base_url: e.target.value})}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Custom Base URL (OpenAI Compatible)</label>
+                      <input 
+                        type="text"
+                        placeholder="e.g. https://api.openai.com/v1"
+                        value={settings.openai_base_url || settings.llm_base_url || ''}
+                        onChange={e => setSettings({...settings, openai_base_url: e.target.value})}
+                      />
+                    </div>
+
                     
                     <div className="form-group">
                       <label>{t('settings.max_iterations')}</label>
@@ -230,16 +252,6 @@ export const SettingsModal = React.memo(function SettingsModal({ isOpen, onClose
                       <p className="form-hint">{t('settings.max_iterations_hint')}</p>
                     </div>
 
-                    <div className="form-group">
-                      <label>{t('settings.base_url')}</label>
-                      <input 
-                        type="text"
-                        placeholder="e.g. https://api.openai.com/v1"
-                        value={settings.llm_base_url || ''}
-                        onChange={e => setSettings({...settings, llm_base_url: e.target.value})}
-                      />
-                    </div>
-                    
                     <div className="form-group">
                       <label>{t('settings.system_prompt')}</label>
                       <textarea 

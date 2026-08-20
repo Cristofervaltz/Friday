@@ -1,6 +1,6 @@
 // lowercase casual comment for react ui root
 import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
-import { Zap, Pencil, Trash2, Mic, ArrowRight, StopCircle, Paperclip, Shield, X, Check, ChevronRight, ChevronDown, Code2, Square, AlertTriangle } from 'lucide-react';
+import { Zap, Pencil, Trash2, Mic, ArrowRight, StopCircle, Paperclip, Shield, X, Check, ChevronRight, ChevronDown, Code2, Square, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useTranslation } from './i18n/index.ts';
 import { Sidebar } from './components/Sidebar';
 import { SettingsModal } from './components/SettingsModal';
@@ -23,23 +23,38 @@ interface QueuedMessage {
 }
 
 interface ToolBlockProps {
-  msg: Message;
+  tools: Message[];
   t: (key: string, params?: any) => string;
 }
 
 // collapsible tool block for tool call outputs
-const ToolBlock = memo(function ToolBlock({ msg, t }: ToolBlockProps) {
+const ToolBlock = memo(function ToolBlock({ tools, t }: ToolBlockProps) {
   const [isOpen, setIsOpen] = useState(false);
+  
   return (
-    <div className={`tool-block ${isOpen ? 'open' : ''}`}>
-      <div className="tool-head" onClick={() => setIsOpen(!isOpen)}>
+    <div className={`tool-block ${isOpen ? 'open' : ''}`} style={{ margin: '8px 0', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg-elevated)' }}>
+      <div 
+        className="tool-head" 
+        onClick={() => setIsOpen(!isOpen)}
+        style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', background: 'var(--bg-hover)', fontSize: '13px', fontWeight: 500, color: 'var(--text-hi)' }}
+      >
         {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        <Code2 size={14} />
-        {t('chat.show_system_output')}
+        <Code2 size={14} style={{ color: 'var(--accent)' }} />
+        {tools.length === 1 ? t('chat.used_1_tool', { count: 1 }) : t('chat.used_n_tools', { count: tools.length })}
       </div>
       {isOpen && (
-        <div className="tool-body">
-          <ArtifactRenderer content={msg.content || ""} />
+        <div className="tool-body" style={{ padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: '6px', background: 'var(--bg-panel)' }}>
+          {tools.map(tool => {
+            // clean up the server's hardcoded "🛠️ **Executing {name}...**"
+            const nameMatch = tool.content.match(/Executing (.*?)\.\.\./);
+            const toolName = nameMatch ? nameMatch[1] : tool.content;
+            return (
+              <div key={tool.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-low)', fontFamily: 'var(--mono)' }}>
+                <CheckCircle size={12} style={{ color: 'var(--green)' }} />
+                <span>{toolName}</span>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -72,16 +87,15 @@ const renderUserContent = (content: string) => {
 
 interface ChatMessageItemProps {
   msg: Message;
-  t: (key: string, params?: any) => string;
+  onEdit: (id: string, newContent: string) => void;
+  onRegenerate: (id: string) => void;
 }
 
 // memoized message item prevents full chat tree thrashing on token stream
-const ChatMessageItem = memo(function ChatMessageItem({ msg, t }: ChatMessageItemProps) {
-  if (msg.role === 'tool') {
-    return <ToolBlock msg={msg} t={t} />;
-  }
-  
-  const isError = msg.content && (msg.content.startsWith('⚠️') || msg.content.includes('Error:') || msg.content.includes('ОШИБКА'));
+const ChatMessageItem = memo(function ChatMessageItem({ msg, onEdit, onRegenerate }: ChatMessageItemProps) {
+  const isError = msg.content && (msg.content.startsWith('⚠️') || msg.content.includes('Error:') || msg.content.includes('\u041E\u0428\u0418\u0411\u041A\u0410'));
+  const [isEditing, setIsEditing] = useState(false);
+  const [editVal, setEditVal] = useState(msg.content);
   
   return (
     <div className={`msg ${msg.role === 'user' ? 'user' : ''}`}>
@@ -99,8 +113,32 @@ const ChatMessageItem = memo(function ChatMessageItem({ msg, t }: ChatMessageIte
           <span className="who">{msg.role === 'user' ? 'You' : isError ? 'System' : 'Friday'}</span>
         </div>
         <div className="message-content" style={isError ? { color: 'var(--red)', background: 'rgba(255, 60, 60, 0.1)', padding: '12px', borderRadius: '8px', borderLeft: '3px solid var(--red)' } : undefined}>
-          {msg.role === 'user' ? renderUserContent(msg.content || "") : <ArtifactRenderer content={isError ? msg.content.replace(/^⚠️\s*/, '') : (msg.content || "")} />}
+          {isEditing ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+              <textarea 
+                value={editVal} 
+                onChange={e => setEditVal(e.target.value)} 
+                style={{ width: '100%', minHeight: '80px', padding: '8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontFamily: 'inherit', fontSize: '14px', resize: 'vertical' }}
+              />
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                <button className="btn" onClick={() => setIsEditing(false)}>Cancel</button>
+                <button className="btn" style={{ background: 'var(--accent)', color: 'white' }} onClick={() => { onEdit(msg.id, editVal); setIsEditing(false); }}>Save</button>
+              </div>
+            </div>
+          ) : (
+            msg.role === 'user' ? renderUserContent(msg.content || "") : <ArtifactRenderer content={isError ? msg.content.replace(/^⚠️\s*/, '') : (msg.content || "")} />
+          )}
         </div>
+        {!isEditing && (
+          <div className="msg-actions" style={{ display: 'flex', gap: '8px', marginTop: '4px', opacity: 0.6 }}>
+            {msg.role === 'user' && (
+              <button className="icon-btn-small" onClick={() => setIsEditing(true)} title="Edit"><Pencil size={12} /></button>
+            )}
+            {msg.role === 'assistant' && (
+              <button className="icon-btn-small" onClick={() => onRegenerate(msg.id)} title="Regenerate"><Zap size={12} /></button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -118,6 +156,18 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
+
+  const handleEditMessage = useCallback((id: string, newContent: string) => {
+    if (ws && connected) {
+      ws.send(JSON.stringify({ type: 'edit_message', message_id: id, content: newContent }));
+    }
+  }, [ws, connected]);
+
+  const handleRegenerateMessage = useCallback((id: string) => {
+    if (ws && connected) {
+      ws.send(JSON.stringify({ type: 'regenerate_message', message_id: id }));
+    }
+  }, [ws, connected]);
   const [permissionRequest, setPermissionRequest] = useState<string | null>(null);
   
   const [chats, setChats] = useState<Array<{id: string, title: string}>>([]);
@@ -126,9 +176,22 @@ function App() {
   const [currentModel, setCurrentModel] = useState<string>('Default');
   const [currentProvider, setCurrentProvider] = useState<string>('provider');
   const [attachedFiles, setAttachedFiles] = useState<string[]>([]);
+  const [updateAvailable, setUpdateAvailable] = useState<string | null>(null);
   
   const currentChatIdRef = useRef<string>('');
   const pendingChatIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    fetch('https://api.github.com/repos/Cristofervaltz/Friday/releases/latest')
+      .then(res => res.json())
+      .then(data => {
+        const currentVersion = 'v1.0.0';
+        if (data.tag_name && data.tag_name !== currentVersion && !data.tag_name.includes('beta')) {
+          setUpdateAvailable(data.tag_name);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     currentChatIdRef.current = currentChatId;
@@ -573,7 +636,8 @@ function App() {
   const slashCommands = useMemo(() => [
     { cmd: '/clear', desc: t('commands.clear_desc') || 'Clear current chat history', icon: <Trash2 size={16} /> },
     { cmd: '/goal', desc: t('commands.goal_desc') || 'Start a long-running autonomous goal', icon: <Zap size={16} /> },
-    { cmd: '/schedule', desc: t('commands.schedule_desc') || 'Schedule a background task', icon: <Check size={16} /> }
+    { cmd: '/schedule', desc: t('commands.schedule_desc') || 'Schedule a background task', icon: <Check size={16} /> },
+    { cmd: '/grill-me', desc: t('commands.grill_desc') || 'Interactive survey for requirements', icon: <Square size={16} /> }
   ], [t]);
 
   const showSlashMenu = input.startsWith('/') && !input.includes(' ');
@@ -614,9 +678,43 @@ function App() {
             onSelectNew={handleOpenCreateProject}
             onClearWorkspace={handleClearWorkspace}
           />
-          <div className="model-pill">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3.5"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
-            {currentModel} <span className="prov">· {currentProvider}</span>
+          <div className="model-selector-wrapper" style={{ position: 'relative' }}>
+            <select 
+              className="model-pill" 
+              style={{ appearance: 'none', cursor: 'pointer', background: 'var(--bg-hover)', border: '1px solid var(--border)', color: 'var(--text)', padding: '4px 12px', paddingRight: '28px', borderRadius: '14px', fontSize: '12px', fontWeight: 500, outline: 'none' }}
+              value={`${currentProvider}|${currentModel}`}
+              onChange={async (e) => {
+                const [prov, mod] = e.target.value.split('|');
+                setCurrentProvider(prov);
+                setCurrentModel(mod);
+                const isTauri = '__TAURI_INTERNALS__' in window || '__TAURI__' in window || window.location.hostname === 'tauri.localhost';
+                const apiHost = isTauri ? `127.0.0.1:8000` : (window.location.host || '127.0.0.1:8000');
+                try {
+                  await fetch(`http://${apiHost}/api/settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ llm_provider: prov, llm_model: mod })
+                  });
+                } catch(err) { console.error(err); }
+              }}
+            >
+              <option value="openai|gpt-4o">GPT-4o (OpenAI)</option>
+              <option value="anthropic|claude-3-5-sonnet-20240620">Claude 3.5 Sonnet (Anthropic)</option>
+              <option value="gemini|gemini-1.5-pro">Gemini 1.5 Pro (Google)</option>
+              <option value="openrouter|anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (OpenRouter)</option>
+              <option value="ollama|llama3">Llama 3 (Ollama Local)</option>
+              {/* Fallback if user set a custom one in settings */}
+              {![
+                'openai|gpt-4o', 
+                'anthropic|claude-3-5-sonnet-20240620', 
+                'gemini|gemini-1.5-pro',
+                'openrouter|anthropic/claude-3.5-sonnet',
+                'ollama|llama3'
+              ].includes(`${currentProvider}|${currentModel}`) && (
+                <option value={`${currentProvider}|${currentModel}`}>{currentModel} ({currentProvider})</option>
+              )}
+            </select>
+            <ChevronDown size={12} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-low)' }} />
           </div>
           <div className="top-actions">
             <button className="icon-btn" title="Voice input" onClick={handleOpenVoice}>
@@ -626,6 +724,12 @@ function App() {
         </header>
 
         <div className="chat">
+          {updateAvailable && (
+            <div style={{ background: 'var(--accent)', color: '#fff', padding: '8px 16px', borderRadius: '8px', margin: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>🚀 A new version <strong>{updateAvailable}</strong> is available! <a href="https://github.com/Cristofervaltz/Friday/releases" target="_blank" style={{ color: '#fff', textDecoration: 'underline' }}>Download here</a>.</span>
+              <button onClick={() => setUpdateAvailable(null)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={14} /></button>
+            </div>
+          )}
           {messages.length === 0 ? (
             <div className="hero">
               <h1>{t('chat.empty_connected')}</h1>
@@ -641,9 +745,31 @@ function App() {
             </div>
           ) : (
             <>
-              {visibleMessages.map((msg, idx) => (
-                <ChatMessageItem key={msg.id || idx} msg={msg} t={t} />
-              ))}
+              {(() => {
+                const grouped = [];
+                let currentGroup: Message[] = [];
+                for (const m of visibleMessages) {
+                  if (m.role === 'tool') {
+                    currentGroup.push(m);
+                  } else {
+                    if (currentGroup.length > 0) {
+                      grouped.push({ type: 'tool', tools: currentGroup });
+                      currentGroup = [];
+                    }
+                    grouped.push({ type: 'msg', msg: m });
+                  }
+                }
+                if (currentGroup.length > 0) {
+                  grouped.push({ type: 'tool', tools: currentGroup });
+                }
+                
+                return grouped.map((g, idx) => {
+                  if (g.type === 'tool') {
+                    return <ToolBlock key={`tb-${idx}`} tools={g.tools as Message[]} t={t} />;
+                  }
+                  return <ChatMessageItem key={(g.msg as Message).id || idx} msg={g.msg as Message} onEdit={handleEditMessage} onRegenerate={handleRegenerateMessage} />;
+                });
+              })()}
               
               <AgentDashboard isThinking={isThinking} />
 

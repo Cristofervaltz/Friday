@@ -164,10 +164,20 @@ class AppConfig:
             in {"1", "true", "yes", "on"},
         )
 
+        provider = get_val("llm_provider", "FRIDAY_LLM_PROVIDER", "openai")
+        
+        api_key = get_val(f"{provider}_api_key", f"FRIDAY_{provider.upper()}_API_KEY")
+        if not api_key:
+            api_key = get_val("llm_api_key", "FRIDAY_LLM_API_KEY")
+            
+        base_url = get_val(f"{provider}_base_url", f"FRIDAY_{provider.upper()}_BASE_URL")
+        if not base_url:
+            base_url = get_val("llm_base_url", "FRIDAY_LLM_BASE_URL")
+
         llm_config = LLMConfig(
-            provider=get_val("llm_provider", "FRIDAY_LLM_PROVIDER", "openai"),
-            api_key=get_val("llm_api_key", "FRIDAY_LLM_API_KEY"),
-            base_url=get_val("llm_base_url", "FRIDAY_LLM_BASE_URL"),
+            provider=provider,
+            api_key=api_key,
+            base_url=base_url,
             model=get_val("llm_model", "FRIDAY_LLM_MODEL"),
             timeout=float(get_val("llm_timeout", "FRIDAY_LLM_TIMEOUT", "30.0")),
             system_prompt=get_val("system_prompt", "FRIDAY_SYSTEM_PROMPT"),

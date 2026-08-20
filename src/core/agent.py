@@ -52,11 +52,11 @@ class Agent:
         self.cancel_event = cancel_event
         self._logger = _get_logger("core.agent")
 
-    def run(self, user_input: str) -> str:
+    def run(self, user_input: str | None = None) -> str:
         """Process user input and return agent's response.
 
         Args:
-            user_input: User's message/request.
+            user_input: User's message/request, or None to just continue generation.
 
         Returns:
             Agent's final response after tool execution (if any),
@@ -65,7 +65,8 @@ class Agent:
         Raises:
             RuntimeError: If max iterations exceeded (infinite loop).
         """
-        self.memory.add_user_message(user_input)
+        if user_input is not None:
+            self.memory.add_user_message(user_input)
 
         if self.llm is None:
             msg = "⚠️ Не настроена нейросеть. Пожалуйста, откройте настройки (иконка шестеренки) и укажите ваш API ключ."
