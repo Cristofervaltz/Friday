@@ -1,5 +1,4 @@
-"""Tool for delegating tasks to sub-agents (Multi-Agent Swarm)."""
-
+import logging
 import threading
 import uuid
 from typing import Any
@@ -7,6 +6,9 @@ from typing import Any
 from src.core.agent import Agent
 from src.memory.conversation import ConversationMemory
 from src.tools.base import BaseTool, ToolResult
+
+# logger for fallback msgs when sub-agents run detached
+logger = logging.getLogger(__name__)
 
 
 class DelegateTaskTool(BaseTool):
@@ -16,12 +18,12 @@ class DelegateTaskTool(BaseTool):
     def name(self) -> str:
         return "delegate_task"
 
-    def __init__(self, app: Any, registry: Any) -> None:
+    def __init__(self, app: Any = None, registry: Any = None) -> None:
         """Initialize the DelegateTaskTool.
 
         Args:
-            app: The FridayApplication instance.
-            registry: The ToolRegistry instance.
+            app: Optional FridayApplication instance.
+            registry: Optional ToolRegistry instance.
         """
         self.app = app
         self.registry = registry
@@ -77,6 +79,27 @@ class DelegateTaskTool(BaseTool):
                 error="Missing required parameters: 'role' and 'task'.",
             )
 
+        # resolve app and registry instances
+        app = self.app
+        if app is None:
+            try:
+                from src.runtime import FridayApplication
+
+                app = FridayApplication()
+                app.initialize()
+            except Exception:
+                pass
+
+        if app is None:
+            return ToolResult(
+                success=False,
+                error="DelegateTaskTool requires FridayApplication instance.",
+            )
+
+        from src.core.tool_registry import ToolRegistry
+
+        registry = self.registry if self.registry is not None else ToolRegistry()
+
         try:
             # Generate a unique chat ID for the sub-agent
             sub_chat_id = f"sub_{uuid.uuid4().hex[:8]}"
@@ -91,7 +114,9 @@ class DelegateTaskTool(BaseTool):
 
             # Create a new isolated memory
             save_dir = (
-                self.app.config.paths.data_dir / "chats" if self.app.config else None
+                app.config.paths.data_dir / "chats"
+                if app.config and hasattr(app.config, "paths")
+                else None
             )
             memory = ConversationMemory(
                 system_prompt=system_prompt,
@@ -103,7 +128,11 @@ class DelegateTaskTool(BaseTool):
             memory.title = f"[Sub-Agent] {role}"
 
             # Get parent agent if available in context
-            parent_agent = getattr(self.registry.context, "agent", None)
+            parent_agent = (
+                getattr(registry.context, "agent", None)
+                if hasattr(registry, "context")
+                else None
+            )
 
             # Copy WebSocket callbacks from parent agent for UI live updates
             if parent_agent and hasattr(parent_agent, "memory"):
@@ -114,13 +143,16 @@ class DelegateTaskTool(BaseTool):
             memory._trigger_on_change()
 
             # Instantiate the sub-agent
+            max_iter = (
+                app.config.llm.max_iterations
+                if app.config and hasattr(app.config, "llm")
+                else 10
+            )
             sub_agent = Agent(
-                llm_provider=self.app.provider,
-                tool_registry=self.registry,
+                llm_provider=app.provider,
+                tool_registry=registry,
                 memory=memory,
-                max_iterations=(
-                    self.app.config.llm.max_iterations if self.app.config else 10
-                ),
+                max_iterations=max_iter,
             )
 
             if run_in_background:
@@ -129,17 +161,31 @@ class DelegateTaskTool(BaseTool):
                     try:
                         final_response = sub_agent.run(task)
                         if parent_agent and hasattr(parent_agent, "memory"):
-                            # Inject result into parent chat
+                            # inject result into parent chat
                             parent_agent.memory.add_assistant_message(
                                 f"🤖 **Sub-Agent '{role}' finished its background task!**\n\n**Result:**\n{final_response}"
                             )
                             parent_agent.memory._trigger_on_change()
+                        else:
+                            # fallback to logger if parent memory isn't attached
+                            logger.info(
+                                "sub-agent '%s' finished background task: %s",
+                                role,
+                                final_response,
+                            )
                     except Exception as exc:
                         if parent_agent and hasattr(parent_agent, "memory"):
                             parent_agent.memory.add_assistant_message(
                                 f"❌ **Sub-Agent '{role}' encountered an error:** {exc}"
                             )
                             parent_agent.memory._trigger_on_change()
+                        else:
+                            # log sub agent failure if no parent memory
+                            logger.error(
+                                "sub-agent '%s' encountered an error: %s",
+                                role,
+                                exc,
+                            )
                     finally:
                         memory.delete_chat(sub_chat_id)
                         if parent_agent and hasattr(parent_agent, "memory"):

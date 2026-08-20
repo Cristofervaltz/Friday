@@ -2,72 +2,73 @@
   display: flex;
   flex-direction: column;
   width: 90%;
-  max-width: 500px;
-  border-radius: var(--radius-xl);
+  max-width: 480px;
+  border-radius: var(--r-xl);
   overflow: hidden;
-  animation: slideUpFade var(--transition-spring);
-  background: var(--bg-panel-solid);
-  box-shadow: var(--shadow-lg), 0 0 30px rgba(0,0,0,0.4);
-  border: 1px solid var(--border-subtle);
+  animation: slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  background: rgba(17, 20, 27, 0.85);
+  box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+  border: 1px solid var(--border2);
+  backdrop-filter: blur(30px);
 }
 
 .create-project-modal-container .modal-header {
-  padding: var(--space-5) var(--space-6);
+  padding: 24px 30px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--border-subtle);
-  background: rgba(0,0,0,0.1);
+  border-bottom: 1px solid var(--border);
+  background: transparent;
 }
 
 .create-project-modal-container .modal-header h2 {
-  font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
-  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-hi);
   margin: 0;
 }
 
 .create-project-modal-container .modal-body {
-  padding: var(--space-6);
+  padding: 24px 30px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: 20px;
 }
 
 .create-project-modal-container .form-group {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 .create-project-modal-container .form-group label {
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-hi);
 }
 
 .create-project-modal-container .form-group input {
   width: 100%;
-  padding: var(--space-3) var(--space-4);
-  background: var(--bg-input);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-size: var(--text-sm);
-  transition: all var(--transition-fast);
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--text-hi);
+  font-size: 14px;
+  transition: 0.15s;
 }
 
 .create-project-modal-container .form-group input:focus {
   outline: none;
-  border-color: var(--color-primary-500);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+  border-color: rgba(58, 130, 246, 0.5);
+  box-shadow: 0 0 0 3px rgba(58, 130, 246, 0.15);
 }
 
 .create-project-modal-container .modal-footer {
-  padding: var(--space-4) var(--space-6);
-  border-top: 1px solid var(--border-subtle);
+  padding: 16px 30px;
+  border-top: 1px solid var(--border);
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-3);
-  background: rgba(0, 0, 0, 0.2);
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.1);
 }

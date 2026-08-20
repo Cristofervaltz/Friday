@@ -4,8 +4,9 @@ import os
 import subprocess
 import sys
 import time
-from pathlib import Path
 from typing import Any
+
+from src.config import get_app_home
 
 try:
     from watchdog.events import FileSystemEvent, FileSystemEventHandler  # type: ignore
@@ -84,9 +85,8 @@ class EventMonitor:
         """Initialize the event monitor."""
         self._observer: Any = None
 
-        # Create triggers directory in user home
-        home = Path.home()
-        self.triggers_dir = home / ".friday" / "triggers"
+        # Create triggers directory in app home
+        self.triggers_dir = get_app_home() / "triggers"
         self.triggers_dir.mkdir(parents=True, exist_ok=True)
 
     def start(self) -> None:

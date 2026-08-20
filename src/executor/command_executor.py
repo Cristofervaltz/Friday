@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -114,31 +115,50 @@ class CommandExecutor:
         working_dir = cwd if cwd is not None else os.getcwd()
 
         start_time = time.monotonic()
+        proc: subprocess.Popen[str] | None = None
         try:
-            completed_proc = subprocess.run(
+            proc = subprocess.Popen(
                 command,
                 shell=True,
                 cwd=working_dir,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
                 encoding="utf-8",
                 errors="replace",
-                timeout=effective_timeout,
                 env=env,
             )
+            stdout_raw, stderr_raw = proc.communicate(timeout=effective_timeout)
             duration = time.monotonic() - start_time
 
-            stdout = self._truncate_output(completed_proc.stdout)
-            stderr = self._truncate_output(completed_proc.stderr)
+            stdout = self._truncate_output(stdout_raw)
+            stderr = self._truncate_output(stderr_raw)
 
             return CommandResult(
-                exit_code=completed_proc.returncode,
+                exit_code=proc.returncode if proc.returncode is not None else 0,
                 stdout=stdout,
                 stderr=stderr,
                 duration_seconds=round(duration, 3),
             )
         except subprocess.TimeoutExpired as exc:
             duration = time.monotonic() - start_time
+            if proc is not None:
+                if sys.platform == "win32":
+                    try:
+                        subprocess.run(
+                            ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                            capture_output=True,
+                            timeout=5.0,
+                            check=False,
+                        )
+                    except Exception:
+                        proc.kill()
+                else:
+                    proc.kill()
+                try:
+                    proc.communicate(timeout=2.0)
+                except Exception:
+                    pass
             raise TimeoutError(
                 f"Command '{command}' timed out after {effective_timeout} seconds"
             ) from exc

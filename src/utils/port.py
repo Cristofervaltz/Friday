@@ -5,6 +5,8 @@ from __future__ import annotations
 import socket
 from pathlib import Path
 
+from src.config import get_app_home
+
 _DEFAULT_PORT = 8000
 _PORT_RANGE_SIZE = 100  # Try ports 8000–8099
 _RUNTIME_PORT_FILENAME = "runtime_port"
@@ -40,7 +42,7 @@ def write_runtime_port(port: int, app_home: Path | None = None) -> Path:
 
     Returns the path to the written file.
     """
-    home = app_home or (Path.home() / ".friday")
+    home = app_home or get_app_home()
     home.mkdir(parents=True, exist_ok=True)
     port_file = home / _RUNTIME_PORT_FILENAME
     port_file.write_text(str(port), encoding="utf-8")
@@ -52,7 +54,7 @@ def read_runtime_port(app_home: Path | None = None) -> int:
 
     Returns the port number, or the default (8000) if the file is missing/corrupt.
     """
-    home = app_home or (Path.home() / ".friday")
+    home = app_home or get_app_home()
     port_file = home / _RUNTIME_PORT_FILENAME
     try:
         return int(port_file.read_text(encoding="utf-8").strip())
@@ -62,7 +64,7 @@ def read_runtime_port(app_home: Path | None = None) -> int:
 
 def cleanup_runtime_port(app_home: Path | None = None) -> None:
     """Remove the runtime port file on shutdown."""
-    home = app_home or (Path.home() / ".friday")
+    home = app_home or get_app_home()
     port_file = home / _RUNTIME_PORT_FILENAME
     try:
         port_file.unlink(missing_ok=True)

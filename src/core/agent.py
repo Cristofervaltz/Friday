@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from typing import TYPE_CHECKING, Any
 
 from src.constants import APP_NAME
@@ -13,7 +14,7 @@ from src.utils.json_repair import repair_json
 
 if TYPE_CHECKING:
     from src.core.tool_registry import ToolRegistry
-    from src.llm.base import BaseLLMProvider
+    from src.llm.base import BaseLLMProvider, LLMResponse
 
 
 class Agent:
@@ -33,6 +34,7 @@ class Agent:
         tool_registry: ToolRegistry,
         max_iterations: int = 10,
         memory: ConversationMemory | None = None,
+        cancel_event: Any = None,
     ) -> None:
         """Initialize the agent.
 
@@ -41,11 +43,13 @@ class Agent:
             tool_registry: Registry of available tools.
             max_iterations: Maximum number of tool calling iterations.
             memory: Optional custom ConversationMemory instance.
+            cancel_event: Optional threading.Event to abort execution.
         """
         self.llm = llm_provider
         self.tools = tool_registry
         self.max_iterations = max_iterations
         self.memory = memory if memory is not None else ConversationMemory()
+        self.cancel_event = cancel_event
         self._logger = _get_logger("core.agent")
 
     def run(self, user_input: str) -> str:
@@ -72,17 +76,47 @@ class Agent:
 
         iteration = 0
         while iteration < self.max_iterations:
+            if self.cancel_event and self.cancel_event.is_set():
+                msg = "🛑 Выполнение прервано пользователем."
+                self.memory.add_assistant_message(content=msg)
+                return msg
+
             iteration += 1
 
             messages = self.memory.get_messages()
-            try:
-                response = self.llm.generate_with_tools(
-                    messages=messages,
-                    tools=tools_schema,
-                )
-            except Exception as exc:
-                self._logger.exception("LLM generation failed: %s", exc)
-                error_msg = f"❌ Error communicating with LLM: {exc}"
+            
+            max_retries = 3
+            retry_count = 0
+            response: LLMResponse | None = None
+            
+            while retry_count <= max_retries:
+                try:
+                    response = self.llm.generate_with_tools(
+                        messages=messages,
+                        tools=tools_schema,
+                    )
+                    break
+                except Exception as exc:
+                    error_str = str(exc).lower()
+                    if "503" in error_str or "502" in error_str or "500" in error_str or "429" in error_str or "server_error" in error_str or "rate_limit" in error_str or "busy" in error_str:
+                        if retry_count < max_retries:
+                            self._logger.warning("LLM API error (503/429/500). Retrying %d/%d in %d seconds...", retry_count + 1, max_retries, 2 ** retry_count)
+                            time.sleep(2 ** retry_count)
+                            retry_count += 1
+                            continue
+                        else:
+                            self._logger.exception("LLM generation failed after %d retries: %s", max_retries, exc)
+                            error_msg = f"❌ Error communicating with LLM: {exc}"
+                            self.memory.add_assistant_message(content=error_msg)
+                            return error_msg
+                    else:
+                        self._logger.exception("LLM generation failed: %s", exc)
+                        error_msg = f"❌ Error communicating with LLM: {exc}"
+                        self.memory.add_assistant_message(content=error_msg)
+                        return error_msg
+
+            if response is None:
+                error_msg = "❌ Error communicating with LLM: No response received"
                 self.memory.add_assistant_message(content=error_msg)
                 return error_msg
 
@@ -117,17 +151,24 @@ class Agent:
                     tool_call["arguments"] = parsed_args
                     parsed_tool_calls.append((tool_call, raw_args, parse_error))
 
+                    fn_dict: dict[str, Any] = {
+                        "name": name,
+                        "arguments": json.dumps(
+                            parsed_args,
+                            ensure_ascii=False,
+                        ),
+                    }
+                    
+                    # Preserve extra fields like thought_signature
+                    for k, v in tool_call.items():
+                        if k not in ["id", "type", "name", "arguments"]:
+                            fn_dict[k] = v
+
                     formatted_calls.append(
                         {
                             "id": call_id,
                             "type": "function",
-                            "function": {
-                                "name": name,
-                                "arguments": json.dumps(
-                                    parsed_args,
-                                    ensure_ascii=False,
-                                ),
-                            },
+                            "function": fn_dict,
                         }
                     )
 

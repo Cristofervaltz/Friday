@@ -51,7 +51,25 @@ class MCPClientManager(BasePluginManager):
     def _run_loop(self) -> None:
         """Run the async event loop in a background thread."""
         asyncio.set_event_loop(self._loop)
-        self._loop.run_until_complete(self._async_lifecycle())
+        try:
+            self._loop.run_until_complete(self._async_lifecycle())
+        except Exception as exc:
+            logger.debug("MCP lifecycle ended: %s", exc)
+        finally:
+            try:
+                pending = asyncio.all_tasks(self._loop)
+                for task in pending:
+                    task.cancel()
+                if pending:
+                    self._loop.run_until_complete(
+                        asyncio.gather(*pending, return_exceptions=True)
+                    )
+                self._loop.run_until_complete(self._loop.shutdown_asyncgens())
+            except Exception:
+                pass
+            finally:
+                if not self._loop.is_closed():
+                    self._loop.close()
 
     async def _async_lifecycle(self) -> None:
         """Manage the asynchronous lifecycle of the MCP connection."""
@@ -127,7 +145,15 @@ class MCPClientManager(BasePluginManager):
 
         return "\n".join(output)
 
-    def shutdown(self) -> None:
-        """Shutdown the background event loop."""
-        self._loop.call_soon_threadsafe(self._loop.stop)
-        self._thread.join(timeout=2.0)
+    def shutdown(self, timeout: float = 2.0) -> None:
+        """Shutdown the background event loop and MCP child process."""
+        try:
+            if hasattr(self, "_loop") and self._loop.is_running():
+                self._loop.call_soon_threadsafe(self._loop.stop)
+        except Exception:
+            pass
+        try:
+            if hasattr(self, "_thread") and self._thread.is_alive():
+                self._thread.join(timeout=timeout)
+        except Exception:
+            pass

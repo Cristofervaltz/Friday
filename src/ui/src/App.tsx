@@ -1,5 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
-import { Zap, Pencil, Trash2, Mic, ArrowRight, StopCircle } from 'lucide-react';
+// lowercase casual comment for react ui root
+import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
+import { Zap, Pencil, Trash2, Mic, ArrowRight, StopCircle, Paperclip, Shield, X, Check, ChevronRight, ChevronDown, Code2, Square, AlertTriangle } from 'lucide-react';
+import { useTranslation } from './i18n/index.ts';
 import { Sidebar } from './components/Sidebar';
 import { SettingsModal } from './components/SettingsModal';
 import { VoicePanel } from './components/VoicePanel';
@@ -15,7 +17,100 @@ interface Message {
   content: string;
 }
 
+interface QueuedMessage {
+  id: string;
+  text: string;
+}
+
+interface ToolBlockProps {
+  msg: Message;
+  t: (key: string, params?: any) => string;
+}
+
+// collapsible tool block for tool call outputs
+const ToolBlock = memo(function ToolBlock({ msg, t }: ToolBlockProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div className={`tool-block ${isOpen ? 'open' : ''}`}>
+      <div className="tool-head" onClick={() => setIsOpen(!isOpen)}>
+        {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        <Code2 size={14} />
+        {t('chat.show_system_output')}
+      </div>
+      {isOpen && (
+        <div className="tool-body">
+          <ArtifactRenderer content={msg.content || ""} />
+        </div>
+      )}
+    </div>
+  );
+});
+
+// handy helper to render attachments cleanly
+const renderUserContent = (content: string) => {
+  const parts = content.split(/\[Attached File: (.*?)\]/g);
+  if (parts.length === 1) return <ArtifactRenderer content={content} />;
+  
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {parts.map((part, i) => {
+        if (i % 2 === 1) {
+          return (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', alignSelf: 'flex-start' }}>
+              <div style={{ background: 'var(--accent)', color: 'white', borderRadius: '4px', padding: '4px', display: 'flex' }}><Paperclip size={14} /></div>
+              <span style={{ fontSize: '12px', fontFamily: 'var(--mono)', color: 'var(--text-hi)' }}>{part.split(/[/\\]/).pop()}</span>
+            </div>
+          );
+        } else if (part.trim()) {
+          return <ArtifactRenderer key={i} content={part.trim()} />;
+        }
+        return null;
+      })}
+    </div>
+  );
+};
+
+interface ChatMessageItemProps {
+  msg: Message;
+  t: (key: string, params?: any) => string;
+}
+
+// memoized message item prevents full chat tree thrashing on token stream
+const ChatMessageItem = memo(function ChatMessageItem({ msg, t }: ChatMessageItemProps) {
+  if (msg.role === 'tool') {
+    return <ToolBlock msg={msg} t={t} />;
+  }
+  
+  const isError = msg.content && (msg.content.startsWith('⚠️') || msg.content.includes('Error:') || msg.content.includes('ОШИБКА'));
+  
+  return (
+    <div className={`msg ${msg.role === 'user' ? 'user' : ''}`}>
+      <div className="avatar" style={isError ? { background: 'var(--red)', color: '#fff' } : undefined}>
+        {isError ? (
+          <AlertTriangle size={18} />
+        ) : msg.role === 'user' ? (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        ) : (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/></svg>
+        )}
+      </div>
+      <div className="bubble">
+        <div className="meta">
+          <span className="who">{msg.role === 'user' ? 'You' : isError ? 'System' : 'Friday'}</span>
+        </div>
+        <div className="message-content" style={isError ? { color: 'var(--red)', background: 'rgba(255, 60, 60, 0.1)', padding: '12px', borderRadius: '8px', borderLeft: '3px solid var(--red)' } : undefined}>
+          {msg.role === 'user' ? renderUserContent(msg.content || "") : <ArtifactRenderer content={isError ? msg.content.replace(/^⚠️\s*/, '') : (msg.content || "")} />}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// hidden commands constant for filtering
+const HIDDEN_COMMANDS = ['/voice', '/clear', '/settings'];
+
 function App() {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [connected, setConnected] = useState(false);
@@ -28,6 +123,9 @@ function App() {
   const [chats, setChats] = useState<Array<{id: string, title: string}>>([]);
   const [currentChatId, setCurrentChatId] = useState<string>('');
   const [currentWorkspace, setCurrentWorkspace] = useState<string>('');
+  const [currentModel, setCurrentModel] = useState<string>('Default');
+  const [currentProvider, setCurrentProvider] = useState<string>('provider');
+  const [attachedFiles, setAttachedFiles] = useState<string[]>([]);
   
   const currentChatIdRef = useRef<string>('');
   const pendingChatIdRef = useRef<string | null>(null);
@@ -36,28 +134,23 @@ function App() {
     currentChatIdRef.current = currentChatId;
   }, [currentChatId]);
   
-  interface QueuedMessage {
-    id: string;
-    text: string;
-  }
   const [messageQueue, setMessageQueue] = useState<QueuedMessage[]>([]);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, permissionRequest, scrollToBottom]);
 
-  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
     }
   }, [input]);
 
@@ -72,23 +165,39 @@ function App() {
   useEffect(() => {
     const fetchPort = async () => {
       try {
-        if (window.__TAURI_INTERNALS__) {
+        const isTauri = '__TAURI_INTERNALS__' in window || '__TAURI__' in window || window.location.hostname === 'tauri.localhost';
+        if (isTauri) {
           const { invoke } = await import('@tauri-apps/api/core');
           const port = await invoke('get_runtime_port');
           setApiPort(port as number);
         } else {
           setApiPort(8000);
         }
-      } catch (e) {
+      } catch {
         setApiPort(8000);
       }
     };
     fetchPort();
   }, []);
 
+  const applyTheme = useCallback((theme?: string, accentColor?: string) => {
+    const root = document.documentElement;
+    if (theme === 'light') {
+      root.classList.add('theme-light');
+    } else {
+      root.classList.remove('theme-light');
+    }
+    if (accentColor) {
+      root.style.setProperty('--accent-primary', accentColor);
+    } else {
+      root.style.removeProperty('--accent-primary');
+    }
+  }, []);
+
   useEffect(() => {
     if (apiPort === null) return;
-    const apiHost = window.__TAURI_INTERNALS__ ? `127.0.0.1:${apiPort}` : (window.location.host || '127.0.0.1:8000');
+    const isTauri = '__TAURI_INTERNALS__' in window || '__TAURI__' in window || window.location.hostname === 'tauri.localhost';
+    const apiHost = isTauri ? `127.0.0.1:${apiPort}` : (window.location.host || '127.0.0.1:8000');
     fetch(`http://${apiHost}/api/settings`)
       .then(res => res.json())
       .then(data => {
@@ -96,26 +205,11 @@ function App() {
         if (data.voice_auto_send !== undefined) {
           setVoiceAutoSend(data.voice_auto_send === 'true');
         }
+        if (data.llm_model) setCurrentModel(data.llm_model);
+        if (data.llm_provider) setCurrentProvider(data.llm_provider);
       })
       .catch(err => console.error("Failed to load initial settings", err));
-  }, [apiPort]);
-
-  const applyTheme = (theme?: string, accentColor?: string) => {
-    const root = document.documentElement;
-    if (theme === 'light') {
-      root.classList.add('theme-light');
-    } else {
-      root.classList.remove('theme-light');
-    }
-    
-    if (accentColor) {
-      root.style.setProperty('--accent-primary', accentColor);
-      // We can optionally generate a hover color or just let it be slightly transparent, 
-      // but for now setting primary is good enough for custom accent.
-    } else {
-      root.style.removeProperty('--accent-primary');
-    }
-  };
+  }, [apiPort, applyTheme]);
 
   useEffect(() => {
     if (apiPort === null) return;
@@ -124,8 +218,9 @@ function App() {
     let isMounted = true;
 
     const connect = () => {
+      const isTauri = '__TAURI_INTERNALS__' in window || '__TAURI__' in window || window.location.hostname === 'tauri.localhost';
       const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsHost = window.__TAURI_INTERNALS__ ? `127.0.0.1:${apiPort}` : (window.location.host || '127.0.0.1:8000');
+      const wsHost = isTauri ? `127.0.0.1:${apiPort}` : (window.location.host || '127.0.0.1:8000');
       websocket = new WebSocket(`${wsProtocol}//${wsHost}/ws/chat`);
       
       websocket.onopen = () => {
@@ -146,28 +241,20 @@ function App() {
             const content = data.content;
             if (content.includes('Initializing microphone') || content.includes('Listening...')) {
               setIsListening(true);
-              return; // Don't show these as chat messages
+              return;
             }
             if (content.includes('Finished listening') || content.includes('Voice captured:')) {
               setIsListening(false);
-              return; // Don't show these either — voice_result will follow
+              return;
             }
             let cleanContent = content;
-            if (cleanContent.startsWith('\nFriday: ')) {
-              cleanContent = cleanContent.substring(9);
-            } else if (cleanContent.startsWith('Friday: ')) {
-              cleanContent = cleanContent.substring(8);
-            }
+            if (cleanContent.startsWith('\nFriday: ')) cleanContent = cleanContent.substring(9);
+            else if (cleanContent.startsWith('Friday: ')) cleanContent = cleanContent.substring(8);
 
             setMessages(prev => {
               const last = prev[prev.length - 1];
               if (last && last.role === 'bot') {
-                // If it's a new message that started with \nFriday:, the first chunk was cleaned.
-                // Subsequent chunks don't have it at the start.
-                return [
-                  ...prev.slice(0, -1), 
-                  { ...last, content: last.content + cleanContent }
-                ];
+                return [...prev.slice(0, -1), { ...last, content: last.content + cleanContent }];
               } else {
                 return [...prev, { id: Date.now().toString(), role: 'bot', content: cleanContent }];
               }
@@ -175,21 +262,13 @@ function App() {
           } else if (data.type === 'voice_result') {
             setIsListening(false);
             const transcribedText = data.text;
-            
-            // Check current setting from localStorage (closure-safe)
             const autoSend = localStorage.getItem('friday_voice_auto_send') !== 'false';
             
             if (autoSend && websocket && websocket.readyState === WebSocket.OPEN) {
-              // Auto-send: show as user message and send to backend
-              setMessages(prev => [...prev, {
-                id: Date.now().toString(),
-                role: 'user',
-                content: `🎤 ${transcribedText}`
-              }]);
+              setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', content: `🎤 ${transcribedText}` }]);
               setIsThinking(true);
               websocket.send(JSON.stringify({ type: 'message', content: transcribedText }));
             } else {
-              // Manual mode: insert into input field for review
               setInput(prev => prev ? prev + ' ' + transcribedText : transcribedText);
             }
           } else if (data.type === 'tts_state') {
@@ -200,25 +279,17 @@ function App() {
               win.show();
               win.setFocus();
             }).catch(err => console.error("Tauri window API not available", err));
-            
-            // Trigger voice recording
             setIsListening(true);
             setIsThinking(true);
             websocket?.send(JSON.stringify({ type: 'message', content: '/voice' }));
           } else if (data.type === 'voice_error') {
             setIsListening(false);
-            setMessages(prev => [...prev, {
-              id: Date.now().toString(),
-              role: 'bot',
-              content: `🎤 Voice error: ${data.error}`
-            }]);
+            setMessages(prev => [...prev, { id: Date.now().toString(), role: 'bot', content: t('chat.voice_error', { error: data.error }) }]);
           } else if (data.type === 'done') {
             setIsListening(false);
             if (data.command === '/voice') {
               const autoSend = localStorage.getItem('friday_voice_auto_send') !== 'false';
-              if (!autoSend) {
-                setIsThinking(false);
-              }
+              if (!autoSend) setIsThinking(false);
             } else {
               setIsThinking(false);
             }
@@ -229,17 +300,11 @@ function App() {
               setCurrentChatId(data.chat_id);
               currentChatIdRef.current = data.chat_id;
               setMessages(data.messages || []);
-              if (pendingChatIdRef.current === data.chat_id) {
-                pendingChatIdRef.current = null;
-              }
+              if (pendingChatIdRef.current === data.chat_id) pendingChatIdRef.current = null;
             }
           } else if (data.type === 'workspace_set') {
-            console.log("Received workspace_set:", data, "currentChatId:", currentChatIdRef.current, "pendingChatId:", pendingChatIdRef.current);
             if (!data.chat_id || pendingChatIdRef.current === data.chat_id || currentChatIdRef.current === data.chat_id || currentChatIdRef.current === '') {
-              console.log("Setting workspace to:", data.path);
               setCurrentWorkspace(data.path);
-            } else {
-              console.log("Ignoring workspace_set because chat_id mismatch");
             }
           } else if (data.type === 'permission_request') {
             setPermissionRequest(data.action);
@@ -254,10 +319,9 @@ function App() {
         setConnected(false);
         setIsThinking(false);
         setWs(null);
-        console.log('Disconnected from Friday API. Reconnecting in 2s...');
         reconnectTimeout = setTimeout(connect, 2000);
       };
-
+      
       websocket.onerror = () => {
         setIsThinking(false);
         websocket?.close();
@@ -270,15 +334,14 @@ function App() {
       isMounted = false;
       clearTimeout(reconnectTimeout);
       if (websocket) {
-        websocket.onclose = null; // prevent reconnect on unmount
+        websocket.onclose = null;
         websocket.close();
       }
     };
-  }, [apiPort]);
+  }, [apiPort, t]);
 
-  // Process queue automatically when done thinking
   useEffect(() => {
-    if (!isThinking && messageQueue.length > 0 && ws && connected) {
+    if (!isThinking && messageQueue.length > 0 && ws && connected && !permissionRequest) {
       const nextMsg = messageQueue[0];
       setMessageQueue(prev => prev.slice(1));
       
@@ -287,20 +350,17 @@ function App() {
       setIsThinking(true);
       ws.send(JSON.stringify({ type: 'message', content: nextMsg.text }));
     }
-  }, [isThinking, messageQueue, ws, connected]);
+  }, [isThinking, messageQueue, ws, connected, permissionRequest]);
 
-  const HIDDEN_COMMANDS = ['/voice', '/clear', '/settings'];
-
-  const handleAction = (cmd: string, payload?: string) => {
+  // dispatch actions over websocket
+  const handleAction = useCallback((cmd: string, payload?: string) => {
     if (cmd === '/settings') {
       setIsSettingsOpen(true);
       return;
     }
     if (!ws || !connected) return;
     
-    if (cmd === '/voice') {
-      setIsListening(true);
-    }
+    if (cmd === '/voice') setIsListening(true);
 
     if (cmd === 'new_chat') {
       const newId = Date.now().toString();
@@ -333,75 +393,213 @@ function App() {
     }
     setIsThinking(true);
     ws.send(JSON.stringify({ type: 'message', content: cmd }));
-  };
+  }, [ws, connected]);
 
-  const handlePermission = (approved: boolean) => {
+  const handlePermission = useCallback((approved: boolean) => {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'permission_response', approved }));
     }
     setPermissionRequest(null);
-  };
+  }, [ws]);
 
-  const handleSubmit = (e?: React.FormEvent, forceInstant: boolean = false) => {
+  // send message or queue if assistant is busy
+  const handleSubmit = useCallback((e?: React.FormEvent, forceInstant: boolean = false) => {
     if (e) e.preventDefault();
     if (!input.trim() || !ws || !connected) return;
     
     const text = input.trim();
-    setInput('');
+    let finalContent = text;
+    if (attachedFiles.length > 0) {
+      const attachmentsString = attachedFiles.map(f => `[Attached File: ${f}]`).join('\n');
+      finalContent = `${text}\n\n${attachmentsString}`.trim();
+    }
     
-    if (isThinking && !forceInstant) {
-      setMessageQueue(prev => [...prev, { id: Date.now().toString(), text }]);
+    setInput('');
+    setAttachedFiles([]);
+    
+    if ((isThinking || permissionRequest) && !forceInstant) {
+      setMessageQueue(prev => [...prev, { id: Date.now().toString(), text: finalContent }]);
       return;
     }
     
-    // Add user message unless it's a hidden command
     if (!HIDDEN_COMMANDS.includes(text)) {
-      const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text };
+      const userMsg: Message = { id: Date.now().toString(), role: 'user', content: finalContent };
       setMessages(prev => [...prev, userMsg]);
     }
     
-    // Send to server
     setIsThinking(true);
-    ws.send(JSON.stringify({ type: 'message', content: text }));
-  };
+    // send payload to websocket
+    ws.send(JSON.stringify({ type: 'message', content: finalContent }));
+  }, [input, attachedFiles, isThinking, permissionRequest, ws, connected]);
   
+  // instant send right away to backend bypass queue
   const handleInstantSend = (msgId: string) => {
+    // grab queued message by id
     const msg = messageQueue.find(m => m.id === msgId);
     if (!msg || !ws || !connected) return;
     
-    // Remove from current position
+    // pop item from queue
     setMessageQueue(prev => prev.filter(m => m.id !== msgId));
     
-    if (isThinking) {
-      // Put at the very front of the queue to execute next
-      setMessageQueue(prev => [msg, ...prev]);
-      return;
-    }
-
     if (!HIDDEN_COMMANDS.includes(msg.text)) {
       const userMsg: Message = { id: Date.now().toString(), role: 'user', content: msg.text };
       setMessages(prev => [...prev, userMsg]);
     }
+    
     setIsThinking(true);
+    // send instant message to ws
     ws.send(JSON.stringify({ type: 'message', content: msg.text }));
   };
 
-  const handleEditQueue = (msgId: string) => {
+  // pop from queue and put back in input
+  const handleEditQueue = useCallback((msgId: string) => {
     const msg = messageQueue.find(m => m.id === msgId);
     if (!msg) return;
     setInput(msg.text);
     setMessageQueue(prev => prev.filter(m => m.id !== msgId));
-  };
+  }, [messageQueue]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
     }
-  };
+  }, [handleSubmit]);
+
+  // grab attached files from dialog or web file input
+  const handleAttachFile = useCallback(async () => {
+    try {
+      if ((window as any).__TAURI_INTERNALS__) {
+        const { open } = await import('@tauri-apps/plugin-dialog');
+        const selected = await open({
+          multiple: false,
+        });
+        if (selected) {
+          const path = Array.isArray(selected) ? selected[0] : selected;
+          setAttachedFiles(prev => [...prev, path]);
+        }
+      } else {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.onchange = (e: any) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            setAttachedFiles(prev => [...prev, file.name]);
+          }
+        };
+        fileInput.click();
+      }
+    } catch (err) {
+      console.error("Failed to open file dialog", err);
+    }
+  }, []);
+
+  const handleClearWorkspace = useCallback(() => {
+    handleAction('set_workspace', '');
+  }, [handleAction]);
+
+  const handleOpenCreateProject = useCallback(() => {
+    setIsCreateProjectOpen(true);
+  }, []);
+
+  const handleCloseCreateProject = useCallback(() => {
+    setIsCreateProjectOpen(false);
+  }, []);
+
+  const handleProjectCreated = useCallback((path: string) => {
+    handleAction('set_workspace', path);
+  }, [handleAction]);
+
+  const handleProjectSkip = useCallback(() => {
+    handleAction('set_workspace', '');
+  }, [handleAction]);
+
+  const handleOpenVoice = useCallback(() => {
+    setIsVoicePanelOpen(true);
+    handleAction('/voice');
+  }, [handleAction]);
+
+  const handleCloseVoice = useCallback(() => {
+    setIsVoicePanelOpen(false);
+    if (isListening && ws && connected) {
+      ws.send(JSON.stringify({ type: 'stop_voice' }));
+      setIsListening(false);
+    }
+  }, [isListening, ws, connected]);
+
+  const handleCloseSettings = useCallback(() => {
+    setIsSettingsOpen(false);
+  }, []);
+
+  const handleVoiceAutoSendChange = useCallback((val: boolean) => {
+    setVoiceAutoSend(val);
+    localStorage.setItem('friday_voice_auto_send', val.toString());
+  }, []);
+
+  const handleSettingsChanged = useCallback((newSettings: Record<string, string>) => {
+    applyTheme(newSettings.theme, newSettings.accent_color);
+    if (newSettings.llm_model) setCurrentModel(newSettings.llm_model);
+    if (newSettings.llm_provider) setCurrentProvider(newSettings.llm_provider);
+  }, [applyTheme]);
+
+  const handleStopTts = useCallback(() => {
+    if (ws && connected) {
+      ws.send(JSON.stringify({ type: 'stop_tts' }));
+      setIsTtsPlaying(false);
+    }
+  }, [ws, connected]);
+
+  const handleStopGeneration = useCallback(() => {
+    if (ws && connected) {
+      ws.send(JSON.stringify({ type: 'stop_generation' }));
+      setIsThinking(false);
+    }
+  }, [ws, connected]);
+
+
+  const handleDeleteQueued = useCallback((msgId: string) => {
+    setMessageQueue(prev => prev.filter(m => m.id !== msgId));
+  }, []);
+
+  const handleRemoveAttachment = useCallback((idx: number) => {
+    setAttachedFiles(prev => prev.filter((_, i) => i !== idx));
+  }, []);
+
+  // filter out system msgs and empty content
+  const visibleMessages = useMemo(() => {
+    return messages.filter(m => m.role !== 'system' && m.content && m.content.trim().length > 0);
+  }, [messages]);
+
+  const slashCommands = useMemo(() => [
+    { cmd: '/clear', desc: t('commands.clear_desc') || 'Clear current chat history', icon: <Trash2 size={16} /> },
+    { cmd: '/goal', desc: t('commands.goal_desc') || 'Start a long-running autonomous goal', icon: <Zap size={16} /> },
+    { cmd: '/schedule', desc: t('commands.schedule_desc') || 'Schedule a background task', icon: <Check size={16} /> }
+  ], [t]);
+
+  const showSlashMenu = input.startsWith('/') && !input.includes(' ');
+  const filteredCommands = showSlashMenu 
+    ? slashCommands.filter(c => c.cmd.toLowerCase().startsWith(input.toLowerCase()))
+    : [];
+
+  const handleCommandSelect = useCallback((cmd: string) => {
+    setInput(cmd + ' ');
+    textareaRef.current?.focus();
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const newFiles = Array.from(e.dataTransfer.files).map((f: any) => f.path || f.name);
+      setAttachedFiles(prev => [...prev, ...newFiles]);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+  }, []);
 
   return (
-    <div className="app-container">
+    <div className="app" onDrop={handleDrop} onDragOver={handleDragOver}>
       <Sidebar 
         onAction={handleAction} 
         connected={connected} 
@@ -409,167 +607,238 @@ function App() {
         currentChatId={currentChatId}
       />
       
-      {/* Chat Panel */}
-      <section className="chat-panel glass-panel">
-        <header className="panel-header">
-          <h2>
-            <div className={`status-indicator ${connected ? 'connected' : ''}`} />
-            Friday AI
-          </h2>
+      <main className="workspace">
+        <header className="topbar">
+          <WorkspaceSelector 
+            currentWorkspace={currentWorkspace}
+            onSelectNew={handleOpenCreateProject}
+            onClearWorkspace={handleClearWorkspace}
+          />
+          <div className="model-pill">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3.5"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
+            {currentModel} <span className="prov">· {currentProvider}</span>
+          </div>
+          <div className="top-actions">
+            <button className="icon-btn" title="Voice input" onClick={handleOpenVoice}>
+              <Mic size={17} />
+            </button>
+          </div>
         </header>
-        
-        <div className="message-list">
+
+        <div className="chat">
           {messages.length === 0 ? (
-            <div className="empty-state">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <path d="M12 16v-4"></path>
-                <path d="M12 8h.01"></path>
-              </svg>
-              <p>{connected ? "How can I help you today?" : "Starting background AI engine... (takes a few seconds)"}</p>
+            <div className="hero">
+              <h1>{t('chat.empty_connected')}</h1>
+              {!connected && <p className="sub">{t('chat.empty_connecting')}</p>}
+              <div className="chips">
+                <div className="chip" onClick={() => { setInput("Open browser"); textareaRef.current?.focus(); }}>
+                  Open browser
+                </div>
+                <div className="chip" onClick={() => { setInput("Minimize window"); textareaRef.current?.focus(); }}>
+                  Minimize window
+                </div>
+              </div>
             </div>
           ) : (
             <>
-              {messages.filter(m => m.role !== 'system' && m.content && m.content.trim().length > 0).map((msg, idx) => {
-                if (msg.role === 'tool') {
-                  return (
-                    <div key={idx} className="message-wrapper tool-output">
-                      <details className="tool-details">
-                        <summary>🛠️ Показать вывод системы</summary>
-                        <div className="tool-content">
-                          <ArtifactRenderer content={msg.content || ""} />
-                        </div>
-                      </details>
-                    </div>
-                  );
-                }
-                return (
-                  <div key={idx} className={`message-wrapper ${msg.role === 'assistant' ? 'bot' : msg.role}`}>
-                    <div className="message-content">
-                      <ArtifactRenderer content={msg.content || ""} />
-                    </div>
-                  </div>
-                );
-              })}
+              {visibleMessages.map((msg, idx) => (
+                <ChatMessageItem key={msg.id || idx} msg={msg} t={t} />
+              ))}
               
               <AgentDashboard isThinking={isThinking} />
+
+              {/* Inline Permission Component */}
+              {permissionRequest && (
+                <div className="permission">
+                  <div className="p-head">
+                    <div className="shield">
+                      <Shield size={16} />
+                    </div>
+                    <div>
+                      <div className="p-title">{t('permission.title')}</div>
+                      <div className="p-sub">{t('permission.description')}</div>
+                    </div>
+                  </div>
+                  <div className="cmd">{permissionRequest}</div>
+                  <div className="p-actions">
+                    <button className="btn btn-approve" onClick={() => handlePermission(true)}>
+                      <Check size={14} />
+                      {t('permission.allow')}
+                    </button>
+                    <button className="btn btn-deny" onClick={() => handlePermission(false)}>
+                      <X size={14} />
+                      {t('permission.deny')}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div ref={messagesEndRef} />
             </>
           )}
         </div>
-        
+
+        {/* Floating Queue Widget */}
         {messageQueue.length > 0 && (
-          <div className="queue-container">
-            <div className="queue-header">В очереди ({messageQueue.length})</div>
+          <div className="queue">
+            <div className="queue-head">
+              <span><b>Queue</b> · {messageQueue.length} pending</span>
+              {isThinking && <span style={{ color: 'var(--accent)' }}>1 running</span>}
+            </div>
             {messageQueue.map(msg => (
-              <div key={msg.id} className="queue-item">
-                <span className="queue-text truncate">{msg.text}</span>
-                <div className="queue-actions">
-                  <button onClick={() => handleInstantSend(msg.id)} title="Send Immediately" className="instant-btn"><Zap size={14} /></button>
-                  <button onClick={() => handleEditQueue(msg.id)} title="Edit" className="edit-btn"><Pencil size={14} /></button>
-                  <button onClick={() => setMessageQueue(prev => prev.filter(m => m.id !== msg.id))} title="Delete" className="del-btn"><Trash2 size={14} /></button>
+              <div key={msg.id} className="q-item">
+                <div className="qt">{msg.text}</div>
+                <div className="qmeta">
+                  <span>queued</span>
+                </div>
+                <div className="q-actions">
+                  <button onClick={() => handleInstantSend(msg.id)} title={t('chat.send_immediately')} className="q-btn instant">
+                    <Zap size={12} /> Instant
+                  </button>
+                  <button onClick={() => handleEditQueue(msg.id)} title={t('common.edit')} className="q-btn">
+                    <Pencil size={12} />
+                  </button>
+                  <button onClick={() => handleDeleteQueued(msg.id)} title={t('common.delete')} className="q-btn">
+                    <Trash2 size={12} />
+                  </button>
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        <div className="input-area">
-          <WorkspaceSelector 
-            currentWorkspace={currentWorkspace}
-            onSelectNew={() => setIsCreateProjectOpen(true)}
-            onClearWorkspace={() => handleAction('set_workspace', '')}
-          />
-          <form className="input-form" onSubmit={handleSubmit}>
+        <div className="composer">
+          <div className="composer-box">
+            {attachedFiles.length > 0 && (
+              <div className="attachments-bar" style={{ display: 'flex', gap: '8px', padding: '8px 14px', flexWrap: 'wrap', borderBottom: '1px solid var(--border)' }}>
+                {attachedFiles.map((file, idx) => (
+                  <div key={idx} className="attachment-chip" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-hover)', padding: '4px 8px', borderRadius: '6px', fontSize: '12px' }}>
+                    <Paperclip size={12} />
+                    <span className="truncate" style={{ maxWidth: '150px' }}>{file.split(/[/\\]/).pop()}</span>
+                    <button onClick={() => handleRemoveAttachment(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-low)', padding: 0, display: 'flex', alignItems: 'center' }}><X size={12} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {showSlashMenu && filteredCommands.length > 0 && (
+              <div className="slash-menu" style={{
+                position: 'absolute',
+                bottom: '100%',
+                left: 0,
+                width: '100%',
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                marginBottom: '8px',
+                overflow: 'hidden',
+                zIndex: 10,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              }}>
+                {filteredCommands.map((c, i) => (
+                  <div 
+                    key={c.cmd} 
+                    className="slash-item"
+                    onClick={() => handleCommandSelect(c.cmd)}
+                    style={{
+                      padding: '10px 14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      cursor: 'pointer',
+                      borderBottom: i < filteredCommands.length - 1 ? '1px solid var(--border)' : 'none',
+                    }}
+                  >
+                    <div style={{ color: 'var(--accent)' }}>{c.icon}</div>
+                    <div>
+                      <div style={{ fontWeight: 500, fontSize: '14px' }}>{c.cmd}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-low)' }}>{c.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             <textarea
               ref={textareaRef}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={connected ? (isThinking ? "Add task to queue... (Shift+Enter for newline)" : "Ask Friday to run a task... (Shift+Enter for newline)") : "Connecting to engine..."}
+              placeholder={connected ? (isThinking ? t('chat.placeholder_thinking') : t('chat.placeholder_idle')) : t('chat.placeholder_offline')}
               disabled={!connected}
               rows={1}
             />
-            {isThinking && input.trim() && (
-              <button type="button" onClick={(e) => handleSubmit(e, true)} title="Send Immediately" className="instant-send-btn">
-                <Zap size={20} />
-              </button>
-            )}
-            <button 
-              type="button" 
-              className="inline-mic-btn"
-              onClick={() => {
-                setIsVoicePanelOpen(true);
-                handleAction('/voice');
-              }}
-              title="Start Voice Input"
-            >
-              <Mic size={20} />
-            </button>
-            {isTtsPlaying && (
-              <button 
-                type="button" 
-                className="inline-mic-btn"
-                onClick={() => {
-                  if (ws && connected) {
-                    ws.send(JSON.stringify({ type: 'stop_tts' }));
-                    setIsTtsPlaying(false);
-                  }
-                }}
-                title="Stop TTS Audio"
-                style={{ color: '#ef4444' }}
-              >
-                <StopCircle size={20} />
-              </button>
-            )}
-            <button type="submit" className="send-btn" disabled={!connected || (!input.trim() && !isListening)}>
-              {isThinking ? 'Queue' : <ArrowRight size={20} />}
-            </button>
-          </form>
+            <div className="composer-foot">
+              <div className="tools">
+                <button type="button" className="tool-btn" title="Attach" onClick={handleAttachFile}>
+                  <Paperclip size={18} />
+                </button>
+                <button 
+                  type="button" 
+                  className={`tool-btn ${isListening ? 'rec' : ''}`}
+                  onClick={handleOpenVoice}
+                  title={t('chat.start_voice')}
+                >
+                  <Mic size={18} />
+                </button>
+                {isTtsPlaying && (
+                  <button 
+                    type="button" 
+                    className="tool-btn"
+                    onClick={handleStopTts}
+                    title={t('chat.stop_tts')}
+                    style={{ color: 'var(--red)' }}
+                  >
+                    <StopCircle size={18} />
+                  </button>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {isThinking && (
+                  <button 
+                    className="send-btn" 
+                    onClick={handleStopGeneration}
+                    style={{ background: 'var(--red)', color: 'white' }}
+                  >
+                    <Square size={14} fill="currentColor" />
+                    Stop
+                  </button>
+                )}
+                <button 
+                  className="send-btn" 
+                  onClick={(e) => handleSubmit(e)}
+                  disabled={!connected || (!input.trim() && !isListening)}
+                >
+                  {isThinking ? t('chat.queue_btn') : 'Send'}
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="hint"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> to send &nbsp;·&nbsp; <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Space</kbd> voice</div>
         </div>
-      </section>
+      </main>
 
       <VoicePanel 
         isOpen={isVoicePanelOpen}
-        onClose={() => setIsVoicePanelOpen(false)}
+        onClose={handleCloseVoice}
         isListening={isListening} 
         connected={connected} 
       />
 
       <SettingsModal 
         isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)}
+        onClose={handleCloseSettings}
         voiceAutoSend={voiceAutoSend}
         apiPort={apiPort}
-        onVoiceAutoSendChange={(val: boolean) => {
-          setVoiceAutoSend(val);
-          localStorage.setItem('friday_voice_auto_send', val.toString());
-        }}
-        onSettingsChanged={(newSettings) => {
-          applyTheme(newSettings.theme, newSettings.accent_color);
-        }}
+        onVoiceAutoSendChange={handleVoiceAutoSendChange}
+        onSettingsChanged={handleSettingsChanged}
       />
+      
       <CreateProjectModal 
         isOpen={isCreateProjectOpen}
-        onClose={() => setIsCreateProjectOpen(false)}
-        onProjectCreated={(path) => handleAction('set_workspace', path)}
-        onSkip={() => handleAction('set_workspace', '')}
+        onClose={handleCloseCreateProject}
+        onProjectCreated={handleProjectCreated}
+        onSkip={handleProjectSkip}
       />
-
-      {permissionRequest && (
-        <div className="modal-overlay">
-          <div className="modal-content permission-modal">
-            <h2>⚠️ Permission Request</h2>
-            <p>Friday wants to execute the following command:</p>
-            <pre className="command-preview">{permissionRequest}</pre>
-            <div className="modal-actions">
-              <button className="btn-secondary" onClick={() => handlePermission(false)}>Deny</button>
-              <button className="btn-primary danger" onClick={() => handlePermission(true)}>Allow</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

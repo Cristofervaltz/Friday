@@ -116,3 +116,28 @@ class ToolRegistry:
     def __contains__(self, name: str) -> bool:
         """Check if a tool is registered."""
         return name in self._tools
+
+    def shutdown(self) -> None:
+        """Gracefully shut down all registered plugin managers and resources."""
+        self.shutdown_all_plugins()
+
+    def shutdown_all_plugins(self) -> None:
+        """Gracefully terminate all active MCP and plugin manager sessions."""
+        from src.plugins.base import BasePluginManager
+
+        seen_managers: set[BasePluginManager] = set()
+        for tool in self._tools.values():
+            manager = getattr(tool, "manager", None)
+            if manager is not None and isinstance(manager, BasePluginManager):
+                if manager not in seen_managers:
+                    seen_managers.add(manager)
+                    try:
+                        manager.shutdown()
+                    except Exception:
+                        pass
+            elif hasattr(tool, "shutdown") and callable(tool.shutdown):
+                try:
+                    tool.shutdown()
+                except Exception:
+                    pass
+

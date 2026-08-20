@@ -21,6 +21,22 @@ from .constants import (
 )
 
 
+def get_app_home() -> Path:
+    """Return the application home directory as a Path object.
+
+    Checks the FRIDAY_HOME environment variable first, defaulting to
+    ``~/.friday``. Ensures that the directory is created safely if it does
+    not already exist.
+    """
+    env_home = getenv("FRIDAY_HOME")
+    if env_home:
+        app_home = Path(env_home).expanduser().resolve()
+    else:
+        app_home = Path.home() / ".friday"
+    app_home.mkdir(parents=True, exist_ok=True)
+    return app_home
+
+
 @dataclass(frozen=True)
 class PathsConfig:
     """Filesystem locations used by the application bootstrap layer."""
@@ -34,18 +50,8 @@ class PathsConfig:
     @classmethod
     def from_base_dir(cls, base_dir: Path) -> PathsConfig:
         """Build path configuration from a repository or runtime base directory."""
-        from os import getenv
-
         resolved_base_dir = base_dir.expanduser().resolve()
-
-        # Use FRIDAY_HOME if set (useful for tests), otherwise use global home dir
-        env_home = getenv("FRIDAY_HOME")
-        if env_home:
-            app_home = Path(env_home).expanduser().resolve()
-        else:
-            # Use a stable global app home directory so settings aren't lost when
-            # launched from different CWDs
-            app_home = Path.home() / ".friday"
+        app_home = get_app_home()
 
         return cls(
             base_dir=resolved_base_dir,

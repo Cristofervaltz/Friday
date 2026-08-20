@@ -7,11 +7,14 @@ from typing import TYPE_CHECKING
 from src.core import Agent, ToolRegistry
 from src.speech import GoogleSpeechProvider
 from src.tools import (
+    DelegateTaskTool,
     EditFileTool,
     FetchWebPageTool,
     ListFilesTool,
     OpenBrowserTool,
     ReadFileTool,
+    ScreenshotTool,
+    SemanticSearchTool,
     ShellCommandTool,
     TimeTool,
     WeatherTool,
@@ -19,8 +22,6 @@ from src.tools import (
     WindowManagementTool,
     WriteFileTool,
 )
-from src.tools.search_tool import SemanticSearchTool
-from src.tools.vision_tool import ScreenshotTool
 
 if TYPE_CHECKING:
     from src.runtime import FridayApplication
@@ -55,8 +56,6 @@ class FridayREPL:
         self._registry.register(TimeTool())
         self._registry.register(WeatherTool())
         self._registry.register(WindowManagementTool())
-
-        from src.tools.swarm_tool import DelegateTaskTool
 
         self._registry.register(DelegateTaskTool(app=app, registry=self._registry))
 
@@ -122,7 +121,13 @@ class FridayREPL:
             "system. If the user asks you to create, delete, or modify files/folders, "
             "or run commands, you MUST use your tools to accomplish the task. "
             "Match the user's language naturally. Do NOT duplicate or translate your "
-            "responses into multiple languages."
+            "responses into multiple languages. "
+            "CRITICAL RULES: 1. TEXT IS NOT ACTION. Saying 'I am doing X' does not do it. "
+            "You MUST call a tool to perform any action. "
+            "2. DO NOT HALLUCINATE ACTIONS. Never claim you have completed an action until you "
+            "call the corresponding tool and receive a successful response. "
+            "3. You do NOT know the time or weather, and you cannot read files by guessing. "
+            "Use the provided tools for everything. Always follow the Thought -> Action -> Observation loop."
         )
         system_prompt = (
             app.config.llm.system_prompt
@@ -201,7 +206,7 @@ class FridayREPL:
         print("\nAvailable commands:")
         print("  exit, quit    - Exit Friday")
         print("  help          - Show this help message")
-        print("  clear         - Clear conversation (future)")
+        print("  clear, :clear - Clear conversation history")
         print("  read <path>   - Read a file")
         print("  write <path>  - Write to a file (multi-line mode)")
         print("  edit <path>   - Edit a file (interactive mode)")
@@ -229,8 +234,10 @@ class FridayREPL:
             self._print_help()
             return
 
-        if user_input.lower() == "clear":
-            print("(Conversation clearing not yet implemented)")
+        if user_input.lower() in ("clear", ":clear", "/clear"):
+            # reset agent conversation history and let user know
+            self._agent.clear_history()
+            print("\nConversation history cleared.\n")
             return
 
         # Handle tool commands

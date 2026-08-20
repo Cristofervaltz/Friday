@@ -450,13 +450,33 @@ class OpenAIProvider(BaseLLMProvider):
                                 ),
                             },
                         }
+                        for k, v in tc.items():
+                            if k not in ["index", "id", "type", "function"]:
+                                tool_calls[idx][k] = v
+                        for k, v in tc.get("function", {}).items():
+                            if k not in ["name", "arguments"]:
+                                tool_calls[idx]["function"][k] = v
                     else:
+                        for k, v in tc.items():
+                            if k not in ["id", "type", "function", "index"]:
+                                if isinstance(v, str):
+                                    tool_calls[idx][k] = tool_calls[idx].get(k, "") + v
+                                else:
+                                    tool_calls[idx][k] = v
+
                         if "id" in tc and tc["id"]:
                             tool_calls[idx]["id"] = tc["id"]
                         if "type" in tc and tc["type"]:
                             tool_calls[idx]["type"] = tc["type"]
                         if "function" in tc and isinstance(tc["function"], dict):
                             fn = tc["function"]
+                            for k, v in fn.items():
+                                if k not in ["name", "arguments"]:
+                                    if isinstance(v, str):
+                                        tool_calls[idx]["function"][k] = tool_calls[idx]["function"].get(k, "") + v
+                                    else:
+                                        tool_calls[idx]["function"][k] = v
+
                             if "name" in fn and fn["name"]:
                                 tool_calls[idx]["function"]["name"] = (
                                     tool_calls[idx]["function"]["name"] or ""
@@ -549,13 +569,23 @@ class OpenAIProvider(BaseLLMProvider):
                         except Exception:
                             arguments = {}
 
-                tool_calls.append(
-                    {
-                        "id": tc.get("id", "call_1"),
-                        "name": name,
-                        "arguments": arguments,
-                    }
-                )
+                tc_data = {
+                    "id": tc.get("id", "call_1"),
+                    "name": name,
+                    "arguments": arguments,
+                }
+                
+                # Preserve extra fields from function (e.g. thought_signature)
+                for k, v in function.items():
+                    if k not in ["name", "arguments"]:
+                        tc_data[k] = v
+                        
+                # Preserve extra fields from tc
+                for k, v in tc.items():
+                    if k not in ["id", "type", "function", "name", "arguments"]:
+                        tc_data[k] = v
+
+                tool_calls.append(tc_data)
 
             return LLMResponse(
                 content=None,
@@ -597,6 +627,11 @@ class OpenAIProvider(BaseLLMProvider):
         parsed_url = urlparse(normalized_base_url)
         if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
             raise ConfigurationError("OpenAIProvider base_url must be a valid URL.")
+        
+        # Auto-correct missing /v1 for local/custom servers if the path is completely empty
+        if parsed_url.path == "":
+            normalized_base_url = f"{normalized_base_url}/v1"
+            
         return normalized_base_url
 
     @staticmethod

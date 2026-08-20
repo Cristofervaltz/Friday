@@ -9,8 +9,18 @@ use tauri_plugin_shell::ShellExt;
 #[tauri::command]
 fn get_runtime_port(app_handle: tauri::AppHandle) -> u16 {
     let mut port = 8000;
-    if let Ok(home) = app_handle.path().home_dir() {
-        let port_file = home.join(".friday").join("runtime_port");
+    let app_home = if let Ok(val) = std::env::var("FRIDAY_HOME") {
+        if !val.trim().is_empty() {
+            Some(std::path::PathBuf::from(val))
+        } else {
+            app_handle.path().home_dir().ok().map(|h| h.join(".friday"))
+        }
+    } else {
+        app_handle.path().home_dir().ok().map(|h| h.join(".friday"))
+    };
+
+    if let Some(home) = app_home {
+        let port_file = home.join("runtime_port");
         if let Ok(contents) = std::fs::read_to_string(port_file) {
             if let Ok(p) = contents.trim().parse::<u16>() {
                 port = p;

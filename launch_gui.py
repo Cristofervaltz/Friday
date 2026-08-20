@@ -9,18 +9,22 @@ from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
 
+from src.config import get_app_home
+from src.utils.port import cleanup_runtime_port
+
 server_process = None
 _server_port = 8000  # Will be updated once the server writes its port file
 
 
 def _read_port() -> int:
     """Read the runtime port written by the API server."""
-    port_file = Path.home() / ".friday" / "runtime_port"
+    port_file = get_app_home() / "runtime_port"
     for _ in range(60):  # Wait up to 30 seconds (60 × 0.5s)
         try:
-            text = port_file.read_text(encoding="utf-8").strip()
-            if text:
-                return int(text)
+            if port_file.exists():
+                text = port_file.read_text(encoding="utf-8").strip()
+                if text:
+                    return int(text)
         except (FileNotFoundError, ValueError, OSError):
             pass
         time.sleep(0.5)
@@ -74,11 +78,7 @@ def cleanup() -> None:
                 server_process.kill()
 
     # Clean up the port file
-    try:
-        port_file = Path.home() / ".friday" / "runtime_port"
-        port_file.unlink(missing_ok=True)
-    except OSError:
-        pass
+    cleanup_runtime_port()
 
 
 def open_wv(port: int) -> None:

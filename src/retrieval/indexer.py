@@ -4,6 +4,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from src.config import get_app_home
+
 try:
     import chromadb  # type: ignore[import-not-found]
     from chromadb.config import Settings  # type: ignore[import-not-found]
@@ -55,7 +57,7 @@ IGNORE_DIRS = {
 class CodeIndexer:
     """Indexes workspace files into a local ChromaDB instance."""
 
-    def __init__(self, db_path: str = ".friday/chroma_db") -> None:
+    def __init__(self, db_path: str | Path | None = None) -> None:
         """Initialize the indexer.
 
         Args:
@@ -66,7 +68,10 @@ class CodeIndexer:
                 "RAG dependencies not installed. Run: pip install .[rag]"
             )
 
-        self.db_path = Path(db_path)
+        if db_path is None:
+            self.db_path = get_app_home() / "chroma_db"
+        else:
+            self.db_path = Path(db_path)
         self.db_path.mkdir(parents=True, exist_ok=True)
 
         logger.info(f"Initializing ChromaDB at {self.db_path.absolute()}")

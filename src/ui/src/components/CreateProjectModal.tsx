@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { X, FolderPlus } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-dialog';
+import { useTranslation } from '../i18n/index.ts';
 import './CreateProjectModal.css';
 
+// project picker modal props
 interface CreateProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -10,17 +12,21 @@ interface CreateProjectModalProps {
   onSkip: () => void;
 }
 
-export function CreateProjectModal({ isOpen, onClose, onProjectCreated, onSkip }: CreateProjectModalProps) {
+// create project modal wrapped in memo
+export const CreateProjectModal = React.memo(function CreateProjectModal({ isOpen, onClose, onProjectCreated, onSkip }: CreateProjectModalProps) {
   const [selecting, setSelecting] = useState(false);
+  // translations hook
+  const { t } = useTranslation();
 
-  const handleAddFolder = async () => {
+  // trigger native directory picker
+  const handleAddFolder = useCallback(async () => {
     if (selecting) return;
     setSelecting(true);
     try {
       const selected = await open({
         directory: true,
         multiple: false,
-        title: 'Select Workspace Folder',
+        title: t('project.dialog_title'),
       });
       if (selected) {
         onProjectCreated(selected as string);
@@ -31,12 +37,12 @@ export function CreateProjectModal({ isOpen, onClose, onProjectCreated, onSkip }
     } finally {
       setSelecting(false);
     }
-  };
+  }, [selecting, t, onProjectCreated, onClose]);
 
-  const handleSkip = () => {
+  const handleSkip = useCallback(() => {
     onSkip();
     onClose();
-  };
+  }, [onSkip, onClose]);
 
   if (!isOpen) return null;
 
@@ -44,28 +50,29 @@ export function CreateProjectModal({ isOpen, onClose, onProjectCreated, onSkip }
     <div className="modal-overlay">
       <div className="create-project-modal glass-panel">
         <div className="modal-header">
-          <h2>Create Project</h2>
+          <h2>{t('project.create_title')}</h2>
           <button className="icon-btn" onClick={onClose}><X size={24} /></button>
         </div>
 
         <div className="modal-body">
-          <label className="input-label">Select Folder(s)</label>
+          <label className="input-label">{t('project.select_folder')}</label>
           <button 
             className="add-folder-btn" 
             onClick={handleAddFolder} 
             disabled={selecting}
           >
             <FolderPlus size={18} />
-            + Add Folder
+            + {t('project.add_folder')}
           </button>
         </div>
 
         <div className="modal-footer" style={{ borderTop: 'none', background: 'transparent' }}>
           <button type="button" className="btn-secondary" onClick={handleSkip}>
-            Skip
+            {t('common.skip')}
           </button>
         </div>
       </div>
     </div>
   );
-}
+});
+

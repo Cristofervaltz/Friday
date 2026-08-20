@@ -1,12 +1,18 @@
 import React from 'react';
+import { useTranslation } from '../i18n/index.ts';
 import './AgentDashboard.css';
 
+// agent dashboard props
 interface AgentDashboardProps {
   isThinking: boolean;
   statusText?: string;
 }
 
-export const AgentDashboard: React.FC<AgentDashboardProps> = ({ isThinking, statusText }) => {
+// agent thinking status indicator wrapped in memo
+export const AgentDashboard: React.FC<AgentDashboardProps> = React.memo(({ isThinking, statusText }) => {
+  // get t helper
+  const { t } = useTranslation();
+
   if (!isThinking && !statusText) return null;
 
   return (
@@ -17,8 +23,9 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({ isThinking, stat
         <span className="dot"></span>
       </div>
       <div className="status-text">
-        {statusText || (isThinking ? 'Friday is thinking...' : 'Idle')}
+        {statusText || (isThinking ? t('agent.thinking') : t('agent.idle'))}
       </div>
     </div>
   );
-};
+});
+
