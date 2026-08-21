@@ -29,9 +29,9 @@ def test_tool_exports_all_list() -> None:
 
     for export_name in expected_exports:
         assert export_name in tools.__all__, f"{export_name} missing from __all__"
-        assert hasattr(tools, export_name), (
-            f"{export_name} missing as attr in src.tools"
-        )
+        assert hasattr(
+            tools, export_name
+        ), f"{export_name} missing as attr in src.tools"
 
 
 def test_tool_classes_inherit_from_base_tool() -> None:

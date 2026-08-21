@@ -29,6 +29,7 @@ from src.tools.base import BaseTool, ToolResult
 # SECTION 1: INSTANT-SEND QUEUE OPERATIONS UNDER BURST TRAFFIC
 # ==============================================================================
 
+
 class TestInstantSendQueueAdversarial:
     """Stress tests instant-send queue operations, interleaving, and burst traffic."""
 
@@ -47,7 +48,9 @@ class TestInstantSendQueueAdversarial:
                 return
             cleaned = text.strip()
             if state["is_thinking"] and not force_instant:
-                state["queue"].append({"id": f"id_{len(state['queue'])}", "text": cleaned})
+                state["queue"].append(
+                    {"id": f"id_{len(state['queue'])}", "text": cleaned}
+                )
                 return
             state["messages"].append({"role": "user", "content": cleaned})
             state["is_thinking"] = True
@@ -96,17 +99,17 @@ class TestInstantSendQueueAdversarial:
     def test_instant_send_hidden_commands_filtering(self) -> None:
         """Verifies hidden commands like /voice, /clear, /settings are not displayed in user messages."""
         hidden_commands = ["/voice", "/clear", "/settings"]
-        
+
         for cmd in hidden_commands:
             messages: list[dict[str, Any]] = []
             sent_ws: list[str] = []
-            
+
             # Simulated instant-send logic from App.tsx lines 372-388
             msg = {"id": "test_1", "text": cmd}
             if cmd not in hidden_commands:
                 messages.append({"role": "user", "content": msg["text"]})
             sent_ws.append(msg["text"])
-            
+
             assert len(messages) == 0  # Not added to chat display
             assert len(sent_ws) == 1
             assert sent_ws[0] == cmd
@@ -115,6 +118,7 @@ class TestInstantSendQueueAdversarial:
 # ==============================================================================
 # SECTION 2: I18N DICTIONARY EDGE CASES, FALLBACKS, AND INTERPOLATION
 # ==============================================================================
+
 
 class TestI18nAdversarial:
     """Stress tests i18n lookup, fallbacks, parameter interpolation, and dictionary parity."""
@@ -134,13 +138,17 @@ class TestI18nAdversarial:
                 return None
         return current if isinstance(current, str) else None
 
-    def interpolate_oracle(self, text: str, params: dict[str, Any] | None = None) -> str:
+    def interpolate_oracle(
+        self, text: str, params: dict[str, Any] | None = None
+    ) -> str:
         """Python implementation of interpolate from utils.ts."""
         if not params:
             return text
+
         def repl(match: re.Match[str]) -> str:
             key = match.group(1)
             return str(params[key]) if key in params else match.group(0)
+
         return re.sub(r"\{(\w+)\}", repl, text)
 
     def test_nested_value_edge_cases(self) -> None:
@@ -149,28 +157,28 @@ class TestI18nAdversarial:
             "flat_key": "Flat value",
             "chat": {
                 "header": "Chat Header",
-                "nested": {
-                    "deep": {
-                        "value": "Deep Value"
-                    }
-                },
+                "nested": {"deep": {"value": "Deep Value"}},
                 "number_val": 42,
                 "null_val": None,
-                "empty_str": ""
-            }
+                "empty_str": "",
+            },
         }
 
         # Valid lookups
         assert self.get_nested_value_oracle(data, "flat_key") == "Flat value"
         assert self.get_nested_value_oracle(data, "chat.header") == "Chat Header"
-        assert self.get_nested_value_oracle(data, "chat.nested.deep.value") == "Deep Value"
+        assert (
+            self.get_nested_value_oracle(data, "chat.nested.deep.value") == "Deep Value"
+        )
         assert self.get_nested_value_oracle(data, "chat.empty_str") == ""
 
         # Invalid/Missing lookups returning None
         assert self.get_nested_value_oracle(data, "missing") is None
         assert self.get_nested_value_oracle(data, "chat.missing") is None
         assert self.get_nested_value_oracle(data, "chat.header.sub") is None
-        assert self.get_nested_value_oracle(data, "chat.number_val") is None  # Not a string
+        assert (
+            self.get_nested_value_oracle(data, "chat.number_val") is None
+        )  # Not a string
         assert self.get_nested_value_oracle(data, "chat.null_val") is None
         assert self.get_nested_value_oracle(None, "chat.header") is None
         assert self.get_nested_value_oracle("not_dict", "chat.header") is None
@@ -180,7 +188,9 @@ class TestI18nAdversarial:
         template = "Queue count: {count}, user: {user}, status: {status}"
 
         # Standard interpolation
-        res = self.interpolate_oracle(template, {"count": 5, "user": "Alice", "status": "active"})
+        res = self.interpolate_oracle(
+            template, {"count": 5, "user": "Alice", "status": "active"}
+        )
         assert res == "Queue count: 5, user: Alice, status: active"
 
         # Edge case: zero and negative numbers
@@ -195,27 +205,33 @@ class TestI18nAdversarial:
         assert res_missing == "Queue count: 3, user: {user}, status: {status}"
 
         # Extra unused params
-        res_extra = self.interpolate_oracle("Hello {name}", {"name": "Bob", "unused": 999})
+        res_extra = self.interpolate_oracle(
+            "Hello {name}", {"name": "Bob", "unused": 999}
+        )
         assert res_extra == "Hello Bob"
 
         # Special chars in values
-        res_special = self.interpolate_oracle("Error: {error}", {"error": "$100 & <script> / [test] \n"})
+        res_special = self.interpolate_oracle(
+            "Error: {error}", {"error": "$100 & <script> / [test] \n"}
+        )
         assert res_special == "Error: $100 & <script> / [test] \n"
 
         # Unmatched braces & malformed tokens
         malformed = "Normal {token} but {unclosed and {123} and {}"
-        res_malformed = self.interpolate_oracle(malformed, {"token": "ok", "123": "num"})
+        res_malformed = self.interpolate_oracle(
+            malformed, {"token": "ok", "123": "num"}
+        )
         assert res_malformed == "Normal ok but {unclosed and num and {}"
 
     def test_i18n_fallback_resolution_simulation(self) -> None:
         """Simulates full I18nContext t() lookup order: target -> en -> key literal."""
         en_dict = {
             "common": {"save": "Save", "cancel": "Cancel"},
-            "chat": {"title": "Friday AI", "only_en": "Only in English"}
+            "chat": {"title": "Friday AI", "only_en": "Only in English"},
         }
         ru_dict = {
             "common": {"save": "Сохранить", "cancel": "Отмена"},
-            "chat": {"title": "Пятница ИИ"}
+            "chat": {"title": "Пятница ИИ"},
             # "chat.only_en" intentionally missing in ru
         }
 
@@ -243,17 +259,33 @@ class TestI18nAdversarial:
 # SECTION 3: REPL COMMAND PERMUTATIONS AND MEMORY LIFECYCLE
 # ==============================================================================
 
+
 class TestREPLPermutationsAdversarial:
     """Stress tests REPL command permutations, casing, whitespace, and memory lifecycle."""
 
-    @pytest.mark.parametrize("clear_cmd", [
-        "clear", ":clear", "/clear",
-        "CLEAR", ":CLEAR", "/CLEAR",
-        "Clear", ":Clear", "/Clear",
-        "cLeAr", ":ClEaR", "/cLeAr",
-        "  clear  ", "  :clear  ", "  /clear  ",
-        "\tclear\t", "\t:clear\t", "\t/clear\t"
-    ])
+    @pytest.mark.parametrize(
+        "clear_cmd",
+        [
+            "clear",
+            ":clear",
+            "/clear",
+            "CLEAR",
+            ":CLEAR",
+            "/CLEAR",
+            "Clear",
+            ":Clear",
+            "/Clear",
+            "cLeAr",
+            ":ClEaR",
+            "/cLeAr",
+            "  clear  ",
+            "  :clear  ",
+            "  /clear  ",
+            "\tclear\t",
+            "\t:clear\t",
+            "\t/clear\t",
+        ],
+    )
     def test_repl_clear_permutations(self, clear_cmd: str, tmp_path: Path) -> None:
         """Verifies all permutations of clear command reset conversation history."""
         mock_app = MagicMock()
@@ -266,7 +298,7 @@ class TestREPLPermutationsAdversarial:
         mock_app.logger = MagicMock()
 
         repl = FridayREPL(mock_app)
-        
+
         # Populate history
         repl._agent.memory.add_user_message("Hello")
         repl._agent.memory.add_assistant_message("Hi there")
@@ -283,6 +315,7 @@ class TestREPLPermutationsAdversarial:
     def test_memory_clear_idempotence_and_callbacks(self) -> None:
         """Tests that ConversationMemory.clear() is idempotent and notifies listeners."""
         callback_called_count = 0
+
         def on_change(*args: Any, **kwargs: Any) -> None:
             nonlocal callback_called_count
             callback_called_count += 1
@@ -293,7 +326,7 @@ class TestREPLPermutationsAdversarial:
         memory.add_user_message("Test message 1")
         memory.add_assistant_message("Test response 1")
         assert len(memory) == 2
-        
+
         init_callback_count = callback_called_count
 
         # Clear 1
@@ -311,6 +344,7 @@ class TestREPLPermutationsAdversarial:
 # ==============================================================================
 # SECTION 4: TOOL EXPORTS AND SUBCLASS SIGNATURES
 # ==============================================================================
+
 
 class TestToolSignaturesAdversarial:
     """Stress tests Tool exports, inheritance, abstract method compliance, and robust execution."""
@@ -335,15 +369,21 @@ class TestToolSignaturesAdversarial:
     def test_all_tools_in_module_and_all(self) -> None:
         """Verifies that all expected tools are listed in __all__ and accessible from src.tools."""
         for tool_name in self.EXPECTED_TOOLS:
-            assert tool_name in tools_module.__all__, f"{tool_name} missing from __all__"
-            assert hasattr(tools_module, tool_name), f"{tool_name} not exported on src.tools"
+            assert (
+                tool_name in tools_module.__all__
+            ), f"{tool_name} missing from __all__"
+            assert hasattr(
+                tools_module, tool_name
+            ), f"{tool_name} not exported on src.tools"
 
     def test_tool_subclass_and_signatures(self) -> None:
         """Verifies each tool class inherits from BaseTool and implements the required signature."""
         for tool_name in self.EXPECTED_TOOLS:
             tool_cls = getattr(tools_module, tool_name)
             assert inspect.isclass(tool_cls), f"{tool_name} is not a class"
-            assert issubclass(tool_cls, BaseTool), f"{tool_name} is not a subclass of BaseTool"
+            assert issubclass(
+                tool_cls, BaseTool
+            ), f"{tool_name} is not a subclass of BaseTool"
 
             # Check execute method signature
             assert hasattr(tool_cls, "execute"), f"{tool_name} lacks execute method"
@@ -361,7 +401,9 @@ class TestToolSignaturesAdversarial:
 
         # 2. EditFileTool with invalid operation
         edit_tool = tools_module.EditFileTool()
-        res = edit_tool.execute(path=str(tmp_path / "dummy.txt"), operation="unsupported_op")
+        res = edit_tool.execute(
+            path=str(tmp_path / "dummy.txt"), operation="unsupported_op"
+        )
         assert isinstance(res, ToolResult)
         assert res.success is False
         assert res.error is not None
@@ -387,6 +429,7 @@ class TestToolSignaturesAdversarial:
 # SECTION 5: INFORMAL HUMAN-LIKE COMMENTS AUDIT
 # ==============================================================================
 
+
 class TestInformalCommentsAdversarial:
     """Verifies that modified / newly added files contain informal human-like comments."""
 
@@ -404,23 +447,31 @@ class TestInformalCommentsAdversarial:
     def test_informal_comments_present(self) -> None:
         """Checks for lowercase casual phrasing in comments across key modified files."""
         root_dir = os.path.dirname(os.path.dirname(__file__))
-        
+
         for rel_path in self.TARGET_FILES:
             full_path = os.path.join(root_dir, rel_path)
             assert os.path.exists(full_path), f"Target file missing: {full_path}"
-            
+
             with open(full_path, encoding="utf-8") as f:
                 content = f.read()
 
             # Find single line comments (# in py, // in ts/tsx)
             comments = []
             if rel_path.endswith(".py"):
-                comments = [line.strip() for line in content.splitlines() if line.strip().startswith("#")]
+                comments = [
+                    line.strip()
+                    for line in content.splitlines()
+                    if line.strip().startswith("#")
+                ]
             else:
-                comments = [line.strip() for line in content.splitlines() if line.strip().startswith("//")]
+                comments = [
+                    line.strip()
+                    for line in content.splitlines()
+                    if line.strip().startswith("//")
+                ]
 
             assert len(comments) > 0, f"No informal comments found in {rel_path}"
-            
+
             # Check for lowercase start or casual phrasing in at least some comments
             has_informal = any(
                 c.lstrip("#/ ").strip() and c.lstrip("#/ ").strip()[0].islower()

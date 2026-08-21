@@ -85,11 +85,11 @@ class Agent:
             iteration += 1
 
             messages = self.memory.get_messages()
-            
+
             max_retries = 3
             retry_count = 0
             response: LLMResponse | None = None
-            
+
             while retry_count <= max_retries:
                 try:
                     response = self.llm.generate_with_tools(
@@ -99,14 +99,31 @@ class Agent:
                     break
                 except Exception as exc:
                     error_str = str(exc).lower()
-                    if "503" in error_str or "502" in error_str or "500" in error_str or "429" in error_str or "server_error" in error_str or "rate_limit" in error_str or "busy" in error_str:
+                    if (
+                        "503" in error_str
+                        or "502" in error_str
+                        or "500" in error_str
+                        or "429" in error_str
+                        or "server_error" in error_str
+                        or "rate_limit" in error_str
+                        or "busy" in error_str
+                    ):
                         if retry_count < max_retries:
-                            self._logger.warning("LLM API error (503/429/500). Retrying %d/%d in %d seconds...", retry_count + 1, max_retries, 2 ** retry_count)
-                            time.sleep(2 ** retry_count)
+                            self._logger.warning(
+                                "LLM API error (503/429/500). Retrying %d/%d in %d seconds...",
+                                retry_count + 1,
+                                max_retries,
+                                2**retry_count,
+                            )
+                            time.sleep(2**retry_count)
                             retry_count += 1
                             continue
                         else:
-                            self._logger.exception("LLM generation failed after %d retries: %s", max_retries, exc)
+                            self._logger.exception(
+                                "LLM generation failed after %d retries: %s",
+                                max_retries,
+                                exc,
+                            )
                             error_msg = f"Error: Error communicating with LLM: {exc}"
                             self.memory.add_assistant_message(content=error_msg)
                             return error_msg
@@ -159,7 +176,7 @@ class Agent:
                             ensure_ascii=False,
                         ),
                     }
-                    
+
                     # Preserve extra fields like thought_signature
                     for k, v in tool_call.items():
                         if k not in ["id", "type", "name", "arguments"]:

@@ -10,6 +10,7 @@ ROOT_DIR = Path(__file__).parent.parent
 UI_DIR = ROOT_DIR / "src" / "ui" / "src"
 SERVER_PY = ROOT_DIR / "src" / "api" / "server.py"
 
+
 class TestPlan2Features:
     def test_multi_model_support(self):
         """1. Verify Multi-Model API keys in config and UI Dropdown."""
@@ -34,17 +35,17 @@ class TestPlan2Features:
         mem.add_assistant_message("Answer 1")
         mem.add_user_message("Second")
         mem.add_assistant_message("Answer 2")
-        
+
         messages = mem.get_messages(inject_system=False)
         assert len(messages) == 4
-        
-        target_id = messages[2]["id"] # "Second" message ID
+
+        target_id = messages[2]["id"]  # "Second" message ID
         mem.truncate_messages(target_id, inclusive=False)
-        
+
         truncated = mem.get_messages(inject_system=False)
         assert len(truncated) == 2
         assert truncated[-1]["content"] == "Answer 1"
-        
+
         # Verify server.py handles edit_message payload
         server_code = SERVER_PY.read_text(encoding="utf-8")
         assert "edit_message" in server_code
@@ -56,7 +57,7 @@ class TestPlan2Features:
         server_code = SERVER_PY.read_text(encoding="utf-8")
         assert "/grill-me" in server_code
         assert "[SYSTEM]: The user has invoked the /grill-me command" in server_code
-        
+
         translations = (UI_DIR / "i18n" / "translations.ts").read_text(encoding="utf-8")
         assert "grill_desc" in translations
 
@@ -66,4 +67,3 @@ class TestPlan2Features:
         assert "api.github.com/repos/Cristofervaltz/Friday/releases/latest" in app_tsx
         assert "updateAvailable" in app_tsx
         assert "A new version" in app_tsx
-

@@ -40,6 +40,7 @@ from src.tools import (
 # 1. REPL CLEAR ADVERSARIAL TESTS
 # ============================================================================
 
+
 class TestREPLClearAdversarial:
     """Stress tests for REPL clear functionality."""
 
@@ -70,7 +71,7 @@ class TestREPLClearAdversarial:
     ) -> None:
         """Test 'clear', ':clear', '/clear', and case variations with/without whitespace."""
         repl = FridayREPL(mock_app)
-        
+
         # Populate history with some messages
         repl._agent.memory.add_user_message("Hello")
         repl._agent.memory.add_assistant_message("Hi there")
@@ -105,11 +106,13 @@ class TestREPLClearAdversarial:
             repl._process_input()
 
             # Verify history cleared (0 non-system messages)
-            assert len(repl._agent.memory) == 0, f"Failed to clear history with command: {cmd!r}"
-            
+            assert (
+                len(repl._agent.memory) == 0
+            ), f"Failed to clear history with command: {cmd!r}"
+
             # Verify system prompt remains intact
             assert repl._agent.memory.system_prompt == "You are a test assistant."
-            
+
             # Verify printed output
             captured = capsys.readouterr()
             assert "Conversation history cleared." in captured.out
@@ -140,7 +143,10 @@ class TestREPLClearAdversarial:
         repl = FridayREPL(mock_app)
         for i in range(20):
             repl._agent.memory.add_user_message(f"Message {i}")
-            monkeypatch.setattr("builtins.input", lambda prompt="", idx=i: ["clear", ":clear", "/clear"][idx % 3])
+            monkeypatch.setattr(
+                "builtins.input",
+                lambda prompt="", idx=i: ["clear", ":clear", "/clear"][idx % 3],
+            )
             repl._process_input()
             assert len(repl._agent.memory) == 0
 
@@ -158,7 +164,7 @@ class TestREPLClearAdversarial:
 
         repl._agent.memory.add_on_change_callback(callback)
         repl._agent.memory.add_user_message("Hello")
-        
+
         # Clear via REPL command
         monkeypatch.setattr("builtins.input", lambda prompt="": "clear")
         repl._process_input()
@@ -182,6 +188,7 @@ class TestREPLClearAdversarial:
 # ============================================================================
 # 2. SRC.TOOLS MODULE EXPORTS, SUBCLASS & SIGNATURE TESTS
 # ============================================================================
+
 
 class TestToolsExportsAdversarial:
     """Adversarial verification of src.tools exports and tool contracts."""
@@ -210,7 +217,9 @@ class TestToolsExportsAdversarial:
         assert hasattr(tools_module, "__all__")
         assert sorted(tools_module.__all__) == sorted(self.EXPECTED_EXPORTS)
         for name in self.EXPECTED_EXPORTS:
-            assert hasattr(tools_module, name), f"{name} not found in src.tools namespace"
+            assert hasattr(
+                tools_module, name
+            ), f"{name} not found in src.tools namespace"
 
     def test_tool_classes_inherit_from_base_tool(self) -> None:
         """Verify all tool exports inherit from BaseTool (except BaseTool and ToolResult)."""
@@ -246,20 +255,26 @@ class TestToolsExportsAdversarial:
             pass
 
         try:
-            tool_instances["SemanticSearchTool"] = SemanticSearchTool(workspace_path=str(tmp_path))
+            tool_instances["SemanticSearchTool"] = SemanticSearchTool(
+                workspace_path=str(tmp_path)
+            )
         except (RuntimeError, Exception):
             pass
 
         seen_names = set()
         for label, tool in tool_instances.items():
             # Check name
-            assert isinstance(tool.name, str) and len(tool.name) > 0, f"{label} has invalid name"
+            assert (
+                isinstance(tool.name, str) and len(tool.name) > 0
+            ), f"{label} has invalid name"
             if label != "DelegateTaskTool_with_none":
                 assert tool.name not in seen_names, f"Duplicate tool name {tool.name}"
                 seen_names.add(tool.name)
 
             # Check description
-            assert isinstance(tool.description, str) and len(tool.description) > 0, f"{label} missing description"
+            assert (
+                isinstance(tool.description, str) and len(tool.description) > 0
+            ), f"{label} missing description"
 
             # Check parameters_schema
             schema = tool.parameters_schema
@@ -274,7 +289,7 @@ class TestToolsExportsAdversarial:
     def test_delegate_task_tool_edge_cases(self) -> None:
         """Test DelegateTaskTool with missing args, None args, and detached execution."""
         tool = DelegateTaskTool(app=None, registry=None)
-        
+
         # Missing required params
         res1 = tool.execute()
         assert not res1.success
@@ -297,17 +312,21 @@ class TestToolsExportsAdversarial:
 # 3. SERVER RENAME_CHAT ADVERSARIAL TESTS
 # ============================================================================
 
+
 class TestServerRenameChatAdversarial:
     """Stress testing the rename_chat websocket endpoint in src/api/server.py."""
 
     @pytest.fixture
-    def server_env(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[TestClient, Path]:
+    def server_env(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> tuple[TestClient, Path]:
         """Create a TestClient with initialized server and memory."""
         monkeypatch.setenv("FRIDAY_HOME", str(tmp_path))
         data_dir = tmp_path / "data"
         chats_dir = data_dir / "chats"
         chats_dir.mkdir(parents=True, exist_ok=True)
         from src.api.server import create_app
+
         app = create_app()
         client = TestClient(app)
         return client, chats_dir
@@ -316,7 +335,9 @@ class TestServerRenameChatAdversarial:
         """Test all valid and polymorphic payload formats for rename_chat."""
         client, chats_dir = server_env
 
-        def receive_type(ws: Any, target_type: str, max_reads: int = 10) -> dict[str, Any]:
+        def receive_type(
+            ws: Any, target_type: str, max_reads: int = 10
+        ) -> dict[str, Any]:
             for _ in range(max_reads):
                 msg: dict[str, Any] = ws.receive_json()
                 if msg.get("type") == target_type:
@@ -326,13 +347,18 @@ class TestServerRenameChatAdversarial:
         # Pre-create a chat file in the chats directory
         test_chat_id = "chat_adversarial_1"
         chat_file = chats_dir / f"{test_chat_id}.json"
-        chat_file.write_text(json.dumps({
-            "id": test_chat_id,
-            "title": "Initial Chat Title",
-            "workspace": "",
-            "updated_at": 1000,
-            "messages": [{"role": "user", "content": "hello"}],
-        }), encoding="utf-8")
+        chat_file.write_text(
+            json.dumps(
+                {
+                    "id": test_chat_id,
+                    "title": "Initial Chat Title",
+                    "workspace": "",
+                    "updated_at": 1000,
+                    "messages": [{"role": "user", "content": "hello"}],
+                }
+            ),
+            encoding="utf-8",
+        )
 
         with client.websocket_connect("/ws/chat") as ws:
             # Drain initial msgs
@@ -341,53 +367,90 @@ class TestServerRenameChatAdversarial:
             receive_type(ws, "workspace_set")
 
             # 1. Flat chat_id & title
-            ws.send_text(json.dumps({
-                "type": "rename_chat",
-                "chat_id": test_chat_id,
-                "title": "Renamed Flat ChatId",
-            }))
+            ws.send_text(
+                json.dumps(
+                    {
+                        "type": "rename_chat",
+                        "chat_id": test_chat_id,
+                        "title": "Renamed Flat ChatId",
+                    }
+                )
+            )
             resp = receive_type(ws, "chats_list")
             matching = [c for c in resp["chats"] if c["id"] == test_chat_id]
             assert len(matching) > 0 and matching[0]["title"] == "Renamed Flat ChatId"
 
             # 2. Flat id & title
-            ws.send_text(json.dumps({
-                "type": "rename_chat",
-                "id": test_chat_id,
-                "title": "Renamed Flat Id",
-            }))
+            ws.send_text(
+                json.dumps(
+                    {
+                        "type": "rename_chat",
+                        "id": test_chat_id,
+                        "title": "Renamed Flat Id",
+                    }
+                )
+            )
             resp = receive_type(ws, "chats_list")
             matching = [c for c in resp["chats"] if c["id"] == test_chat_id]
             assert len(matching) > 0 and matching[0]["title"] == "Renamed Flat Id"
 
             # 3. Nested dictionary payload with chat_id
-            ws.send_text(json.dumps({
-                "type": "rename_chat",
-                "payload": {"chat_id": test_chat_id, "title": "Renamed Nested Dict ChatId"},
-            }))
+            ws.send_text(
+                json.dumps(
+                    {
+                        "type": "rename_chat",
+                        "payload": {
+                            "chat_id": test_chat_id,
+                            "title": "Renamed Nested Dict ChatId",
+                        },
+                    }
+                )
+            )
             resp = receive_type(ws, "chats_list")
             matching = [c for c in resp["chats"] if c["id"] == test_chat_id]
-            assert len(matching) > 0 and matching[0]["title"] == "Renamed Nested Dict ChatId"
+            assert (
+                len(matching) > 0
+                and matching[0]["title"] == "Renamed Nested Dict ChatId"
+            )
 
             # 4. Nested dictionary payload with id
-            ws.send_text(json.dumps({
-                "type": "rename_chat",
-                "payload": {"id": test_chat_id, "title": "Renamed Nested Dict Id"},
-            }))
+            ws.send_text(
+                json.dumps(
+                    {
+                        "type": "rename_chat",
+                        "payload": {
+                            "id": test_chat_id,
+                            "title": "Renamed Nested Dict Id",
+                        },
+                    }
+                )
+            )
             resp = receive_type(ws, "chats_list")
             matching = [c for c in resp["chats"] if c["id"] == test_chat_id]
-            assert len(matching) > 0 and matching[0]["title"] == "Renamed Nested Dict Id"
+            assert (
+                len(matching) > 0 and matching[0]["title"] == "Renamed Nested Dict Id"
+            )
 
             # 5. Nested stringified JSON payload
-            ws.send_text(json.dumps({
-                "type": "rename_chat",
-                "payload": json.dumps({"id": test_chat_id, "title": "Renamed Stringified JSON"}),
-            }))
+            ws.send_text(
+                json.dumps(
+                    {
+                        "type": "rename_chat",
+                        "payload": json.dumps(
+                            {"id": test_chat_id, "title": "Renamed Stringified JSON"}
+                        ),
+                    }
+                )
+            )
             resp = receive_type(ws, "chats_list")
             matching = [c for c in resp["chats"] if c["id"] == test_chat_id]
-            assert len(matching) > 0 and matching[0]["title"] == "Renamed Stringified JSON"
+            assert (
+                len(matching) > 0 and matching[0]["title"] == "Renamed Stringified JSON"
+            )
 
-    def test_rename_chat_malformed_and_edge_cases(self, server_env: tuple[TestClient, Path]) -> None:
+    def test_rename_chat_malformed_and_edge_cases(
+        self, server_env: tuple[TestClient, Path]
+    ) -> None:
         """Test corrupted JSON, missing fields, null values, and unexpected types."""
         client, _ = server_env
         with client.websocket_connect("/ws/chat") as ws:
@@ -431,6 +494,7 @@ class TestServerRenameChatAdversarial:
 # 4. WEBSOCKET LOOP RESILIENCE & SUDDEN DISCONNECT TESTS
 # ============================================================================
 
+
 class TestWebSocketResilienceAdversarial:
     """Stress tests for WebSocket message loop resilience and connection lifecycle."""
 
@@ -438,6 +502,7 @@ class TestWebSocketResilienceAdversarial:
     def client(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
         monkeypatch.setenv("FRIDAY_DATA_DIR", str(tmp_path / "data"))
         from src.api.server import create_app
+
         app = create_app()
         return TestClient(app)
 

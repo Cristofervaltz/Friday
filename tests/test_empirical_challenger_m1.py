@@ -22,10 +22,15 @@ def test_wake_word_detector_stop_timing_idle() -> None:
     """Verify WakeWordDetector.stop() terminates in < 1s when idle."""
     detector = WakeWordDetector()
     # Mock Vosk Model and RawInputStream so hardware is not needed
-    with patch("src.speech.wake_word.Model"), \
-         patch("src.speech.wake_word.KaldiRecognizer"), \
-         patch("src.speech.wake_word.sd.query_devices", return_value=[{"max_input_channels": 1}]), \
-         patch("src.speech.wake_word.sd.RawInputStream"):
+    with (
+        patch("src.speech.wake_word.Model"),
+        patch("src.speech.wake_word.KaldiRecognizer"),
+        patch(
+            "src.speech.wake_word.sd.query_devices",
+            return_value=[{"max_input_channels": 1}],
+        ),
+        patch("src.speech.wake_word.sd.RawInputStream"),
+    ):
 
         # Start detector
         callback = MagicMock()
@@ -43,7 +48,9 @@ def test_wake_word_detector_stop_timing_idle() -> None:
         detector.stop()
         stop_duration = time.perf_counter() - start_time
 
-        assert stop_duration < 1.0, f"WakeWordDetector.stop() took {stop_duration:.4f}s >= 1.0s"
+        assert (
+            stop_duration < 1.0
+        ), f"WakeWordDetector.stop() took {stop_duration:.4f}s >= 1.0s"
         assert detector.running is False
         assert detector._running is False
         assert detector.thread is None
@@ -53,10 +60,15 @@ def test_wake_word_detector_stop_timing_idle() -> None:
 def test_wake_word_detector_stop_timing_under_load() -> None:
     """Verify WakeWordDetector.stop() terminates in < 1s when audio queue has pending frames."""
     detector = WakeWordDetector()
-    with patch("src.speech.wake_word.Model"), \
-         patch("src.speech.wake_word.KaldiRecognizer"), \
-         patch("src.speech.wake_word.sd.query_devices", return_value=[{"max_input_channels": 1}]), \
-         patch("src.speech.wake_word.sd.RawInputStream"):
+    with (
+        patch("src.speech.wake_word.Model"),
+        patch("src.speech.wake_word.KaldiRecognizer"),
+        patch(
+            "src.speech.wake_word.sd.query_devices",
+            return_value=[{"max_input_channels": 1}],
+        ),
+        patch("src.speech.wake_word.sd.RawInputStream"),
+    ):
 
         detector.start(MagicMock())
         time.sleep(0.05)
@@ -71,7 +83,9 @@ def test_wake_word_detector_stop_timing_under_load() -> None:
         detector.stop()
         stop_duration = time.perf_counter() - start_time
 
-        assert stop_duration < 1.0, f"WakeWordDetector.stop() under load took {stop_duration:.4f}s >= 1.0s"
+        assert (
+            stop_duration < 1.0
+        ), f"WakeWordDetector.stop() under load took {stop_duration:.4f}s >= 1.0s"
         assert detector.thread is None
         assert detector.q.empty()
 
@@ -79,10 +93,15 @@ def test_wake_word_detector_stop_timing_under_load() -> None:
 def test_wake_word_detector_repeated_start_stop_cycles() -> None:
     """Verify rapid repeated start/stop cycles all terminate in < 1s each without resource leaks."""
     detector = WakeWordDetector()
-    with patch("src.speech.wake_word.Model"), \
-         patch("src.speech.wake_word.KaldiRecognizer"), \
-         patch("src.speech.wake_word.sd.query_devices", return_value=[{"max_input_channels": 1}]), \
-         patch("src.speech.wake_word.sd.RawInputStream"):
+    with (
+        patch("src.speech.wake_word.Model"),
+        patch("src.speech.wake_word.KaldiRecognizer"),
+        patch(
+            "src.speech.wake_word.sd.query_devices",
+            return_value=[{"max_input_channels": 1}],
+        ),
+        patch("src.speech.wake_word.sd.RawInputStream"),
+    ):
 
         durations: list[float] = []
         for i in range(10):
@@ -102,7 +121,9 @@ def test_wake_word_detector_repeated_start_stop_cycles() -> None:
 
 
 @pytest.mark.anyio
-async def test_concurrent_settings_and_websocket_nonblocking_loop(tmp_path: Any) -> None:
+async def test_concurrent_settings_and_websocket_nonblocking_loop(
+    tmp_path: Any,
+) -> None:
     """Verify concurrent /api/settings requests and WebSocket operations do not block the event loop."""
     # Track event loop responsiveness / heartbeat lag
     loop_lags: list[float] = []
@@ -130,10 +151,12 @@ async def test_concurrent_settings_and_websocket_nonblocking_loop(tmp_path: Any)
     async def call_get_settings() -> dict[str, Any]:
         # Directly invoke handler to test async execution offloading
         from src.config import load_settings
+
         return await asyncio.to_thread(load_settings)
 
     async def call_save_settings(data: dict[str, Any]) -> dict[str, Any]:
         from src.config import save_settings
+
         await asyncio.to_thread(save_settings, data)
         return {"status": "ok"}
 
@@ -147,7 +170,9 @@ async def test_concurrent_settings_and_websocket_nonblocking_loop(tmp_path: Any)
 
     # Check for exceptions
     errors = [r for r in results if isinstance(r, Exception)]
-    assert len(errors) == 0, f"Errors occurred during concurrent settings operations: {errors}"
+    assert (
+        len(errors) == 0
+    ), f"Errors occurred during concurrent settings operations: {errors}"
 
     # Stop heartbeat and analyze loop responsiveness
     stop_heartbeat.set()
@@ -158,7 +183,9 @@ async def test_concurrent_settings_and_websocket_nonblocking_loop(tmp_path: Any)
     avg_lag = sum(loop_lags) / len(loop_lags)
 
     # Event loop should remain responsive (< 50ms max lag, avg lag < 10ms)
-    assert max_lag < 0.15, f"Event loop experienced blocking stall: max lag = {max_lag * 1000:.2f}ms"
+    assert (
+        max_lag < 0.15
+    ), f"Event loop experienced blocking stall: max lag = {max_lag * 1000:.2f}ms"
     assert avg_lag < 0.05, f"Event loop average lag is too high: {avg_lag * 1000:.2f}ms"
 
 
@@ -189,8 +216,12 @@ async def test_concurrent_websocket_operations_stress(tmp_path: Any) -> None:
             await asyncio.to_thread(mem.rename_chat, cid, f"Title {client_id}-{j}")
 
             # Offload message adds
-            await asyncio.to_thread(mem.add_user_message, f"msg from client {client_id} step {j}")
-            await asyncio.to_thread(mem.add_assistant_message, f"reply {client_id} step {j}")
+            await asyncio.to_thread(
+                mem.add_user_message, f"msg from client {client_id} step {j}"
+            )
+            await asyncio.to_thread(
+                mem.add_assistant_message, f"reply {client_id} step {j}"
+            )
 
     # Run 10 concurrent simulated clients
     client_tasks = [simulate_client_ops(c) for c in range(10)]

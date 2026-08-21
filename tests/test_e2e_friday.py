@@ -43,6 +43,7 @@ COMPONENTS_DIR = UI_SRC_DIR / "components"
 # handy helper functions for parsing typescript and inspecting tokens
 # ---------------------------------------------------------------------------
 
+
 def _extract_ts_dict(content: str, dict_name: str) -> dict[str, Any]:
     # quick parser to extract nested key-value pairs from ts translations file
     # find the declaration e.g. export const en: TranslationDict = { ... }
@@ -50,7 +51,7 @@ def _extract_ts_dict(content: str, dict_name: str) -> dict[str, Any]:
     match = re.search(pattern, content)
     if not match:
         raise ValueError(f"could not find dictionary {dict_name} in content")
-    
+
     start_idx = match.end() - 1
     brace_depth = 0
     end_idx = start_idx
@@ -78,7 +79,7 @@ def _extract_ts_dict(content: str, dict_name: str) -> dict[str, Any]:
                     break
 
     block = content[start_idx:end_idx]
-    
+
     # recursive parsing of js/ts object literal into python dict
     def parse_object_block(text: str) -> dict[str, Any]:
         result: dict[str, Any] = {}
@@ -136,18 +137,22 @@ def _extract_ts_dict(content: str, dict_name: str) -> dict[str, Any]:
                     elif c == ":":
                         colon_idx = idx
                         break
-            
+
             if colon_idx == -1:
                 continue
 
             k = token[:colon_idx].strip().strip("'\"`")
-            v = token[colon_idx + 1:].strip()
+            v = token[colon_idx + 1 :].strip()
 
             if v.startswith("{") and v.endswith("}"):
                 result[k] = parse_object_block(v)
             else:
                 # string literal
-                if (v.startswith("'") and v.endswith("'")) or (v.startswith('"') and v.endswith('"')) or (v.startswith('`') and v.endswith('`')):
+                if (
+                    (v.startswith("'") and v.endswith("'"))
+                    or (v.startswith('"') and v.endswith('"'))
+                    or (v.startswith("`") and v.endswith("`"))
+                ):
                     v = v[1:-1]
                     # unescape quotes
                     v = v.replace("\\'", "'").replace('\\"', '"')
@@ -179,54 +184,71 @@ def _get_all_i18n_code() -> str:
 # Tier 1: Feature Coverage Tests (>=5 per feature across 7 features = 35 tests)
 # ---------------------------------------------------------------------------
 
+
 class TestTier1InstantSend:
     """Feature 1: Instant-Send () Button Core Verification."""
 
     def test_t1_instant_send_queue_removal(self) -> None:
         # verify handleInstantSend removes msgId from queue state
         app_code = (UI_SRC_DIR / "App.tsx").read_text(encoding="utf-8")
-        assert "handleInstantSend" in app_code, "handleInstantSend function missing from App.tsx"
+        assert (
+            "handleInstantSend" in app_code
+        ), "handleInstantSend function missing from App.tsx"
         # check that setMessageQueue filters out msgId
-        assert re.search(r"setMessageQueue\(prev\s*=>\s*prev\.filter\([^)]*id\s*!==\s*msgId", app_code), (
-            "handleInstantSend must remove the instant-sent item from messageQueue"
-        )
+        assert re.search(
+            r"setMessageQueue\(prev\s*=>\s*prev\.filter\([^)]*id\s*!==\s*msgId",
+            app_code,
+        ), "handleInstantSend must remove the instant-sent item from messageQueue"
 
     def test_t1_instant_send_ws_dispatch(self) -> None:
         # verify handleInstantSend sends message immediately over WebSocket
         app_code = (UI_SRC_DIR / "App.tsx").read_text(encoding="utf-8")
-        func_match = re.search(r"const handleInstantSend = \((.*?)\) => \{(.*?)\n  \};", app_code, re.DOTALL)
+        func_match = re.search(
+            r"const handleInstantSend = \((.*?)\) => \{(.*?)\n  \};",
+            app_code,
+            re.DOTALL,
+        )
         assert func_match is not None, "handleInstantSend function definition not found"
         func_body = func_match.group(2)
-        assert "ws.send(JSON.stringify({ type: 'message', content: msg.text }))" in func_body, (
-            "handleInstantSend must immediately call ws.send with message type and content"
-        )
+        assert (
+            "ws.send(JSON.stringify({ type: 'message', content: msg.text }))"
+            in func_body
+        ), "handleInstantSend must immediately call ws.send with message type and content"
 
     def test_t1_instant_send_not_requeued_when_thinking(self) -> None:
         # verify handleInstantSend does NOT re-queue item when isThinking is true
         app_code = (UI_SRC_DIR / "App.tsx").read_text(encoding="utf-8")
-        func_match = re.search(r"const handleInstantSend = \((.*?)\) => \{(.*?)\n  \};", app_code, re.DOTALL)
+        func_match = re.search(
+            r"const handleInstantSend = \((.*?)\) => \{(.*?)\n  \};",
+            app_code,
+            re.DOTALL,
+        )
         assert func_match is not None
         func_body = func_match.group(2)
-        assert "setMessageQueue(prev => [msg, ...prev]);" not in func_body, (
-            "handleInstantSend must not re-queue message when isThinking is true"
-        )
+        assert (
+            "setMessageQueue(prev => [msg, ...prev]);" not in func_body
+        ), "handleInstantSend must not re-queue message when isThinking is true"
 
     def test_t1_instant_send_chat_message_appended(self) -> None:
         # verify handleInstantSend adds user message to visible chat state
         app_code = (UI_SRC_DIR / "App.tsx").read_text(encoding="utf-8")
-        func_match = re.search(r"const handleInstantSend = \((.*?)\) => \{(.*?)\n  \};", app_code, re.DOTALL)
+        func_match = re.search(
+            r"const handleInstantSend = \((.*?)\) => \{(.*?)\n  \};",
+            app_code,
+            re.DOTALL,
+        )
         assert func_match is not None
         func_body = func_match.group(2)
-        assert "setMessages(prev => [...prev" in func_body, (
-            "handleInstantSend must append user message to messages state"
-        )
+        assert (
+            "setMessages(prev => [...prev" in func_body
+        ), "handleInstantSend must append user message to messages state"
 
     def test_t1_instant_send_button_dom_binding(self) -> None:
         # verify lightning button () onClick is wired to handleInstantSend
         app_code = (UI_SRC_DIR / "App.tsx").read_text(encoding="utf-8")
-        assert re.search(r"onClick=\{\(\)\s*=>\s*handleInstantSend\(msg\.id\)\}", app_code), (
-            "Lightning button in queue item must have onClick={() => handleInstantSend(msg.id)}"
-        )
+        assert re.search(
+            r"onClick=\{\(\)\s*=>\s*handleInstantSend\(msg\.id\)\}", app_code
+        ), "Lightning button in queue item must have onClick={() => handleInstantSend(msg.id)}"
 
 
 class TestTier1I18nEngine:
@@ -261,7 +283,9 @@ class TestTier1I18nEngine:
     def test_t1_i18n_localstorage_persistence_key(self) -> None:
         # verify localStorage key 'friday_language' is used for persistence
         all_code = _get_all_i18n_code()
-        assert "friday_language" in all_code, "localStorage key must be 'friday_language'"
+        assert (
+            "friday_language" in all_code
+        ), "localStorage key must be 'friday_language'"
 
 
 class TestTier1BilingualUI:
@@ -272,16 +296,16 @@ class TestTier1BilingualUI:
         translations_file = I18N_DIR / "translations.ts"
         assert translations_file.exists(), "translations.ts missing"
         content = translations_file.read_text(encoding="utf-8")
-        
+
         en_dict = _extract_ts_dict(content, "en")
         ru_dict = _extract_ts_dict(content, "ru")
-        
+
         flat_en = _flatten_dict(en_dict)
         flat_ru = _flatten_dict(ru_dict)
-        
+
         missing_in_ru = set(flat_en.keys()) - set(flat_ru.keys())
         missing_in_en = set(flat_ru.keys()) - set(flat_en.keys())
-        
+
         assert not missing_in_ru, f"Keys missing in Russian dictionary: {missing_in_ru}"
         assert not missing_in_en, f"Keys missing in English dictionary: {missing_in_en}"
 
@@ -290,10 +314,10 @@ class TestTier1BilingualUI:
         content = (I18N_DIR / "translations.ts").read_text(encoding="utf-8")
         en_dict = _extract_ts_dict(content, "en")
         ru_dict = _extract_ts_dict(content, "ru")
-        
+
         flat_en = _flatten_dict(en_dict)
         flat_ru = _flatten_dict(ru_dict)
-        
+
         for k, v in flat_en.items():
             assert v.strip() != "", f"Empty string in EN key: {k}"
         for k, v in flat_ru.items():
@@ -304,9 +328,13 @@ class TestTier1BilingualUI:
         content = (I18N_DIR / "translations.ts").read_text(encoding="utf-8")
         ru_dict = _extract_ts_dict(content, "ru")
         flat_ru = _flatten_dict(ru_dict)
-        
-        cyrillic_count = sum(1 for v in flat_ru.values() if re.search(r"[\u0400-\u04FF]", v))
-        assert cyrillic_count > 30, f"Russian dictionary lacks expected Cyrillic entries (found {cyrillic_count})"
+
+        cyrillic_count = sum(
+            1 for v in flat_ru.values() if re.search(r"[\u0400-\u04FF]", v)
+        )
+        assert (
+            cyrillic_count > 30
+        ), f"Russian dictionary lacks expected Cyrillic entries (found {cyrillic_count})"
 
     def test_t1_bilingual_all_components_use_i18n(self) -> None:
         # verify UI components import and use translation hook
@@ -323,7 +351,9 @@ class TestTier1BilingualUI:
             comp_path = UI_SRC_DIR / rel_path
             assert comp_path.exists(), f"Component {rel_path} does not exist"
             code = comp_path.read_text(encoding="utf-8")
-            assert "useTranslation" in code or "i18n" in code, f"Component {rel_path} missing useTranslation hook"
+            assert (
+                "useTranslation" in code or "i18n" in code
+            ), f"Component {rel_path} missing useTranslation hook"
 
     def test_t1_bilingual_no_raw_cyrillic_in_components(self) -> None:
         # verify zero untranslated hardcoded raw cyrillic strings outside i18n files
@@ -336,10 +366,16 @@ class TestTier1BilingualUI:
             for line_no, line in enumerate(lines, 1):
                 stripped = line.strip()
                 # allow comments or settings modal language option labels
-                if stripped.startswith("//") or stripped.startswith("/*") or "Русский" in stripped:
+                if (
+                    stripped.startswith("//")
+                    or stripped.startswith("/*")
+                    or "Русский" in stripped
+                ):
                     continue
                 matches = cyrillic_re.findall(stripped)
-                assert not matches, f"Raw untranslated Cyrillic found in {tsx_path.name}:{line_no} -> {stripped}"
+                assert (
+                    not matches
+                ), f"Raw untranslated Cyrillic found in {tsx_path.name}:{line_no} -> {stripped}"
 
 
 class TestTier1SettingsSwitcher:
@@ -360,9 +396,13 @@ class TestTier1SettingsSwitcher:
     def test_t1_settings_language_onchange_handler(self) -> None:
         # verify onChange handler triggers setLanguage
         code = (COMPONENTS_DIR / "SettingsModal.tsx").read_text(encoding="utf-8")
-        assert re.search(r"onChange=\{e\s*=>\s*setLanguage\(e\.target\.value\s+as\s+Language\)\}", code) or "setLanguage(e.target.value" in code, (
-            "Language select must call setLanguage with selected option"
-        )
+        assert (
+            re.search(
+                r"onChange=\{e\s*=>\s*setLanguage\(e\.target\.value\s+as\s+Language\)\}",
+                code,
+            )
+            or "setLanguage(e.target.value" in code
+        ), "Language select must call setLanguage with selected option"
 
     def test_t1_settings_language_localized_labels(self) -> None:
         # verify labels for language switcher use t() keys
@@ -382,12 +422,17 @@ class TestTier1ReplClear:
     def test_t1_repl_clear_command_recognized(self) -> None:
         # verify REPL processes clear command
         repl_code = (SRC_DIR / "cli" / "repl.py").read_text(encoding="utf-8")
-        assert 'user_input.lower() in ("clear", ":clear", "/clear")' in repl_code or '"clear"' in repl_code.lower()
+        assert (
+            'user_input.lower() in ("clear", ":clear", "/clear")' in repl_code
+            or '"clear"' in repl_code.lower()
+        )
 
     def test_t1_repl_clear_invokes_agent_clear_history(self) -> None:
         # verify REPL calls agent.clear_history()
         repl_code = (SRC_DIR / "cli" / "repl.py").read_text(encoding="utf-8")
-        assert "self._agent.clear_history()" in repl_code, "REPL clear handler must call self._agent.clear_history()"
+        assert (
+            "self._agent.clear_history()" in repl_code
+        ), "REPL clear handler must call self._agent.clear_history()"
 
     def test_t1_repl_clear_preserves_system_prompt(self) -> None:
         # verify ConversationMemory preserves system prompt after clear()
@@ -405,9 +450,9 @@ class TestTier1ReplClear:
     def test_t1_repl_clear_stub_message_removed(self) -> None:
         # verify outdated stub message is removed from repl.py
         repl_code = (SRC_DIR / "cli" / "repl.py").read_text(encoding="utf-8")
-        assert "Conversation clearing not yet implemented" not in repl_code, (
-            "Outdated stub TODO message must be removed from repl.py"
-        )
+        assert (
+            "Conversation clearing not yet implemented" not in repl_code
+        ), "Outdated stub TODO message must be removed from repl.py"
 
     def test_t1_repl_help_documents_clear(self) -> None:
         # verify REPL help prints clear command without (future) tag
@@ -423,6 +468,7 @@ class TestTier1ToolExports:
         assert "ScreenshotTool" in src.tools.__all__
         assert hasattr(src.tools, "ScreenshotTool")
         from src.tools import ScreenshotTool
+
         assert issubclass(ScreenshotTool, BaseTool)
 
     def test_t1_tools_exports_semantic_search(self) -> None:
@@ -430,6 +476,7 @@ class TestTier1ToolExports:
         assert "SemanticSearchTool" in src.tools.__all__
         assert hasattr(src.tools, "SemanticSearchTool")
         from src.tools import SemanticSearchTool
+
         assert issubclass(SemanticSearchTool, BaseTool)
 
     def test_t1_tools_exports_delegate_task(self) -> None:
@@ -437,12 +484,15 @@ class TestTier1ToolExports:
         assert "DelegateTaskTool" in src.tools.__all__
         assert hasattr(src.tools, "DelegateTaskTool")
         from src.tools import DelegateTaskTool
+
         assert issubclass(DelegateTaskTool, BaseTool)
 
     def test_t1_tools_all_symbols_defined(self) -> None:
         # verify every symbol in __all__ is an existing attribute
         for symbol in src.tools.__all__:
-            assert hasattr(src.tools, symbol), f"Export {symbol} is listed in __all__ but missing from src.tools"
+            assert hasattr(
+                src.tools, symbol
+            ), f"Export {symbol} is listed in __all__ but missing from src.tools"
 
     def test_t1_tools_all_classes_subclass_base(self) -> None:
         # verify all tool classes inherit from BaseTool
@@ -450,7 +500,9 @@ class TestTier1ToolExports:
             if symbol in ("BaseTool", "ToolResult"):
                 continue
             cls = getattr(src.tools, symbol)
-            assert isinstance(cls, type) and issubclass(cls, BaseTool), f"{symbol} does not inherit from BaseTool"
+            assert isinstance(cls, type) and issubclass(
+                cls, BaseTool
+            ), f"{symbol} does not inherit from BaseTool"
 
 
 class TestTier1InformalComments:
@@ -460,7 +512,9 @@ class TestTier1InformalComments:
         # verify informal comment in App.tsx
         code = (UI_SRC_DIR / "App.tsx").read_text(encoding="utf-8")
         assert "//" in code
-        assert re.search(r"//\s*[a-z]", code), "App.tsx should contain informal lowercase comments"
+        assert re.search(
+            r"//\s*[a-z]", code
+        ), "App.tsx should contain informal lowercase comments"
 
     def test_t1_informal_comments_in_i18n(self) -> None:
         # verify informal comments in i18n files
@@ -477,18 +531,23 @@ class TestTier1InformalComments:
         # verify informal comment in repl.py
         code = (SRC_DIR / "cli" / "repl.py").read_text(encoding="utf-8")
         assert "#" in code
-        assert re.search(r"#\s*[a-z]", code), "repl.py should contain informal lowercase comments"
+        assert re.search(
+            r"#\s*[a-z]", code
+        ), "repl.py should contain informal lowercase comments"
 
     def test_t1_informal_comments_in_tools_init(self) -> None:
         # verify informal comment in src/tools/__init__.py
         code = (SRC_DIR / "tools" / "__init__.py").read_text(encoding="utf-8")
         assert "#" in code
-        assert re.search(r"#\s*[a-z]", code), "tools/__init__.py should contain informal lowercase comments"
+        assert re.search(
+            r"#\s*[a-z]", code
+        ), "tools/__init__.py should contain informal lowercase comments"
 
 
 # ---------------------------------------------------------------------------
 # Tier 2: Boundary & Corner Cases (>=5 per feature across 7 features = 35 tests)
 # ---------------------------------------------------------------------------
+
 
 class TestTier2InstantSendBoundaries:
     """Feature 1 Boundary & Corner Cases."""
@@ -496,12 +555,16 @@ class TestTier2InstantSendBoundaries:
     def test_t2_instant_send_nonexistent_id_ignored(self) -> None:
         # verify handleInstantSend safely returns when msgId is not found
         app_code = (UI_SRC_DIR / "App.tsx").read_text(encoding="utf-8")
-        func_match = re.search(r"const handleInstantSend = \((.*?)\) => \{(.*?)\n  \};", app_code, re.DOTALL)
+        func_match = re.search(
+            r"const handleInstantSend = \((.*?)\) => \{(.*?)\n  \};",
+            app_code,
+            re.DOTALL,
+        )
         assert func_match is not None
         func_body = func_match.group(2)
-        assert "if (!msg || !ws || !connected) return;" in func_body, (
-            "handleInstantSend must guard against missing message ID"
-        )
+        assert (
+            "if (!msg || !ws || !connected) return;" in func_body
+        ), "handleInstantSend must guard against missing message ID"
 
     def test_t2_instant_send_disconnected_ws_safe(self) -> None:
         # verify handleInstantSend guards against disconnected WebSocket
@@ -511,7 +574,11 @@ class TestTier2InstantSendBoundaries:
     def test_t2_instant_send_hidden_command_filtered(self) -> None:
         # verify hidden command is sent over WS but not added to visible chat messages
         app_code = (UI_SRC_DIR / "App.tsx").read_text(encoding="utf-8")
-        func_match = re.search(r"const handleInstantSend = \((.*?)\) => \{(.*?)\n  \};", app_code, re.DOTALL)
+        func_match = re.search(
+            r"const handleInstantSend = \((.*?)\) => \{(.*?)\n  \};",
+            app_code,
+            re.DOTALL,
+        )
         assert func_match is not None
         func_body = func_match.group(2)
         assert "if (!HIDDEN_COMMANDS.includes(msg.text))" in func_body
@@ -525,7 +592,11 @@ class TestTier2InstantSendBoundaries:
 
     def test_t2_instant_send_middle_item_ordering(self) -> None:
         # simulate queue filter logic when middle item is removed
-        queue = [{"id": "1", "text": "A"}, {"id": "2", "text": "B"}, {"id": "3", "text": "C"}]
+        queue = [
+            {"id": "1", "text": "A"},
+            {"id": "2", "text": "B"},
+            {"id": "3", "text": "C"},
+        ]
         msg_id = "2"
         remaining = [m for m in queue if m["id"] != msg_id]
         assert [m["id"] for m in remaining] == ["1", "3"]
@@ -537,7 +608,11 @@ class TestTier2I18nEngineBoundaries:
     def test_t2_i18n_missing_key_returns_key(self) -> None:
         # verify missing key lookup returns key string itself
         all_code = _get_all_i18n_code()
-        assert "raw = key" in all_code or "raw || key" in all_code or "return key" in all_code
+        assert (
+            "raw = key" in all_code
+            or "raw || key" in all_code
+            or "return key" in all_code
+        )
 
     def test_t2_i18n_ru_missing_key_fallback_to_en(self) -> None:
         # verify fallback to english when target language lacks key
@@ -549,7 +624,13 @@ class TestTier2I18nEngineBoundaries:
         def py_interpolate(text: str, params: dict[str, Any] | None = None) -> str:
             if not params:
                 return text
-            return re.sub(r"\{(\w+)\}", lambda m: str(params[m.group(1)]) if m.group(1) in params else m.group(0), text)
+            return re.sub(
+                r"\{(\w+)\}",
+                lambda m: (
+                    str(params[m.group(1)]) if m.group(1) in params else m.group(0)
+                ),
+                text,
+            )
 
         res = py_interpolate("In Queue ({count}) and {other}", {"count": 5})
         assert res == "In Queue (5) and {other}"
@@ -559,7 +640,13 @@ class TestTier2I18nEngineBoundaries:
         def py_interpolate(text: str, params: dict[str, Any] | None = None) -> str:
             if not params:
                 return text
-            return re.sub(r"\{(\w+)\}", lambda m: str(params[m.group(1)]) if m.group(1) in params else m.group(0), text)
+            return re.sub(
+                r"\{(\w+)\}",
+                lambda m: (
+                    str(params[m.group(1)]) if m.group(1) in params else m.group(0)
+                ),
+                text,
+            )
 
         res = py_interpolate("Count: {count}, Val: {val}", {"count": 0, "val": ""})
         assert res == "Count: 0, Val: "
@@ -567,7 +654,9 @@ class TestTier2I18nEngineBoundaries:
     def test_t2_i18n_corrupt_localstorage_fallback(self) -> None:
         # verify invalid language in localStorage defaults to 'en'
         all_code = _get_all_i18n_code()
-        assert "saved === 'en' || saved === 'ru'" in all_code or "return 'en'" in all_code
+        assert (
+            "saved === 'en' || saved === 'ru'" in all_code or "return 'en'" in all_code
+        )
 
 
 class TestTier2BilingualUIBoundaries:
@@ -578,42 +667,52 @@ class TestTier2BilingualUIBoundaries:
         content = (I18N_DIR / "translations.ts").read_text(encoding="utf-8")
         en_dict = _extract_ts_dict(content, "en")
         ru_dict = _extract_ts_dict(content, "ru")
-        
+
         flat_en = _flatten_dict(en_dict)
         flat_ru = _flatten_dict(ru_dict)
-        
-        assert "settings.appearance.themeDark" in flat_en or "settings.theme_dark" in flat_en
-        assert "settings.appearance.themeDark" in flat_ru or "settings.theme_dark" in flat_ru
+
+        assert (
+            "settings.appearance.themeDark" in flat_en
+            or "settings.theme_dark" in flat_en
+        )
+        assert (
+            "settings.appearance.themeDark" in flat_ru
+            or "settings.theme_dark" in flat_ru
+        )
 
     def test_t2_bilingual_total_key_count_at_least_62(self) -> None:
         # verify total unique translation keys is at least 62
         content = (I18N_DIR / "translations.ts").read_text(encoding="utf-8")
         en_dict = _extract_ts_dict(content, "en")
         flat_en = _flatten_dict(en_dict)
-        assert len(flat_en) >= 62, f"Expected at least 62 translation keys, found {len(flat_en)}"
+        assert (
+            len(flat_en) >= 62
+        ), f"Expected at least 62 translation keys, found {len(flat_en)}"
 
     def test_t2_bilingual_all_jsx_calls_valid(self) -> None:
         # verify t('...') calls in JSX files exist in dictionary
         content = (I18N_DIR / "translations.ts").read_text(encoding="utf-8")
         en_dict = _extract_ts_dict(content, "en")
         flat_en = _flatten_dict(en_dict)
-        
+
         t_call_re = re.compile(r"t\(\s*['\"]([a-zA-Z0-9_.]+)['\"]")
         for tsx_path in UI_SRC_DIR.glob("**/*.tsx"):
             code = tsx_path.read_text(encoding="utf-8")
             calls = t_call_re.findall(code)
             for call_key in calls:
                 if "." in call_key:
-                    assert call_key in flat_en or any(k.startswith(call_key) for k in flat_en), (
-                        f"Key '{call_key}' used in {tsx_path.name} not found in translations"
-                    )
+                    assert call_key in flat_en or any(
+                        k.startswith(call_key) for k in flat_en
+                    ), f"Key '{call_key}' used in {tsx_path.name} not found in translations"
 
     def test_t2_bilingual_russian_grammar_and_punctuation(self) -> None:
         # verify russian dictionary retains symbols like emoji, punctuation
         content = (I18N_DIR / "translations.ts").read_text(encoding="utf-8")
         ru_dict = _extract_ts_dict(content, "ru")
         flat_ru = _flatten_dict(ru_dict)
-        assert any("..." in v for v in flat_ru.values()) # verify punctuation is retained
+        assert any(
+            "..." in v for v in flat_ru.values()
+        )  # verify punctuation is retained
 
     def test_t2_bilingual_no_untranslated_placeholders(self) -> None:
         # verify parameter tokens like {count} match exactly between en and ru
@@ -622,12 +721,14 @@ class TestTier2BilingualUIBoundaries:
         ru_dict = _extract_ts_dict(content, "ru")
         flat_en = _flatten_dict(en_dict)
         flat_ru = _flatten_dict(ru_dict)
-        
+
         param_re = re.compile(r"\{(\w+)\}")
         for k in flat_en:
             en_params = set(param_re.findall(flat_en[k]))
             ru_params = set(param_re.findall(flat_ru[k]))
-            assert en_params == ru_params, f"Parameter token mismatch in key {k}: {en_params} vs {ru_params}"
+            assert (
+                en_params == ru_params
+            ), f"Parameter token mismatch in key {k}: {en_params} vs {ru_params}"
 
 
 class TestTier2SettingsSwitcherBoundaries:
@@ -693,7 +794,13 @@ class TestTier2ReplClearBoundaries:
         mem.add_user_message("run tool")
         mem.add_assistant_message(
             content="",
-            tool_calls=[{"id": "c1", "type": "function", "function": {"name": "read_file", "arguments": "{}"}}]
+            tool_calls=[
+                {
+                    "id": "c1",
+                    "type": "function",
+                    "function": {"name": "read_file", "arguments": "{}"},
+                }
+            ],
         )
         mem.add_tool_result("c1", "file contents")
         mem.add_assistant_message("done")
@@ -706,7 +813,9 @@ class TestTier2ReplClearBoundaries:
         # verify on-disk file is cleared if save_dir is configured
         chat_dir = tmp_path / "chats"
         chat_dir.mkdir()
-        mem = ConversationMemory(system_prompt="sys", save_dir=chat_dir, chat_id="test_chat")
+        mem = ConversationMemory(
+            system_prompt="sys", save_dir=chat_dir, chat_id="test_chat"
+        )
         mem.add_user_message("persisted message")
         assert (chat_dir / "test_chat.json").exists()
         mem.clear()
@@ -720,7 +829,9 @@ class TestTier2ToolExportsBoundaries:
 
     def test_t2_tools_wildcard_import_count(self) -> None:
         # verify exactly 16 symbols in __all__
-        assert len(src.tools.__all__) == 16, f"Expected 16 exports in src.tools.__all__, got {len(src.tools.__all__)}"
+        assert (
+            len(src.tools.__all__) == 16
+        ), f"Expected 16 exports in src.tools.__all__, got {len(src.tools.__all__)}"
 
     def test_t2_tools_no_duplicate_exports(self) -> None:
         # verify no duplicates in __all__
@@ -729,8 +840,13 @@ class TestTier2ToolExportsBoundaries:
     def test_t2_tools_parameter_schemas_valid_json(self) -> None:
         # verify parameter schemas produce valid JSON Schema dictionaries
         from src.tools import DelegateTaskTool, ScreenshotTool, SemanticSearchTool
+
         for tool_cls in (ScreenshotTool, SemanticSearchTool, DelegateTaskTool):
-            tool_instance = tool_cls(app=MagicMock(), registry=ToolRegistry()) if tool_cls is DelegateTaskTool else tool_cls()
+            tool_instance = (
+                tool_cls(app=MagicMock(), registry=ToolRegistry())
+                if tool_cls is DelegateTaskTool
+                else tool_cls()
+            )
             schema = tool_instance.parameters_schema
             assert isinstance(schema, dict)
             assert schema.get("type") == "object"
@@ -744,6 +860,7 @@ class TestTier2ToolExportsBoundaries:
             SemanticSearchTool,
             TimeTool,
         )
+
         t1 = TimeTool()
         assert t1.name == "get_current_time"
         t2 = SemanticSearchTool()
@@ -756,12 +873,17 @@ class TestTier2ToolExportsBoundaries:
     def test_t2_tools_registry_registration(self) -> None:
         # verify tool registry accepts all exported tools
         from src.tools import DelegateTaskTool
+
         registry = ToolRegistry()
         for symbol in src.tools.__all__:
             if symbol in ("BaseTool", "ToolResult"):
                 continue
             tool_cls = getattr(src.tools, symbol)
-            instance = tool_cls(app=MagicMock(), registry=registry) if tool_cls is DelegateTaskTool else tool_cls()
+            instance = (
+                tool_cls(app=MagicMock(), registry=registry)
+                if tool_cls is DelegateTaskTool
+                else tool_cls()
+            )
             registry.register(instance)
         assert len(registry.list_tools()) == 14
 
@@ -784,11 +906,20 @@ class TestTier2InformalCommentsBoundaries:
         app_code = (UI_SRC_DIR / "App.tsx").read_text(encoding="utf-8")
         repl_code = (SRC_DIR / "cli" / "repl.py").read_text(encoding="utf-8")
         i18n_code = _get_all_i18n_code()
-        
+
         all_text = app_code + repl_code + i18n_code
-        casual_patterns = [r"//\s*instant", r"//\s*pop", r"//\s*send", r"#\s*reset", r"//\s*handy", r"//\s*grab"]
+        casual_patterns = [
+            r"//\s*instant",
+            r"//\s*pop",
+            r"//\s*send",
+            r"#\s*reset",
+            r"//\s*handy",
+            r"//\s*grab",
+        ]
         matches = [p for p in casual_patterns if re.search(p, all_text)]
-        assert len(matches) >= 3, f"Expected casual comments across codebase, matched: {matches}"
+        assert (
+            len(matches) >= 3
+        ), f"Expected casual comments across codebase, matched: {matches}"
 
     def test_t2_comments_multiline_and_singleline(self) -> None:
         # verify both single line and inline comments exist
@@ -806,6 +937,7 @@ class TestTier2InformalCommentsBoundaries:
 # Tier 3: Pairwise Feature Combinations (>=6 pairwise interaction tests)
 # ---------------------------------------------------------------------------
 
+
 class TestTier3PairwiseInteractions:
     """Tier 3: Pairwise Feature Interactions."""
 
@@ -814,25 +946,40 @@ class TestTier3PairwiseInteractions:
         content = (I18N_DIR / "translations.ts").read_text(encoding="utf-8")
         ru_dict = _extract_ts_dict(content, "ru")
         flat_ru = _flatten_dict(ru_dict)
-        
+
         # verify Russian translations for queue header and send immediately tooltip
-        assert flat_ru.get("chat.inQueue") == "В очереди ({count})" or flat_ru.get("chat.queue_header") == "В очереди ({count})"
-        assert flat_ru.get("chat.sendImmediately") == "Отправить немедленно" or flat_ru.get("chat.send_immediately") == "Отправить немедленно"
+        assert (
+            flat_ru.get("chat.inQueue") == "В очереди ({count})"
+            or flat_ru.get("chat.queue_header") == "В очереди ({count})"
+        )
+        assert (
+            flat_ru.get("chat.sendImmediately") == "Отправить немедленно"
+            or flat_ru.get("chat.send_immediately") == "Отправить немедленно"
+        )
 
     def test_t3_pairwise_instant_send_with_tool_dispatch(self) -> None:
         # Pair 2: F1 (Instant Send) x F6 (Tool Exports)
         try:
             from src.api.server import create_app
+
             app = create_app()
             client = TestClient(app)
             with client.websocket_connect("/ws/chat") as ws:
                 _ = ws.receive_json()
                 _ = ws.receive_json()
                 _ = ws.receive_json()
-                ws.send_json({"type": "message", "content": "What is the current time?"})
+                ws.send_json(
+                    {"type": "message", "content": "What is the current time?"}
+                )
                 resp = ws.receive_json()
                 # chat_history or status or chunk or complete or tool_start is valid
-                assert resp.get("type") in ("chat_history", "status", "stream_chunk", "complete", "tool_start")
+                assert resp.get("type") in (
+                    "chat_history",
+                    "status",
+                    "stream_chunk",
+                    "complete",
+                    "tool_start",
+                )
         except SyntaxError as e:
             pytest.fail(f"Implementation bug in src/api/server.py: {e}")
 
@@ -841,12 +988,12 @@ class TestTier3PairwiseInteractions:
         app = FridayApplication()
         app.initialize()
         repl = FridayREPL(app)
-        
+
         # simulate prompt handling in agent memory
         repl._agent.memory.add_user_message("test task")
         repl._agent.memory.add_assistant_message("result")
         assert len(repl._agent.memory) == 2
-        
+
         # simulate clear
         repl._agent.clear_history()
         assert len(repl._agent.memory) == 0
@@ -854,8 +1001,10 @@ class TestTier3PairwiseInteractions:
     def test_t3_pairwise_settings_language_and_persistence(self) -> None:
         # Pair 4: F2 (i18n Context) x F4 (Settings Switcher)
         all_code = _get_all_i18n_code()
-        settings_code = (COMPONENTS_DIR / "SettingsModal.tsx").read_text(encoding="utf-8")
-        
+        settings_code = (COMPONENTS_DIR / "SettingsModal.tsx").read_text(
+            encoding="utf-8"
+        )
+
         assert "friday_language" in all_code
         assert "setLanguage" in settings_code
 
@@ -864,14 +1013,14 @@ class TestTier3PairwiseInteractions:
         app = FridayApplication()
         app.initialize()
         repl = FridayREPL(app)
-        
+
         # tools registered before clear
         initial_tools_count = len(repl._registry.list_tools())
         assert initial_tools_count >= 12
-        
+
         # clear history
         repl._agent.clear_history()
-        
+
         # tools intact after clear
         assert len(repl._registry.list_tools()) == initial_tools_count
 
@@ -879,13 +1028,14 @@ class TestTier3PairwiseInteractions:
         # Pair 6: F1 (Instant Send) x F5 (Clear Command via WebSocket)
         try:
             from src.api.server import create_app
+
             app = create_app()
             client = TestClient(app)
             with client.websocket_connect("/ws/chat") as ws:
                 _ = ws.receive_json()
                 _ = ws.receive_json()
                 _ = ws.receive_json()
-                
+
                 # send /clear
                 ws.send_json({"type": "message", "content": "/clear"})
                 resp = ws.receive_json()
@@ -904,6 +1054,7 @@ class TestTier3PairwiseInteractions:
 # Tier 4: Real-World Application Workloads (>=5 full scenario tests)
 # ---------------------------------------------------------------------------
 
+
 class TestTier4RealWorldScenarios:
     """Tier 4: Realistic Application Workloads."""
 
@@ -914,12 +1065,12 @@ class TestTier4RealWorldScenarios:
             {"id": "task-2", "text": "Check current time"},
             {"id": "task-3", "text": "Find README"},
         ]
-        
+
         # user clicks instant-send on task-2
         instant_id = "task-2"
         target_msg = next(m for m in queue if m["id"] == instant_id)
         queue = [m for m in queue if m["id"] != instant_id]
-        
+
         # verify target_msg is dispatched and queue preserves remaining order
         assert target_msg["text"] == "Check current time"
         assert [m["id"] for m in queue] == ["task-1", "task-3"]
@@ -929,16 +1080,22 @@ class TestTier4RealWorldScenarios:
         content = (I18N_DIR / "translations.ts").read_text(encoding="utf-8")
         en_dict = _extract_ts_dict(content, "en")
         ru_dict = _extract_ts_dict(content, "ru")
-        
+
         flat_en = _flatten_dict(en_dict)
         flat_ru = _flatten_dict(ru_dict)
-        
+
         # 1. verify initial English texts
-        assert flat_en["chat.emptyStateConnected"] == "How can I help you today?" or flat_en["chat.empty_connected"] == "How can I help you today?"
+        assert (
+            flat_en["chat.emptyStateConnected"] == "How can I help you today?"
+            or flat_en["chat.empty_connected"] == "How can I help you today?"
+        )
         assert flat_en["sidebar.chats"] == "Chats"
-        
+
         # 2. verify Russian translations
-        assert flat_ru["chat.emptyStateConnected"] == "Чем я могу помочь вам сегодня?" or flat_ru["chat.empty_connected"] == "Чем я могу помочь вам сегодня?"
+        assert (
+            flat_ru["chat.emptyStateConnected"] == "Чем я могу помочь вам сегодня?"
+            or flat_ru["chat.empty_connected"] == "Чем я могу помочь вам сегодня?"
+        )
         assert flat_ru["sidebar.chats"] == "Чаты"
 
     def test_t4_scenario_3_multi_turn_repl_chat_and_clear(self) -> None:
@@ -946,22 +1103,28 @@ class TestTier4RealWorldScenarios:
         app = FridayApplication()
         app.initialize()
         repl = FridayREPL(app)
-        
+
         # turn 1: user greeting
         repl._agent.memory.add_user_message("Hello")
         repl._agent.memory.add_assistant_message("Hi! How can I help you?")
-        
+
         # turn 2: tool invocation
         repl._agent.memory.add_user_message("What time is it?")
         repl._agent.memory.add_assistant_message(
             content="",
-            tool_calls=[{"id": "t1", "type": "function", "function": {"name": "get_current_time", "arguments": "{}"}}]
+            tool_calls=[
+                {
+                    "id": "t1",
+                    "type": "function",
+                    "function": {"name": "get_current_time", "arguments": "{}"},
+                }
+            ],
         )
         repl._agent.memory.add_tool_result("t1", "12:00:00")
         repl._agent.memory.add_assistant_message("The time is 12:00:00")
-        
+
         assert len(repl._agent.memory) == 6
-        
+
         # clear conversation
         repl._agent.clear_history()
         assert len(repl._agent.memory) == 0
@@ -976,6 +1139,7 @@ class TestTier4RealWorldScenarios:
             SemanticSearchTool,
             ShellCommandTool,
         )
+
         tools = [
             ScreenshotTool(),
             SemanticSearchTool(),
@@ -992,23 +1156,29 @@ class TestTier4RealWorldScenarios:
         # Scenario 5: Full E2E User Flow with FastAPI backend
         try:
             from src.api.server import create_app
+
             app = create_app()
             client = TestClient(app)
-            
+
             # 1. verify health endpoint
             res = client.get("/health")
             assert res.status_code == 200
-            
+
             # 2. connect websocket and send instant message
             with client.websocket_connect("/ws/chat") as ws:
                 _ = ws.receive_json()
                 _ = ws.receive_json()
                 _ = ws.receive_json()
-                
+
                 ws.send_json({"type": "message", "content": "Hello Friday"})
                 resp = ws.receive_json()
                 # chat_history or status or chunk or complete is fine
-                assert resp.get("type") in ("chat_history", "status", "stream_chunk", "complete")
+                assert resp.get("type") in (
+                    "chat_history",
+                    "status",
+                    "stream_chunk",
+                    "complete",
+                )
         except SyntaxError as e:
             pytest.fail(f"Implementation bug in src/api/server.py: {e}")
 
@@ -1017,6 +1187,7 @@ class TestTier4RealWorldScenarios:
 # Tier 5: Adversarial & Stress Testing (>=5 stress tests)
 # ---------------------------------------------------------------------------
 
+
 class TestTier5AdversarialStress:
     """Tier 5: White-Box Adversarial & Stress Tests."""
 
@@ -1024,17 +1195,18 @@ class TestTier5AdversarialStress:
         # Stress 1: Rapid burst of instant send messages over WebSocket
         try:
             from src.api.server import create_app
+
             app = create_app()
             client = TestClient(app)
             with client.websocket_connect("/ws/chat") as ws:
                 _ = ws.receive_json()
                 _ = ws.receive_json()
                 _ = ws.receive_json()
-                
+
                 # send 5 rapid messages
                 for i in range(5):
                     ws.send_json({"type": "message", "content": f"rapid ping {i}"})
-                
+
                 # verify server receives and responds without crashing
                 resp = ws.receive_json()
                 assert resp is not None
@@ -1045,7 +1217,7 @@ class TestTier5AdversarialStress:
         # Stress 2: Missing keys, invalid paths, and special regex characters
         content = (I18N_DIR / "translations.ts").read_text(encoding="utf-8")
         en_dict = _extract_ts_dict(content, "en")
-        
+
         def py_get_nested(obj: Any, path: str) -> str | None:
             if not obj or not isinstance(obj, dict):
                 return None
@@ -1059,7 +1231,10 @@ class TestTier5AdversarialStress:
             return curr if isinstance(curr, str) else None
 
         assert py_get_nested(en_dict, "non.existent.path") is None
-        assert py_get_nested(en_dict, "chat.showSystemOutput") == "Show system output" or py_get_nested(en_dict, "chat.show_system_output") == "Show system output"
+        assert (
+            py_get_nested(en_dict, "chat.showSystemOutput") == "Show system output"
+            or py_get_nested(en_dict, "chat.show_system_output") == "Show system output"
+        )
 
     def test_t5_stress_repl_clear_under_rapid_input_stream(self) -> None:
         # Stress 3: Multiple rapid clear operations
@@ -1073,14 +1248,19 @@ class TestTier5AdversarialStress:
     def test_t5_stress_tool_registry_concurrency(self) -> None:
         # Stress 4: Rapid tool registration and retrieval
         from src.tools import DelegateTaskTool
+
         registry = ToolRegistry()
         for symbol in src.tools.__all__:
             if symbol in ("BaseTool", "ToolResult"):
                 continue
             cls = getattr(src.tools, symbol)
-            instance = cls(app=MagicMock(), registry=registry) if cls is DelegateTaskTool else cls()
+            instance = (
+                cls(app=MagicMock(), registry=registry)
+                if cls is DelegateTaskTool
+                else cls()
+            )
             registry.register(instance)
-        
+
         for _ in range(50):
             tools = registry.list_tools()
             assert len(tools) == 14
@@ -1089,7 +1269,21 @@ class TestTier5AdversarialStress:
         # Stress 5: Verify npm run lint (oxlint) and npm run build (tsc + vite) succeed
         npm_cmd = shutil.which("npm.cmd") or shutil.which("npm")
         if npm_cmd:
-            lint_res = subprocess.run([npm_cmd, "run", "lint"], cwd=str(UI_SRC_DIR.parent), capture_output=True, text=True)
-            assert lint_res.returncode == 0, f"npm run lint failed: {lint_res.stderr} {lint_res.stdout}"
-            build_res = subprocess.run([npm_cmd, "run", "build"], cwd=str(UI_SRC_DIR.parent), capture_output=True, text=True)
-            assert build_res.returncode == 0, f"npm run build failed: {build_res.stderr} {build_res.stdout}"
+            lint_res = subprocess.run(
+                [npm_cmd, "run", "lint"],
+                cwd=str(UI_SRC_DIR.parent),
+                capture_output=True,
+                text=True,
+            )
+            assert (
+                lint_res.returncode == 0
+            ), f"npm run lint failed: {lint_res.stderr} {lint_res.stdout}"
+            build_res = subprocess.run(
+                [npm_cmd, "run", "build"],
+                cwd=str(UI_SRC_DIR.parent),
+                capture_output=True,
+                text=True,
+            )
+            assert (
+                build_res.returncode == 0
+            ), f"npm run build failed: {build_res.stderr} {build_res.stdout}"

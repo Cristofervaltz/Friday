@@ -81,10 +81,7 @@ class WakeWordDetector:
             try:
                 devices = sd.query_devices()
                 device_iter = devices if not isinstance(devices, dict) else [devices]
-                has_input = any(
-                    d.get("max_input_channels", 0) > 0
-                    for d in device_iter
-                )
+                has_input = any(d.get("max_input_channels", 0) > 0 for d in device_iter)
                 if not has_input:
                     safe_print("No microphone found. Wake word detection disabled.")
                     self.running = False
@@ -125,12 +122,8 @@ class WakeWordDetector:
                     if w in text:
                         now = time.monotonic()
                         if now - self._last_triggered >= self._cooldown:
-                            prefix = (
-                                "(partial)" if is_partial else "full result"
-                            )
-                            safe_print(
-                                f"Wake word detected in {prefix}: {text}"
-                            )
+                            prefix = "(partial)" if is_partial else "full result"
+                            safe_print(f"Wake word detected in {prefix}: {text}")
                             self._last_triggered = now
                             if self._callback:
                                 self._callback()

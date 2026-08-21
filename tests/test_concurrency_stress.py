@@ -139,15 +139,15 @@ def test_permission_lock_serialization_and_correctness() -> None:
     server.server_loop = None
 
     # assertions: lock must ensure only 1 request in flight at any time
-    assert max_concurrent_in_flight == 1, (
-        f"Expected max 1 in-flight permission request, got {max_concurrent_in_flight}"
-    )
+    assert (
+        max_concurrent_in_flight == 1
+    ), f"Expected max 1 in-flight permission request, got {max_concurrent_in_flight}"
     assert len(results) == num_threads
     for idx, res in results.items():
         expected = (idx % 2) == 0
-        assert res == expected, (
-            f"Thread {idx} got permission={res}, expected {expected}"
-        )
+        assert (
+            res == expected
+        ), f"Thread {idx} got permission={res}, expected {expected}"
 
 
 def test_permission_timeout_safety() -> None:
@@ -173,9 +173,7 @@ def test_permission_timeout_safety() -> None:
         server.permission_event.clear()
         asyncio.run_coroutine_threadsafe(
             mock_ws.send_text(
-                json.dumps(
-                    {"type": "permission_request", "action": "dangerous_action"}
-                )
+                json.dumps({"type": "permission_request", "action": "dangerous_action"})
             ),
             loop,
         )
@@ -382,20 +380,16 @@ def test_swarm_concurrent_background_subagents(tmp_path: Any) -> None:
             for m in msgs
             if "finished its background task!" in str(m.get("content", ""))
         ]
-        assert len(injected) == num_subagents, (
-            f"Expected {num_subagents} injected results, got {len(injected)}"
-        )
+        assert (
+            len(injected) == num_subagents
+        ), f"Expected {num_subagents} injected results, got {len(injected)}"
 
         # verify all temporary sub-agent chats were cleaned up
         remaining_chats = parent_memory.get_all_chats()
         sub_chats = [
-            c
-            for c in remaining_chats
-            if str(c.get("id", "")).startswith("sub_")
+            c for c in remaining_chats if str(c.get("id", "")).startswith("sub_")
         ]
-        assert len(sub_chats) == 0, (
-            f"Expected 0 leftover sub_ chats, found {sub_chats}"
-        )
+        assert len(sub_chats) == 0, f"Expected 0 leftover sub_ chats, found {sub_chats}"
 
 
 def test_swarm_subagent_error_resilience_under_concurrency(
@@ -427,9 +421,7 @@ def test_swarm_subagent_error_resilience_under_concurrency(
     with patch("src.tools.swarm_tool.Agent.run", new=fake_failing_run):
         for i in range(num_tasks):
             task_str = f"task_{i}_fail" if i % 2 == 1 else f"task_{i}_ok"
-            tool.execute(
-                role=f"worker_{i}", task=task_str, run_in_background=True
-            )
+            tool.execute(role=f"worker_{i}", task=task_str, run_in_background=True)
 
         # wait for completion
         deadline = time.time() + 5.0
@@ -455,9 +447,7 @@ def test_swarm_subagent_error_resilience_under_concurrency(
 
         # ensure no orphaned sub-agent chats remain
         all_chats = parent_memory.get_all_chats()
-        sub_chats = [
-            c for c in all_chats if str(c.get("id", "")).startswith("sub_")
-        ]
+        sub_chats = [c for c in all_chats if str(c.get("id", "")).startswith("sub_")]
         assert len(sub_chats) == 0
 
 
@@ -518,8 +508,7 @@ def test_concurrent_chat_mutations_switch_rename_delete(tmp_path: Any) -> None:
                 exceptions.append(e)
 
     threads = [
-        threading.Thread(target=worker_mutator, args=(i,))
-        for i in range(num_workers)
+        threading.Thread(target=worker_mutator, args=(i,)) for i in range(num_workers)
     ]
     for t in threads:
         t.start()
@@ -566,7 +555,10 @@ def test_nested_swarm_delegation_concurrency(tmp_path: Any) -> None:
         )
 
         assert res.success is True
-        assert "level_1 finished with nested: (Sub-agent 'level_2_worker' done. Response:\nlevel_2 finished task: level_2_task)" in str(res.output)
+        assert (
+            "level_1 finished with nested: (Sub-agent 'level_2_worker' done. Response:\nlevel_2 finished task: level_2_task)"
+            in str(res.output)
+        )
 
         # verify all sub_ chats deleted
         chats = parent_memory.get_all_chats()

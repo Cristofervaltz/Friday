@@ -473,7 +473,9 @@ class OpenAIProvider(BaseLLMProvider):
                             for k, v in fn.items():
                                 if k not in ["name", "arguments"]:
                                     if isinstance(v, str):
-                                        tool_calls[idx]["function"][k] = tool_calls[idx]["function"].get(k, "") + v
+                                        tool_calls[idx]["function"][k] = (
+                                            tool_calls[idx]["function"].get(k, "") + v
+                                        )
                                     else:
                                         tool_calls[idx]["function"][k] = v
 
@@ -574,12 +576,12 @@ class OpenAIProvider(BaseLLMProvider):
                     "name": name,
                     "arguments": arguments,
                 }
-                
+
                 # Preserve extra fields from function (e.g. thought_signature)
                 for k, v in function.items():
                     if k not in ["name", "arguments"]:
                         tc_data[k] = v
-                        
+
                 # Preserve extra fields from tc
                 for k, v in tc.items():
                     if k not in ["id", "type", "function", "name", "arguments"]:
@@ -627,11 +629,11 @@ class OpenAIProvider(BaseLLMProvider):
         parsed_url = urlparse(normalized_base_url)
         if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
             raise ConfigurationError("OpenAIProvider base_url must be a valid URL.")
-        
+
         # Auto-correct missing /v1 for local/custom servers if the path is completely empty
         if parsed_url.path == "":
             normalized_base_url = f"{normalized_base_url}/v1"
-            
+
         return normalized_base_url
 
     @staticmethod

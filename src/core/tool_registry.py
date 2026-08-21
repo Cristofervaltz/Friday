@@ -140,4 +140,3 @@ class ToolRegistry:
                     tool.shutdown()
                 except Exception:
                     pass
-

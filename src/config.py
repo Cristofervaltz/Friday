@@ -63,7 +63,13 @@ class PathsConfig:
 
     def ensure_directories(self) -> None:
         """Create runtime directories required by the current configuration."""
-        for directory in (self.app_home, self.logs_dir, self.data_dir, self.state_dir, self.app_home / "skills"):
+        for directory in (
+            self.app_home,
+            self.logs_dir,
+            self.data_dir,
+            self.state_dir,
+            self.app_home / "skills",
+        ):
             directory.mkdir(parents=True, exist_ok=True)
 
 
@@ -165,12 +171,14 @@ class AppConfig:
         )
 
         provider = get_val("llm_provider", "FRIDAY_LLM_PROVIDER", "openai")
-        
+
         api_key = get_val(f"{provider}_api_key", f"FRIDAY_{provider.upper()}_API_KEY")
         if not api_key:
             api_key = get_val("llm_api_key", "FRIDAY_LLM_API_KEY")
-            
-        base_url = get_val(f"{provider}_base_url", f"FRIDAY_{provider.upper()}_BASE_URL")
+
+        base_url = get_val(
+            f"{provider}_base_url", f"FRIDAY_{provider.upper()}_BASE_URL"
+        )
         if not base_url:
             base_url = get_val("llm_base_url", "FRIDAY_LLM_BASE_URL")
 

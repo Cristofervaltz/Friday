@@ -63,7 +63,10 @@ def safe_send_ws(
         try:
             curr_state = getattr(ws, "client_state", None)
             if curr_state is not None and hasattr(curr_state, "name"):
-                if WebSocketState is not None and curr_state != WebSocketState.CONNECTED:
+                if (
+                    WebSocketState is not None
+                    and curr_state != WebSocketState.CONNECTED
+                ):
                     return
             await ws.send_text(json.dumps(payload))
         except Exception:
@@ -73,7 +76,6 @@ def safe_send_ws(
         asyncio.run_coroutine_threadsafe(_send(), loop)
     except Exception:
         pass
-
 
 
 def _handle_voice_for_ws(
@@ -505,6 +507,7 @@ def create_app() -> "FastAPI":
                         )
 
                 elif payload.get("type") == "get_workspaces":
+
                     def _read_workspaces() -> list[str]:
                         ws_file = friday_app.config.paths.data_dir / "workspaces.json"
                         if ws_file.exists():
@@ -709,19 +712,27 @@ def create_app() -> "FastAPI":
                             )
                         )
 
-                elif payload.get("type") in ["message", "edit_message", "regenerate_message"]:
+                elif payload.get("type") in [
+                    "message",
+                    "edit_message",
+                    "regenerate_message",
+                ]:
                     msg_type = payload.get("type")
                     user_text = payload.get("content", "")
                     target_chat_id = friday_repl._agent.memory.chat_id
-                    
+
                     if msg_type == "edit_message":
                         msg_id = payload.get("message_id")
                         if msg_id:
-                            friday_repl._agent.memory.truncate_messages(msg_id, inclusive=False)
+                            friday_repl._agent.memory.truncate_messages(
+                                msg_id, inclusive=False
+                            )
                     elif msg_type == "regenerate_message":
                         msg_id = payload.get("message_id")
                         if msg_id:
-                            friday_repl._agent.memory.truncate_messages(msg_id, inclusive=False)
+                            friday_repl._agent.memory.truncate_messages(
+                                msg_id, inclusive=False
+                            )
                             user_text = None  # Use None so agent.run() doesn't add an empty message
 
                     def run_friday(
@@ -734,15 +745,24 @@ def create_app() -> "FastAPI":
                                 if friday_repl._agent.memory.chat_id == chat_id:
                                     friday_repl._agent.memory.clear()
                                 else:
-                                    from src.memory.conversation import ConversationMemory
+                                    from src.memory.conversation import (
+                                        ConversationMemory,
+                                    )
+
                                     temp_mem = ConversationMemory(
                                         chat_id=chat_id,
-                                        save_dir=(friday_app.config.paths.data_dir / "chats" if friday_app.config else None),
+                                        save_dir=(
+                                            friday_app.config.paths.data_dir / "chats"
+                                            if friday_app.config
+                                            else None
+                                        ),
                                     )
                                     temp_mem.clear()
                             else:
                                 is_goal_mode = False
-                                if msg_text and msg_text.strip().startswith("/grill-me"):
+                                if msg_text and msg_text.strip().startswith(
+                                    "/grill-me"
+                                ):
                                     msg_text = msg_text.replace("/grill-me", "").strip()
                                     if not msg_text:
                                         msg_text = "I have a new project or idea."
@@ -751,22 +771,33 @@ def create_app() -> "FastAPI":
                                     msg_text = msg_text.replace("/goal", "").strip()
                                     msg_text += "\n\n[SYSTEM]: The user has invoked the /goal command. You are now in autonomous mode. You must work continuously, executing tools and taking steps to completely finish the requested goal. Do not stop until the final objective is fully achieved."
                                     is_goal_mode = True
-                                elif msg_text and msg_text.strip().startswith("/schedule"):
+                                elif msg_text and msg_text.strip().startswith(
+                                    "/schedule"
+                                ):
                                     msg_text = msg_text.replace("/schedule", "").strip()
                                     msg_text += "\n\n[SYSTEM]: The user has invoked the /schedule command. Acknowledge their request and inform them that this feature (cron-based background task execution) is recognized and you will monitor this task as requested."
-                                elif msg_text and msg_text.strip().startswith("/swarms"):
+                                elif msg_text and msg_text.strip().startswith(
+                                    "/swarms"
+                                ):
                                     msg_text = msg_text.replace("/swarms", "").strip()
                                     msg_text += "\n\n[SYSTEM]: The user has invoked the /swarms command. You must use the `delegate_task` tool to spawn multi-agent fields and distribute the work among specialized sub-agents. Delegate sub-tasks to agents like 'Coder', 'Researcher', etc. and aggregate their results."
                                 elif msg_text and msg_text.strip().startswith("/"):
                                     parts = msg_text.strip().split(" ", 1)
                                     cmd_name = parts[0][1:]
-                                    skills_dir = friday_app.config.paths.app_home / "skills"
+                                    skills_dir = (
+                                        friday_app.config.paths.app_home / "skills"
+                                    )
                                     skill_path = skills_dir / f"{cmd_name}.md"
                                     if skill_path.exists():
-                                        skill_content = skill_path.read_text(encoding="utf-8")
+                                        skill_content = skill_path.read_text(
+                                            encoding="utf-8"
+                                        )
                                         rest_text = parts[1] if len(parts) > 1 else ""
-                                        msg_text = rest_text + f"\n\n[SYSTEM SKILL INSTRUCTION - {cmd_name}]:\n{skill_content}"
-                                        
+                                        msg_text = (
+                                            rest_text
+                                            + f"\n\n[SYSTEM SKILL INSTRUCTION - {cmd_name}]:\n{skill_content}"
+                                        )
+
                                 import copy
 
                                 from src.core.agent import Agent
@@ -860,16 +891,20 @@ def create_app() -> "FastAPI":
                                 local_registry.execute = local_registry_execute  # type: ignore[method-assign]
 
                                 agent_cancel_event.clear()
-                                max_iters = (friday_app.config.llm.max_iterations if friday_app.config else 10)
+                                max_iters = (
+                                    friday_app.config.llm.max_iterations
+                                    if friday_app.config
+                                    else 10
+                                )
                                 if is_goal_mode:
-                                    max_iters = 200 # Allow long-running goals
-                                    
+                                    max_iters = 200  # Allow long-running goals
+
                                 local_agent = Agent(
                                     llm_provider=friday_app.provider,
                                     tool_registry=local_registry,
                                     memory=local_memory,
                                     max_iterations=max_iters,
-                                    cancel_event=agent_cancel_event
+                                    cancel_event=agent_cancel_event,
                                 )
                                 local_agent.run(msg_text)
 
@@ -999,9 +1034,7 @@ def create_app() -> "FastAPI":
                                     chat,
                                 )
                             else:
-                                await asyncio.to_thread(
-                                    run_friday, text, chat
-                                )
+                                await asyncio.to_thread(run_friday, text, chat)
                         except asyncio.CancelledError:
                             logger.info("Agent execution task cancelled")
                         except Exception as exc:

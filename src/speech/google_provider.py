@@ -48,17 +48,17 @@ class GoogleSpeechProvider(BaseSpeechProvider):
                 self.recognizer.adjust_for_ambient_noise(source, duration=1.0)
 
                 logger.info(f"Listening for speech (timeout={timeout}s)...")
-                
+
                 result_container = {}
-                
+
                 def listen_worker():
                     try:
                         audio = self.recognizer.listen(
                             source, timeout=timeout, phrase_time_limit=phrase_time_limit
                         )
-                        result_container['audio'] = audio
+                        result_container["audio"] = audio
                     except Exception as e:
-                        result_container['error'] = e
+                        result_container["error"] = e
 
                 worker_thread = threading.Thread(target=listen_worker)
                 worker_thread.daemon = True
@@ -67,7 +67,7 @@ class GoogleSpeechProvider(BaseSpeechProvider):
                 while worker_thread.is_alive():
                     if abort_event and abort_event.is_set():
                         # Try to force close the stream to unblock the worker thread
-                        if hasattr(source, 'stream') and source.stream is not None:
+                        if hasattr(source, "stream") and source.stream is not None:
                             try:
                                 source.stream.close()
                             except Exception:
@@ -75,10 +75,10 @@ class GoogleSpeechProvider(BaseSpeechProvider):
                         raise InterruptedError("Voice recording aborted by user.")
                     worker_thread.join(timeout=0.1)
 
-                if 'error' in result_container:
-                    raise result_container['error']
+                if "error" in result_container:
+                    raise result_container["error"]
 
-                audio = result_container.get('audio')
+                audio = result_container.get("audio")
                 if not audio:
                     raise RuntimeError("Failed to capture audio.")
 

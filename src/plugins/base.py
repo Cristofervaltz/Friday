@@ -32,4 +32,3 @@ class BasePluginManager(ABC):
     def shutdown(self) -> None:
         """Clean up any active background tasks, event loops, or child processes."""
         return None
-
