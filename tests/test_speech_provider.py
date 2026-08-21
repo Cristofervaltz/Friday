@@ -1,11 +1,12 @@
-import pytest
 import threading
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from src.speech.google_provider import GoogleSpeechProvider
 
 
-def test_google_provider_successful_transcription():
+def test_google_provider_successful_transcription() -> None:
     """Verify that GoogleSpeechProvider correctly listens and transcribes via the threaded worker."""
     provider = GoogleSpeechProvider(language="en-US")
 
@@ -43,7 +44,7 @@ def test_google_provider_successful_transcription():
         )
 
 
-def test_google_provider_abort_closes_stream():
+def test_google_provider_abort_closes_stream() -> None:
     """Verify that if abort_event is set, the PyAudio stream is forced closed and InterruptedError is raised."""
     provider = GoogleSpeechProvider(language="en-US")
     abort_event = threading.Event()
@@ -68,7 +69,7 @@ def test_google_provider_abort_closes_stream():
         provider.recognizer = mock_sr.Recognizer()
 
         # Make the listen function block forever (or long enough) to trigger the abort loop
-        def blocking_listen(*args, **kwargs):
+        def blocking_listen(*args: object, **kwargs: object) -> object:
             abort_event.set()  # trigger abort during listening
             import time
 

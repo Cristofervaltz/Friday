@@ -27,6 +27,10 @@ except ImportError:
 from ..cli.repl import FridayREPL
 from ..runtime import FridayApplication
 
+# Global threading events
+agent_cancel_event = threading.Event()
+voice_abort_event = threading.Event()
+
 logger = logging.getLogger(__name__)
 
 active_websocket: Any = None
@@ -1017,7 +1021,7 @@ def create_app() -> "FastAPI":
                             # send done signal to ui if ws is still alive
                             safe_send_ws(
                                 websocket,
-                                {"type": "done", "command": msg_text.strip()},
+                                {"type": "done", "command": msg_text.strip() if msg_text else ""},
                                 loop,
                             )
 

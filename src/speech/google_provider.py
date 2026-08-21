@@ -1,6 +1,7 @@
 """Google Speech Recognition provider implementation."""
 
 import logging
+import threading
 
 from .base import BaseSpeechProvider
 
@@ -37,7 +38,7 @@ class GoogleSpeechProvider(BaseSpeechProvider):
         self.recognizer = sr.Recognizer()
 
     def listen_and_transcribe(
-        self, timeout: int = 10, phrase_time_limit: int = 15, abort_event=None
+        self, timeout: int = 10, phrase_time_limit: int = 15, abort_event: threading.Event | None = None
     ) -> str:
         """Listen to default microphone and transcribe using Google STT."""
         import threading
@@ -49,9 +50,9 @@ class GoogleSpeechProvider(BaseSpeechProvider):
 
                 logger.info(f"Listening for speech (timeout={timeout}s)...")
 
-                result_container = {}
+                result_container: dict[str, object] = {}
 
-                def listen_worker():
+                def listen_worker() -> None:
                     try:
                         audio = self.recognizer.listen(
                             source, timeout=timeout, phrase_time_limit=phrase_time_limit
@@ -76,7 +77,9 @@ class GoogleSpeechProvider(BaseSpeechProvider):
                     worker_thread.join(timeout=0.1)
 
                 if "error" in result_container:
-                    raise result_container["error"]
+                        if isinstance(result_container["error"], Exception):
+                            raise result_container["error"]
+                        raise RuntimeError(str(result_container["error"]))
 
                 audio = result_container.get("audio")
                 if not audio:
