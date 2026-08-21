@@ -6,6 +6,7 @@ to extend as the application grows.
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass
 from os import getenv
 from pathlib import Path
@@ -215,19 +216,23 @@ class AppConfig:
         )
 
 
+_settings_lock = threading.Lock()
+
+
 def load_settings(base_dir: Path | None = None) -> dict[str, Any]:
     resolved_base_dir = base_dir or Path.cwd()
     paths = PathsConfig.from_base_dir(resolved_base_dir)
     config_file = paths.app_home / "config.json"
-    if config_file.exists():
-        import json
+    with _settings_lock:
+        if config_file.exists():
+            import json
 
-        try:
-            with open(config_file, encoding="utf-8") as f:
-                return json.load(f)  # type: ignore
-        except Exception:
-            return {}
-    return {}
+            try:
+                with open(config_file, encoding="utf-8") as f:
+                    return json.load(f)  # type: ignore
+            except Exception:
+                return {}
+        return {}
 
 
 def save_settings(settings: dict[str, Any], base_dir: Path | None = None) -> None:
@@ -236,10 +241,20 @@ def save_settings(settings: dict[str, Any], base_dir: Path | None = None) -> Non
     paths.ensure_directories()
     config_file = paths.app_home / "config.json"
 
-    current = load_settings(base_dir)
-    current.update(settings)
+    with _settings_lock:
+        current = {}
+        if config_file.exists():
+            import json
 
-    import json
+            try:
+                with open(config_file, encoding="utf-8") as f:
+                    current = json.load(f)
+            except Exception:
+                pass
 
-    with open(config_file, "w", encoding="utf-8") as f:
-        json.dump(current, f, indent=4)
+        current.update(settings)
+
+        import json
+
+        with open(config_file, "w", encoding="utf-8") as f:
+            json.dump(current, f, indent=4)

@@ -1269,6 +1269,9 @@ class TestTier5AdversarialStress:
         # Stress 5: Verify npm run lint (oxlint) and npm run build (tsc + vite) succeed
         npm_cmd = shutil.which("npm.cmd") or shutil.which("npm")
         if npm_cmd:
+            subprocess.run(
+                [npm_cmd, "install"], cwd=str(UI_SRC_DIR.parent), capture_output=True
+            )
             lint_res = subprocess.run(
                 [npm_cmd, "run", "lint"],
                 cwd=str(UI_SRC_DIR.parent),

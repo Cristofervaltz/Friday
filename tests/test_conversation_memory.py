@@ -20,8 +20,14 @@ def test_conversation_memory_basic() -> None:
     assert len(messages) == 3
     assert messages[0]["role"] == "system"
     assert messages[0]["content"].startswith("You are Friday")
-    assert messages[1] == {"role": "user", "content": "Hello"}
-    assert messages[2] == {"role": "assistant", "content": "Hi there!"}
+    msgs = memory.get_messages(inject_system=False)
+    assert len(msgs) == 2
+    assert msgs[0]["role"] == "user"
+    assert msgs[0]["content"] == "Hello"
+    assert "id" in msgs[0]
+    assert msgs[1]["role"] == "assistant"
+    assert msgs[1]["content"] == "Hi there!"
+    assert "id" in msgs[1]
 
 
 def test_conversation_memory_tool_calls() -> None:
