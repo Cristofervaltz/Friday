@@ -38,7 +38,10 @@ class GoogleSpeechProvider(BaseSpeechProvider):
         self.recognizer = sr.Recognizer()
 
     def listen_and_transcribe(
-        self, timeout: int = 10, phrase_time_limit: int = 15, abort_event: threading.Event | None = None
+        self,
+        timeout: int = 10,
+        phrase_time_limit: int = 15,
+        abort_event: threading.Event | None = None,
     ) -> str:
         """Listen to default microphone and transcribe using Google STT."""
         import threading
@@ -77,9 +80,9 @@ class GoogleSpeechProvider(BaseSpeechProvider):
                     worker_thread.join(timeout=0.1)
 
                 if "error" in result_container:
-                        if isinstance(result_container["error"], Exception):
-                            raise result_container["error"]
-                        raise RuntimeError(str(result_container["error"]))
+                    if isinstance(result_container["error"], Exception):
+                        raise result_container["error"]
+                    raise RuntimeError(str(result_container["error"]))
 
                 audio = result_container.get("audio")
                 if not audio:

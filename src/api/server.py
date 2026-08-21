@@ -1021,7 +1021,10 @@ def create_app() -> "FastAPI":
                             # send done signal to ui if ws is still alive
                             safe_send_ws(
                                 websocket,
-                                {"type": "done", "command": msg_text.strip() if msg_text else ""},
+                                {
+                                    "type": "done",
+                                    "command": msg_text.strip() if msg_text else "",
+                                },
                                 loop,
                             )
 
