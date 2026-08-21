@@ -39,6 +39,9 @@ The desktop app is built with [Tauri](https://tauri.app/) and ships with a bundl
 |---|---|
 | **Autonomous task execution** | Give Friday a goal. It breaks it down, runs shell commands, edits files, handles errors — all on its own. |
 | **Interactive Permissions** | Total control over Friday's actions. Approve every shell command or file operation via an aesthetic UI, set custom whitelists, or use Turbo mode. |
+| **Multi-Agent Swarms** | Use `/swarms` to delegate complex tasks to specialized, concurrently running sub-agents (e.g. 'Coder', 'Researcher'). |
+| **Custom Native Skills** | Drop a `.md` file into your `~/.friday/skills` directory, and it instantly becomes a native slash command (e.g. `/reviewer`) with zero coding! |
+| **Background Tasks** | Use `/goal` for infinite autonomous loops or `/schedule` for cron-based background execution. |
 | **Agent Dashboard** | See what the agent is thinking, what tools it's calling, and its execution plan in real-time. |
 | **Rich Artifacts Viewer** | Renders Mermaid diagrams, code diffs, and structured outputs natively inside the app. |
 | **Voice input** | Press `Ctrl+Alt+Space` or say a Wake Word (**"Friday"**, **"Hey Friday"**, **"Пятница"**, **"Эй, пятница"**) from anywhere on your computer to talk to the assistant. |
@@ -146,6 +149,10 @@ friday
 | Command | Action |
 |---|---|
 | `/voice` | Speak your request |
+| `/goal` | Start an infinite autonomous task loop |
+| `/schedule` | Run a command on a cron schedule |
+| `/swarms` | Delegate task to multi-agent sub-agents |
+| `/<skill>` | Trigger a custom skill dynamically |
 | `/clear` | Reset conversation |
 | `/exit` | Shut down |
 
