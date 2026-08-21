@@ -1068,6 +1068,18 @@ def create_app() -> "FastAPI":
             )
         return {"status": "ok"}
 
+    @app.get("/api/skills")  # type: ignore
+    async def get_skills() -> list[dict[str, str]]:
+        skills_dir = friday_app.config.paths.app_home / "skills"
+        skills = []
+        if skills_dir.exists():
+            for skill_file in skills_dir.glob("*.md"):
+                cmd = f"/{skill_file.stem}"
+                # optionally parse first line for description, but here just use generic
+                desc = "Custom user skill"
+                skills.append({"cmd": cmd, "desc": desc})
+        return skills
+
     # Serve Vite build if it exists
     ui_dist = Path(__file__).parent.parent / "ui" / "dist"
     if ui_dist.exists() and ui_dist.is_dir():

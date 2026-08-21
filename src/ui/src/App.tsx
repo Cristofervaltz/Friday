@@ -646,13 +646,32 @@ function App() {
     return messages.filter(m => m.role !== 'system' && m.content && m.content.trim().length > 0);
   }, [messages]);
 
-  const slashCommands = useMemo(() => [
-    { cmd: '/clear', desc: t('commands.clear_desc') || 'Clear current chat history', icon: <Trash2 size={16} /> },
-    { cmd: '/goal', desc: t('commands.goal_desc') || 'Start a long-running autonomous goal', icon: <Zap size={16} /> },
-    { cmd: '/schedule', desc: t('commands.schedule_desc') || 'Schedule a background task', icon: <Check size={16} /> },
-    { cmd: '/swarms', desc: t('commands.swarms_desc') || 'Spawn a multi-agent swarm', icon: <Users size={16} /> },
-    { cmd: '/grill-me', desc: t('commands.grill_desc') || 'Interactive survey for requirements', icon: <Square size={16} /> }
-  ], [t]);
+  const [dynamicSkills, setDynamicSkills] = useState<{cmd: string, desc: string}[]>([]);
+  
+  useEffect(() => {
+    if (apiPort) {
+      fetch(`http://127.0.0.1:${apiPort}/api/skills`)
+        .then(res => res.json())
+        .then(data => setDynamicSkills(data || []))
+        .catch(console.error);
+    }
+  }, [apiPort]);
+
+  const slashCommands = useMemo(() => {
+    const base = [
+      { cmd: '/clear', desc: t('commands.clear_desc') || 'Clear current chat history', icon: <Trash2 size={16} /> },
+      { cmd: '/goal', desc: t('commands.goal_desc') || 'Start a long-running autonomous goal', icon: <Zap size={16} /> },
+      { cmd: '/schedule', desc: t('commands.schedule_desc') || 'Schedule a background task', icon: <Check size={16} /> },
+      { cmd: '/swarms', desc: t('commands.swarms_desc') || 'Spawn a multi-agent swarm', icon: <Users size={16} /> },
+      { cmd: '/grill-me', desc: t('commands.grill_desc') || 'Interactive survey for requirements', icon: <Square size={16} /> }
+    ];
+    const dynamics = dynamicSkills.map(s => ({
+      cmd: s.cmd,
+      desc: s.desc,
+      icon: <Zap size={16} />
+    }));
+    return [...base, ...dynamics];
+  }, [t, dynamicSkills]);
 
   const showSlashMenu = input.startsWith('/') && !input.includes(' ');
   const filteredCommands = showSlashMenu 
