@@ -73,8 +73,9 @@ class ConversationMemory:
         Args:
             content: User message text.
         """
+        import uuid
         with self._lock:
-            self._messages.append({"role": "user", "content": content})
+            self._messages.append({"id": uuid.uuid4().hex, "role": "user", "content": content})
             self._enforce_max_messages()
             self._save_unsafe()
         self._trigger_on_change()

@@ -1,7 +1,7 @@
 """Comprehensive E2E and Multi-Tier Test Suite for Friday AI Assistant.
 
 this file covers all 7 core features across 5 rigorous testing tiers:
-- Feature 1: Instant-Send (⚡) Button (queue state, immediate WebSocket dispatch, not re-queued when isThinking)
+- Feature 1: Instant-Send () Button (queue state, immediate WebSocket dispatch, not re-queued when isThinking)
 - Feature 2: Frontend i18n Localization Engine (context, hook, default en, ru support, storage persistence)
 - Feature 3: Full Bilingual UI Translation (EN default, RU support, 62+ keys, no missing keys/translations, no raw Cyrillic in non-i18n components)
 - Feature 4: Settings Language Switcher (dynamic toggle, persistence, instant reactive state)
@@ -180,7 +180,7 @@ def _get_all_i18n_code() -> str:
 # ---------------------------------------------------------------------------
 
 class TestTier1InstantSend:
-    """Feature 1: Instant-Send (⚡) Button Core Verification."""
+    """Feature 1: Instant-Send () Button Core Verification."""
 
     def test_t1_instant_send_queue_removal(self) -> None:
         # verify handleInstantSend removes msgId from queue state
@@ -222,7 +222,7 @@ class TestTier1InstantSend:
         )
 
     def test_t1_instant_send_button_dom_binding(self) -> None:
-        # verify lightning button (⚡) onClick is wired to handleInstantSend
+        # verify lightning button () onClick is wired to handleInstantSend
         app_code = (UI_SRC_DIR / "App.tsx").read_text(encoding="utf-8")
         assert re.search(r"onClick=\{\(\)\s*=>\s*handleInstantSend\(msg\.id\)\}", app_code), (
             "Lightning button in queue item must have onClick={() => handleInstantSend(msg.id)}"
@@ -518,7 +518,7 @@ class TestTier2InstantSendBoundaries:
 
     def test_t2_instant_send_unicode_emojis_multiline(self) -> None:
         # verify instant send payload formats json cleanly with special characters
-        test_payload = "echo 'hello 🚀 world'\nwith multiline and quotes \" ' "
+        test_payload = "echo 'hello world'\nwith multiline and quotes \" ' "
         encoded = json.dumps({"type": "message", "content": test_payload})
         decoded = json.loads(encoded)
         assert decoded["content"] == test_payload
@@ -613,8 +613,7 @@ class TestTier2BilingualUIBoundaries:
         content = (I18N_DIR / "translations.ts").read_text(encoding="utf-8")
         ru_dict = _extract_ts_dict(content, "ru")
         flat_ru = _flatten_dict(ru_dict)
-        assert any("🛠️" in v for v in flat_ru.values())
-        assert any("⚠️" in v for v in flat_ru.values())
+        assert any("..." in v for v in flat_ru.values()) # verify punctuation is retained
 
     def test_t2_bilingual_no_untranslated_placeholders(self) -> None:
         # verify parameter tokens like {count} match exactly between en and ru
@@ -1060,7 +1059,7 @@ class TestTier5AdversarialStress:
             return curr if isinstance(curr, str) else None
 
         assert py_get_nested(en_dict, "non.existent.path") is None
-        assert py_get_nested(en_dict, "chat.showSystemOutput") == "🛠️ Show system output" or py_get_nested(en_dict, "chat.show_system_output") == "🛠️ Show system output"
+        assert py_get_nested(en_dict, "chat.showSystemOutput") == "Show system output" or py_get_nested(en_dict, "chat.show_system_output") == "Show system output"
 
     def test_t5_stress_repl_clear_under_rapid_input_stream(self) -> None:
         # Stress 3: Multiple rapid clear operations

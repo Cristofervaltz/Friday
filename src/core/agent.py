@@ -69,7 +69,7 @@ class Agent:
             self.memory.add_user_message(user_input)
 
         if self.llm is None:
-            msg = "⚠️ Не настроена нейросеть. Пожалуйста, откройте настройки (иконка шестеренки) и укажите ваш API ключ."
+            msg = "Error: Не настроена нейросеть. Пожалуйста, откройте настройки (иконка шестеренки) и укажите ваш API ключ."
             self.memory.add_assistant_message(content=msg)
             return msg
 
@@ -78,7 +78,7 @@ class Agent:
         iteration = 0
         while iteration < self.max_iterations:
             if self.cancel_event and self.cancel_event.is_set():
-                msg = "🛑 Выполнение прервано пользователем."
+                msg = "Выполнение прервано пользователем."
                 self.memory.add_assistant_message(content=msg)
                 return msg
 
@@ -107,17 +107,17 @@ class Agent:
                             continue
                         else:
                             self._logger.exception("LLM generation failed after %d retries: %s", max_retries, exc)
-                            error_msg = f"❌ Error communicating with LLM: {exc}"
+                            error_msg = f"Error: Error communicating with LLM: {exc}"
                             self.memory.add_assistant_message(content=error_msg)
                             return error_msg
                     else:
                         self._logger.exception("LLM generation failed: %s", exc)
-                        error_msg = f"❌ Error communicating with LLM: {exc}"
+                        error_msg = f"Error: Error communicating with LLM: {exc}"
                         self.memory.add_assistant_message(content=error_msg)
                         return error_msg
 
             if response is None:
-                error_msg = "❌ Error communicating with LLM: No response received"
+                error_msg = "Error: Error communicating with LLM: No response received"
                 self.memory.add_assistant_message(content=error_msg)
                 return error_msg
 

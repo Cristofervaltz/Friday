@@ -163,7 +163,7 @@ class DelegateTaskTool(BaseTool):
                         if parent_agent and hasattr(parent_agent, "memory"):
                             # inject result into parent chat
                             parent_agent.memory.add_assistant_message(
-                                f"🤖 **Sub-Agent '{role}' finished its background task!**\n\n**Result:**\n{final_response}"
+                                f"**Sub-Agent '{role}' finished its background task!**\n\n**Result:**\n{final_response}"
                             )
                             parent_agent.memory._trigger_on_change()
                         else:
@@ -176,7 +176,7 @@ class DelegateTaskTool(BaseTool):
                     except Exception as exc:
                         if parent_agent and hasattr(parent_agent, "memory"):
                             parent_agent.memory.add_assistant_message(
-                                f"❌ **Sub-Agent '{role}' encountered an error:** {exc}"
+                                f"**Sub-Agent '{role}' encountered an error:** {exc}"
                             )
                             parent_agent.memory._trigger_on_change()
                         else:

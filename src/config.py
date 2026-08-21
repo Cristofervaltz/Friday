@@ -63,7 +63,7 @@ class PathsConfig:
 
     def ensure_directories(self) -> None:
         """Create runtime directories required by the current configuration."""
-        for directory in (self.app_home, self.logs_dir, self.data_dir, self.state_dir):
+        for directory in (self.app_home, self.logs_dir, self.data_dir, self.state_dir, self.app_home / "skills"):
             directory.mkdir(parents=True, exist_ok=True)
 
 

@@ -1,6 +1,6 @@
 // lowercase casual comment for react ui root
 import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
-import { Zap, Pencil, Trash2, Mic, ArrowRight, StopCircle, Paperclip, Shield, X, Check, ChevronRight, ChevronDown, Code2, Square, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Zap, Pencil, Trash2, Mic, ArrowRight, StopCircle, Paperclip, Shield, X, Check, ChevronRight, ChevronDown, Code2, Square, AlertTriangle, CheckCircle, Users } from 'lucide-react';
 import { useTranslation } from './i18n/index.ts';
 import { Sidebar } from './components/Sidebar';
 import { SettingsModal } from './components/SettingsModal';
@@ -93,9 +93,22 @@ interface ChatMessageItemProps {
 
 // memoized message item prevents full chat tree thrashing on token stream
 const ChatMessageItem = memo(function ChatMessageItem({ msg, onEdit, onRegenerate }: ChatMessageItemProps) {
-  const isError = msg.content && (msg.content.startsWith('⚠️') || msg.content.includes('Error:') || msg.content.includes('\u041E\u0428\u0418\u0411\u041A\u0410'));
+  const isInterrupted = msg.content && (msg.content.includes('\u0412\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u0435 \u043F\u0440\u0435\u0440\u0432\u0430\u043D\u043E') || msg.content.includes('cancelled by user'));
+  const isError = !isInterrupted && msg.content && (msg.content.startsWith('Error:') || msg.content.includes('Error:') || msg.content.includes('\u041E\u0428\u0418\u0411\u041A\u0410'));
+  
   const [isEditing, setIsEditing] = useState(false);
   const [editVal, setEditVal] = useState(msg.content);
+  
+  if (isInterrupted) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0' }}>
+        <div style={{ background: 'var(--bg-hover)', color: 'var(--text-low)', fontSize: '11px', padding: '4px 10px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Square size={10} fill="currentColor" />
+          Agent Interrupted
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className={`msg ${msg.role === 'user' ? 'user' : ''}`}>
@@ -126,7 +139,7 @@ const ChatMessageItem = memo(function ChatMessageItem({ msg, onEdit, onRegenerat
               </div>
             </div>
           ) : (
-            msg.role === 'user' ? renderUserContent(msg.content || "") : <ArtifactRenderer content={isError ? msg.content.replace(/^⚠️\s*/, '') : (msg.content || "")} />
+            msg.role === 'user' ? renderUserContent(msg.content || "") : <ArtifactRenderer content={isError ? msg.content.replace(/^Error:\s*/, '') : (msg.content || "")} />
           )}
         </div>
         {!isEditing && (
@@ -328,7 +341,7 @@ function App() {
             const autoSend = localStorage.getItem('friday_voice_auto_send') !== 'false';
             
             if (autoSend && websocket && websocket.readyState === WebSocket.OPEN) {
-              setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', content: `🎤 ${transcribedText}` }]);
+              setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', content: `${transcribedText}` }]);
               setIsThinking(true);
               websocket.send(JSON.stringify({ type: 'message', content: transcribedText }));
             } else {
@@ -637,6 +650,7 @@ function App() {
     { cmd: '/clear', desc: t('commands.clear_desc') || 'Clear current chat history', icon: <Trash2 size={16} /> },
     { cmd: '/goal', desc: t('commands.goal_desc') || 'Start a long-running autonomous goal', icon: <Zap size={16} /> },
     { cmd: '/schedule', desc: t('commands.schedule_desc') || 'Schedule a background task', icon: <Check size={16} /> },
+    { cmd: '/swarms', desc: t('commands.swarms_desc') || 'Spawn a multi-agent swarm', icon: <Users size={16} /> },
     { cmd: '/grill-me', desc: t('commands.grill_desc') || 'Interactive survey for requirements', icon: <Square size={16} /> }
   ], [t]);
 
@@ -726,7 +740,7 @@ function App() {
         <div className="chat">
           {updateAvailable && (
             <div style={{ background: 'var(--accent)', color: '#fff', padding: '8px 16px', borderRadius: '8px', margin: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span>🚀 A new version <strong>{updateAvailable}</strong> is available! <a href="https://github.com/Cristofervaltz/Friday/releases" target="_blank" style={{ color: '#fff', textDecoration: 'underline' }}>Download here</a>.</span>
+              <span><Zap size={14} style={{ marginRight: '6px', color: 'var(--accent)' }}/> A new version <strong>{updateAvailable}</strong> is available! <a href="https://github.com/Cristofervaltz/Friday/releases" target="_blank" style={{ color: '#fff', textDecoration: 'underline' }}>Download here</a>.</span>
               <button onClick={() => setUpdateAvailable(null)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={14} /></button>
             </div>
           )}
@@ -918,24 +932,35 @@ function App() {
                 )}
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
-                {isThinking && (
+                {isThinking ? (
+                  input.trim() ? (
+                    <button 
+                      className="send-btn" 
+                      onClick={(e) => handleSubmit(e)}
+                    >
+                      {t('chat.queue_btn')}
+                      <ArrowRight size={14} />
+                    </button>
+                  ) : (
+                    <button 
+                      className="send-btn" 
+                      onClick={handleStopGeneration}
+                      style={{ background: 'var(--red)', color: 'white', padding: '0 12px' }}
+                      title="Stop generation"
+                    >
+                      <Square size={14} fill="currentColor" />
+                    </button>
+                  )
+                ) : (
                   <button 
                     className="send-btn" 
-                    onClick={handleStopGeneration}
-                    style={{ background: 'var(--red)', color: 'white' }}
+                    onClick={(e) => handleSubmit(e)}
+                    disabled={!connected || (!input.trim() && !isListening)}
                   >
-                    <Square size={14} fill="currentColor" />
-                    Stop
+                    Send
+                    <ArrowRight size={14} />
                   </button>
                 )}
-                <button 
-                  className="send-btn" 
-                  onClick={(e) => handleSubmit(e)}
-                  disabled={!connected || (!input.trim() && !isListening)}
-                >
-                  {isThinking ? t('chat.queue_btn') : 'Send'}
-                  <ArrowRight size={14} />
-                </button>
               </div>
             </div>
           </div>
