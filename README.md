@@ -10,14 +10,15 @@
 [![Python](https://img.shields.io/badge/python-3.12+-3776ab?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
-**English** | [Русский](README_ru.md)
+[![EN](https://img.shields.io/badge/lang-🇬🇧%20English-blue?style=for-the-badge)](README.md)
+[![RU](https://img.shields.io/badge/lang-🇷🇺%20Русский-lightgrey?style=for-the-badge)](README_ru.md)
 
 Friday is an open-source, autonomous AI assistant that lives on your machine.  
 It reads your files, runs your commands, searches your codebase, listens to your voice — and does it all through a native desktop app or a terminal.
 
 <br/>
 
-[Download](#-download) · [Features](#-what-it-can-do) · [Setup for Devs](#-building-from-source) · [Architecture](#-architecture) · [Roadmap](#-roadmap)
+[Download](#-download) · [Features](#-what-it-can-do) · [Skills](#-custom-skills) · [Setup for Devs](#-building-from-source) · [Architecture](#%EF%B8%8F-architecture) · [Roadmap](#%EF%B8%8F-roadmap)
 
 </div>
 
@@ -42,17 +43,41 @@ The desktop app is built with [Tauri](https://tauri.app/) and ships with a bundl
 | **Autonomous task execution** | Give Friday a goal. It breaks it down, runs shell commands, edits files, handles errors — all on its own. |
 | **Interactive Permissions** | Total control over Friday's actions. Approve every shell command or file operation via an aesthetic UI, set custom whitelists, or use Turbo mode. |
 | **Multi-Agent Swarms** | Use `/swarms` to delegate complex tasks to specialized, concurrently running sub-agents (e.g. 'Coder', 'Researcher'). |
-| **Custom Native Skills** | Drop a `.md` file into your `~/.friday/skills` directory, and it instantly becomes a native slash command (e.g. `/reviewer`) with zero coding! |
+| **Custom Native Skills** | Drop a `.md` file into `~/.friday/skills` — it instantly becomes a slash command with zero coding. [Learn more ↓](#-custom-skills) |
 | **Background Tasks** | Use `/goal` for infinite autonomous loops or `/schedule` for cron-based background execution. |
+| **Smart Action Button** | The send button transforms into **Stop** while Friday is busy, and into **Queue** when you start typing mid-task. |
 | **Agent Dashboard** | See what the agent is thinking, what tools it's calling, and its execution plan in real-time. |
 | **Rich Artifacts Viewer** | Renders Mermaid diagrams, code diffs, and structured outputs natively inside the app. |
-| **Voice input** | Press `Ctrl+Alt+Space` or say a Wake Word (**"Friday"**, **"Hey Friday"**, **"Пятница"**, **"Эй, пятница"**) from anywhere on your computer to talk to the assistant. |
+| **Voice input** | Press `Ctrl+Alt+Space` or say **"Friday"** / **"Hey Friday"** / **"Пятница"** from anywhere to talk to the assistant. |
 | **Vision** | Friday takes screenshots and analyzes them — debug UI bugs, read diagrams, understand context. |
 | **Semantic code search (RAG)** | Your entire workspace is indexed locally with ChromaDB. Ask questions about code in natural language. |
 | **Plugins & MCP** | Extend Friday with Model Context Protocol servers — GitHub, Jira, databases, web search. |
 | **Dual memory** | Conversation history + persistent workspace knowledge. |
 | **Any LLM** | OpenAI, Claude via OpenRouter, or fully offline with Ollama (with Native Tool Calling). Switch models on the fly. |
 | **Fault-Tolerant** | Gracefully handles LLM network drops, repairs broken JSON responses, and prevents Unicode crashes. |
+
+---
+
+## 🧠 Custom Skills
+
+The most powerful way to personalise Friday. Teach her a role, a style, a context — anything you need.
+
+**How it works:**
+
+1. Create a `.md` file anywhere in `~/.friday/skills/`
+2. Write your system instructions inside — role, tone, constraints, context
+3. Friday picks it up automatically. No restart required.
+
+Type `/` in the chat input to open the skills menu and see all available commands:
+
+```
+/reviewer   → activates code review mode
+/architect  → switches Friday into system design mode
+/writer     → enables technical documentation style
+/your-skill → whatever you create
+```
+
+Skills are injected directly into the agent's system context the moment you trigger them. They stack with Friday's built-in capabilities — vision, RAG, tools — everything still works.
 
 ---
 
@@ -65,7 +90,7 @@ Everything is configured **inside the app**. No `.env` files needed.
 3. Paste your API key, choose a model.
 4. Hit **Save**.
 
-> 💡 **Tip for free top-tier LLMs:** I recommend using [OmniRoute](https://github.com/diegosouzapw/OmniRoute) — it's the easiest and freest way to connect top-tier models to Friday without paying for expensive API keys. Just run OmniRoute locally and point Friday to its local endpoint!
+> 💡 **Tip for free top-tier LLMs:** Use [OmniRoute](https://github.com/diegosouzapw/OmniRoute) — the easiest way to connect frontier models to Friday without expensive API keys. Run it locally and point Friday to its endpoint.
 
 Changes apply instantly via hot-reload — no restart required.
 
@@ -136,17 +161,8 @@ graph LR
 ### Desktop App
 The primary way to use Friday. Runs as a native window with a glassmorphism dark-theme UI. The Python backend operates invisibly as a sidecar process — no terminal windows, no setup.
 
-### Voice & Background Daemon
-Friday runs quietly in your system tray and listens for voice commands system-wide.
-- **Wake Words:** Say **"Friday"**, **"Hey Friday"**, **"Пятница"**, or **"Эй, пятница"** into your microphone from anywhere. Friday will wake up and start listening to your task.
-- **Global Hotkey:** Don't want to use a wake word? Press `Ctrl+Alt+Space` globally to instantly activate voice input.
-
-### Terminal REPL
-For those who prefer the command line:
-
-```bash
-friday
-```
+### Slash Commands
+Type `/` in the chat input to open the command menu:
 
 | Command | Action |
 |---|---|
@@ -154,9 +170,21 @@ friday
 | `/goal` | Start an infinite autonomous task loop |
 | `/schedule` | Run a command on a cron schedule |
 | `/swarms` | Delegate task to multi-agent sub-agents |
-| `/<skill>` | Trigger a custom skill dynamically |
+| `/<skill>` | Trigger any custom skill from `~/.friday/skills` |
 | `/clear` | Reset conversation |
 | `/exit` | Shut down |
+
+### Voice & Background Daemon
+Friday runs quietly in your system tray and listens for voice commands system-wide.
+- **Wake Words:** Say **"Friday"**, **"Hey Friday"**, **"Пятница"**, or **"Эй, пятница"** from anywhere.
+- **Global Hotkey:** Press `Ctrl+Alt+Space` to instantly activate voice input.
+
+### Terminal REPL
+For those who prefer the command line:
+
+```bash
+friday
+```
 
 ---
 
@@ -183,8 +211,7 @@ pip install -e .[gui,speech,vision,rag,dev]
 # Frontend (Tauri)
 cd src/ui && npm install
 
-# Build the Python sidecar executable (Required for production build)
-# Run this from the root directory:
+# Build the Python sidecar executable (required for production build)
 # python scripts/build_sidecar.py
 
 npm run tauri dev              # Development mode (uses local python)
@@ -193,9 +220,9 @@ npm run tauri build            # Production .exe installer (requires sidecar)
 
 The desktop app bundles the Python backend into a highly optimized sidecar (`friday-api.exe`), meaning end-users don't need Python installed. It also features:
 - **In-App Settings:** Configure API keys, models, and providers directly via a beautiful UI modal.
-- **Task Queue & Instant Send:** View queued tasks and click ⚡ to immediately jump a task to the front of the execution queue!
+- **Task Queue & Instant Send:** View queued tasks and click ⚡ to immediately jump a task to the front of the queue.
 - **Workspace Selector:** Set active context directories directly from the header dropdown.
-- **Hot-Reloading:** Change your LLM or API keys and apply them instantly without restarting the application!
+- **Hot-Reloading:** Change your LLM or API keys and apply them instantly without restarting.
 - **Native System Tray:** Runs quietly in the background and can be summoned anytime.
 
 ### Running CI checks locally
@@ -222,6 +249,7 @@ pytest           # 189 tests
 | Native desktop app (Tauri) | ✅ Done |
 | In-app settings & hot-reload config | ✅ Done |
 | Fault-Tolerance & Ollama Native Tool Calling | ✅ Done |
+| Custom Skills & slash command menu | ✅ Done |
 | Global integrations & expansion | 🚧 Next |
 
 See the full [development roadmap](future_roadmap.md) for details.
