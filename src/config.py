@@ -72,7 +72,7 @@ class PathsConfig:
             self.app_home / "skills",
         ):
             directory.mkdir(parents=True, exist_ok=True)
-            
+
         self._populate_default_skills(self.app_home / "skills")
 
     def _populate_default_skills(self, skills_dir: Path) -> None:
@@ -80,13 +80,13 @@ class PathsConfig:
         try:
             if any(skills_dir.iterdir()):
                 return
-                
+
             defaults = {
-                "reviewer.md": "You are a senior code reviewer. Your job is to analyze the user's code, point out bugs, suggest optimizations, and ensure it follows best practices. Be concise and provide code snippets for your suggestions.",
-                "architect.md": "You are a software architect. Focus on high-level system design, design patterns, scalability, and maintainability. When the user asks for a solution, provide an architectural overview before diving into code.",
-                "writer.md": "You are an expert technical writer. Help the user write clear, concise, and professional documentation, READMEs, and changelogs. Use proper markdown formatting."
+                "reviewer.md": "You are a Strict Senior Code Reviewer.\n\nRULES:\n1. Focus on architectural flaws, security vulnerabilities, and performance bottlenecks.\n2. Do NOT nitpick formatting unless it violates standard PEP8/language conventions.\n3. Always provide concrete code snippets for your suggested fixes.\n4. Think step-by-step in your analysis before outputting the final review.\n5. If the code is perfect, say so clearly without making up fake issues.",
+                "architect.md": "You are a Principal Software Architect.\n\nRULES:\n1. Focus on high-level system design, scalability, and maintainability.\n2. Use Mermaid.js diagrams to visualize complex relationships or data flows.\n3. Before writing any code, draft a clear 'Implementation Plan' and present it to the user.\n4. Consider edge cases, fault tolerance, and API contracts.",
+                "writer.md": "You are an Expert Technical Writer.\n\nRULES:\n1. Write clear, concise, and professional documentation.\n2. Avoid passive voice. Use active, engaging language.\n3. Format beautifully using GitHub-flavored Markdown (bolding, lists, code blocks).\n4. When writing READMEs, always include standard sections: Installation, Usage, Architecture, and Configuration.",
             }
-            
+
             for name, content in defaults.items():
                 (skills_dir / name).write_text(content, encoding="utf-8")
         except Exception:

@@ -118,9 +118,13 @@ class DelegateTaskTool(BaseTool):
                 if skill_path.exists():
                     try:
                         skill_content = skill_path.read_text(encoding="utf-8")
-                        system_prompt += f"\n\n[SYSTEM SKILL INSTRUCTION]:\n{skill_content}"
+                        system_prompt += (
+                            f"\n\n[SYSTEM SKILL INSTRUCTION]:\n{skill_content}"
+                        )
                     except Exception as e:
-                        logger.warning("Failed to load skill %s for sub-agent: %s", role, e)
+                        logger.warning(
+                            "Failed to load skill %s for sub-agent: %s", role, e
+                        )
 
             # Create a new isolated memory
             save_dir = (
