@@ -269,58 +269,65 @@ class ConversationMemory:
             pass
 
     def switch_chat(self, new_id: str) -> None:
-        self.chat_id = new_id
-        self._messages.clear()
-        self.title = "New Chat"
-        self.workspace = ""
-        self.load()
+        with self._lock:
+            self.chat_id = new_id
+            self._messages.clear()
+            self.title = "New Chat"
+            self.workspace = ""
+            self.load()
 
     def get_all_chats(self) -> list[dict[str, Any]]:
         if not self.save_dir:
             return []
         chats = []
-        for file_path in self.save_dir.glob("*.json"):
-            try:
-                with open(file_path, encoding="utf-8") as f:
-                    data = json.load(f)
-                    chats.append(
-                        {
-                            "id": data.get("id"),
-                            "title": data.get("title", "New Chat"),
-                            "updated_at": data.get("updated_at", 0),
-                        }
-                    )
-            except Exception:
-                pass
+        with self._lock:
+            for file_path in self.save_dir.glob("*.json"):
+                try:
+                    with open(file_path, encoding="utf-8") as f:
+                        data = json.load(f)
+                        chats.append(
+                            {
+                                "id": data.get("id"),
+                                "title": data.get("title", "New Chat"),
+                                "updated_at": data.get("updated_at", 0),
+                            }
+                        )
+                except Exception:
+                    pass
         return sorted(chats, key=lambda x: x["updated_at"], reverse=True)
 
     def rename_chat(self, chat_id: str, new_title: str) -> None:
         if not self.save_dir:
             return
-        file_path = self.save_dir / f"{chat_id}.json"
-        if file_path.exists():
-            try:
-                with open(file_path, encoding="utf-8") as f:
-                    data = json.load(f)
-                data["title"] = new_title
-                with open(file_path, "w", encoding="utf-8") as f:
-                    json.dump(data, f, ensure_ascii=False, indent=2)
-
-                # If we are renaming the active chat, update the title in memory
-                if self.chat_id == chat_id:
-                    self.title = new_title
-            except Exception:
-                pass
+        with self._lock:
+            file_path = self.save_dir / f"{chat_id}.json"
+            if file_path.exists():
+                try:
+                    with open(file_path, encoding="utf-8") as f:
+                        data = json.load(f)
+                    data["title"] = new_title
+                    with open(file_path, "w", encoding="utf-8") as f:
+                        json.dump(data, f, ensure_ascii=False, indent=2)
+                    # If we are renaming the active chat, update the title in memory
+                    if self.chat_id == chat_id:
+                        self.title = new_title
+                except Exception:
+                    pass
 
     def delete_chat(self, chat_id: str) -> None:
         if not self.save_dir:
             return
-        file_path = self.save_dir / f"{chat_id}.json"
-        if file_path.exists():
-            try:
-                file_path.unlink()
-                # If we delete the active chat, reset state
-                if self.chat_id == chat_id:
-                    self.switch_chat("default")
-            except Exception:
-                pass
+        with self._lock:
+            file_path = self.save_dir / f"{chat_id}.json"
+            if file_path.exists():
+                try:
+                    file_path.unlink()
+                    # If we delete the active chat, reset state
+                    if self.chat_id == chat_id:
+                        self.chat_id = "default"
+                        self._messages.clear()
+                        self.title = "New Chat"
+                        self.workspace = ""
+                        self.load()
+                except Exception:
+                    pass
