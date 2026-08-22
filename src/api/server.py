@@ -96,6 +96,14 @@ def _handle_voice_for_ws(
     try:
         from ..speech import GoogleSpeechProvider
 
+        # Stop wake word detector to release the microphone
+        global wake_word_detector
+        if wake_word_detector is not None:
+            try:
+                wake_word_detector.stop()
+            except Exception:
+                pass
+
         print("Initializing microphone...")
 
         provider = GoogleSpeechProvider(language=friday_app.config.speech_language)
@@ -125,6 +133,13 @@ def _handle_voice_for_ws(
             safe_send_ws(websocket, {"type": "done", "command": "/voice"}, loop)
         else:
             safe_send_ws(websocket, {"type": "voice_error", "error": str(exc)}, loop)
+    finally:
+        # Always restart wake word detector
+        if wake_word_detector is not None:
+            try:
+                wake_word_detector.start(wake_word_detector._callback)
+            except Exception:
+                pass
 
 
 def create_app() -> "FastAPI":

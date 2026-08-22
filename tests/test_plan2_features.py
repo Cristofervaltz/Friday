@@ -12,10 +12,10 @@ class TestPlan2Features:
     def test_multi_model_support(self) -> None:
         """1. Verify Multi-Model API keys in config and UI Dropdown."""
         app_tsx = (UI_DIR / "App.tsx").read_text(encoding="utf-8")
-        assert "openai|gpt-4o" in app_tsx
-        assert "anthropic|claude-3-5-sonnet-20240620" in app_tsx
-        assert "gemini|gemini-1.5-pro" in app_tsx
-        assert "ollama|llama3" in app_tsx
+        assert "id: 'openai'" in app_tsx
+        assert "id: 'gemini'" in app_tsx
+        assert "id: 'openrouter'" in app_tsx
+        assert "id: 'ollama'" in app_tsx
 
     def test_tool_dashboard_redesign(self) -> None:
         """2. Verify ToolBlock grouping in App.tsx."""

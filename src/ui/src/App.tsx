@@ -258,18 +258,28 @@ function App() {
 
   useEffect(() => {
     const fetchPort = async () => {
+      let port = 8000;
       try {
         const isTauri = '__TAURI_INTERNALS__' in window || '__TAURI__' in window || window.location.hostname === 'tauri.localhost';
         if (isTauri) {
           const { invoke } = await import('@tauri-apps/api/core');
-          const port = await invoke('get_runtime_port');
-          setApiPort(port as number);
-        } else {
-          setApiPort(8000);
+          port = await invoke('get_runtime_port') as number;
         }
       } catch {
-        setApiPort(8000);
+        // Fallback to 8000
       }
+
+      // Wait for backend to be ready
+      const deadline = Date.now() + 30000; // 30 seconds
+      while (Date.now() < deadline) {
+        try {
+          const resp = await fetch(`http://127.0.0.1:${port}/health`);
+          if (resp.ok) break;
+        } catch { /* server not ready yet */ }
+        await new Promise(r => setTimeout(r, 500));
+      }
+
+      setApiPort(port);
     };
     fetchPort();
   }, []);

@@ -10,7 +10,6 @@ from dotenv import load_dotenv
 from src.config import AppConfig
 from src.llm import (
     BaseLLMProvider,
-    ConfigurationError,
     OllamaProvider,
     OpenAIProvider,
     OpenRouterProvider,
@@ -234,7 +233,9 @@ class FridayApplication:
             elif provider_type == "ollama":
                 self._provider = OllamaProvider.from_config(self._config.llm)
             else:
-                self._logger.info(f"Unknown provider '{provider_type}', falling back to OpenAI compatibility mode.")
+                self._logger.info(
+                    f"Unknown provider '{provider_type}', falling back to OpenAI compatibility mode."
+                )
                 self._provider = OpenAIProvider.from_config(self._config.llm)
             self._logger.info("Provider initialized: %s", self._provider.model_name())
         except Exception as exc:

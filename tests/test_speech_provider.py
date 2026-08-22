@@ -83,5 +83,5 @@ def test_google_provider_abort_closes_stream() -> None:
                 timeout=5, phrase_time_limit=5, abort_event=abort_event
             )
 
-        # Verify stream.close() was called to unblock PyAudio
-        mock_stream.close.assert_called_once()
+        # Verify stream.stop_stream() was called to unblock PyAudio
+        mock_stream.stop_stream.assert_called_once()

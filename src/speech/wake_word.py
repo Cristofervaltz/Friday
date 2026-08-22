@@ -33,7 +33,7 @@ class WakeWordDetector:
         self.q: queue.Queue[bytes] = queue.Queue()
         self._callback: Callable[[], None] | None = None
         self._last_triggered: float = 0.0
-        self._cooldown: float = 2.0  # seconds between triggers
+        self._cooldown: float = 3.0  # seconds between triggers
 
     def _callback_sd(
         self, indata: Any, frames: int, time_info: Any, status: Any
@@ -98,7 +98,7 @@ class WakeWordDetector:
             try:
                 stream = sd.RawInputStream(
                     samplerate=samplerate,
-                    blocksize=8000,
+                    blocksize=4000,
                     device=None,
                     dtype="int16",
                     channels=1,
@@ -116,66 +116,62 @@ class WakeWordDetector:
                 text: str,
                 words: list[str],
                 recognizer: KaldiRecognizer,
-                is_partial: bool,
             ) -> bool:
-                for w in words:
-                    if w in text:
-                        now = time.monotonic()
-                        if now - self._last_triggered >= self._cooldown:
-                            prefix = "(partial)" if is_partial else "full result"
-                            safe_print(f"Wake word detected in {prefix}: {text}")
-                            self._last_triggered = now
-                            if self._callback:
-                                self._callback()
-                        recognizer.Reset()
-                        with self.q.mutex:
-                            self.q.queue.clear()
-                        return True
+                if text in words:
+                    now = time.monotonic()
+                    if now - self._last_triggered >= self._cooldown:
+                        safe_print(f"Wake word detected: {text}")
+                        self._last_triggered = now
+                        if self._callback:
+                            self._callback()
+                    recognizer.Reset()
+                    with self.q.mutex:
+                        self.q.queue.clear()
+                    return True
                 return False
 
-            with stream:
-                safe_print(
-                    f"Listening for wake words at {samplerate}Hz: {self.wake_words_ru + self.wake_words_en}"
-                )
-                while self.running and self._running:
-                    try:
-                        # timeout allows checking self.running and cleanly exiting within 500ms
-                        data = self.q.get(timeout=0.5)
-                    except queue.Empty:
-                        continue
-
-                    if recognizer_ru.AcceptWaveform(data):
-                        result = json.loads(recognizer_ru.Result())
-                        text = result.get("text", "").lower()
-                        if text:
-                            handle_detection(
-                                text, self.wake_words_ru, recognizer_ru, False
-                            )
-                    else:
-                        partial = json.loads(recognizer_ru.PartialResult())
-                        text = partial.get("partial", "").lower()
-                        if text:
-                            if handle_detection(
-                                text, self.wake_words_ru, recognizer_ru, True
-                            ):
-                                recognizer_en.Reset()
+            while self.running and self._running:
+                try:
+                    with stream:
+                        safe_print(
+                            f"Listening for wake words at {samplerate}Hz: {self.wake_words_ru + self.wake_words_en}"
+                        )
+                        while self.running and self._running:
+                            try:
+                                # timeout allows checking self.running and cleanly exiting within 500ms
+                                data = self.q.get(timeout=0.5)
+                            except queue.Empty:
                                 continue
 
-                    if recognizer_en.AcceptWaveform(data):
-                        result = json.loads(recognizer_en.Result())
-                        text = result.get("text", "").lower()
-                        if text:
-                            handle_detection(
-                                text, self.wake_words_en, recognizer_en, False
-                            )
+                            if recognizer_ru.AcceptWaveform(data):
+                                result = json.loads(recognizer_ru.Result())
+                                text = result.get("text", "").lower().strip()
+                                if text:
+                                    handle_detection(
+                                        text, self.wake_words_ru, recognizer_ru
+                                    )
+                            else:
+                                recognizer_ru.PartialResult()  # Consume but don't trigger
+
+                            if recognizer_en.AcceptWaveform(data):
+                                result = json.loads(recognizer_en.Result())
+                                text = result.get("text", "").lower().strip()
+                                if text:
+                                    handle_detection(
+                                        text, self.wake_words_en, recognizer_en
+                                    )
+                            else:
+                                recognizer_en.PartialResult()  # Consume but don't trigger
+
+                except Exception as e:
+                    safe_print(f"WakeWordDetector stream error: {e}")
+                    if self.running and self._running:
+                        safe_print(
+                            "Attempting to restart wake word stream in 2 seconds..."
+                        )
+                        time.sleep(2)
                     else:
-                        partial = json.loads(recognizer_en.PartialResult())
-                        text = partial.get("partial", "").lower()
-                        if text:
-                            if handle_detection(
-                                text, self.wake_words_en, recognizer_en, True
-                            ):
-                                recognizer_ru.Reset()
+                        break
 
         except Exception as e:
             safe_print(f"WakeWordDetector error: {e}")

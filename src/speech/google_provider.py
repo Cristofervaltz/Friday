@@ -70,10 +70,10 @@ class GoogleSpeechProvider(BaseSpeechProvider):
 
                 while worker_thread.is_alive():
                     if abort_event and abort_event.is_set():
-                        # Try to force close the stream to unblock the worker thread
+                        # Try to force stop the stream to unblock the worker thread
                         if hasattr(source, "stream") and source.stream is not None:
                             try:
-                                source.stream.close()
+                                source.stream.stop_stream()
                             except Exception:
                                 pass
                         raise InterruptedError("Voice recording aborted by user.")

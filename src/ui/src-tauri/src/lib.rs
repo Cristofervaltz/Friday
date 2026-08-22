@@ -7,7 +7,7 @@ use tauri::{
 use tauri_plugin_shell::ShellExt;
 
 #[tauri::command]
-fn get_runtime_port(app_handle: tauri::AppHandle) -> u16 {
+async fn get_runtime_port(app_handle: tauri::AppHandle) -> u16 {
     let mut port = 8000;
     let app_home = if let Ok(val) = std::env::var("FRIDAY_HOME") {
         if !val.trim().is_empty() {
@@ -21,10 +21,13 @@ fn get_runtime_port(app_handle: tauri::AppHandle) -> u16 {
 
     if let Some(home) = app_home {
         let port_file = home.join("runtime_port");
-        if let Ok(contents) = std::fs::read_to_string(port_file) {
-            if let Ok(p) = contents.trim().parse::<u16>() {
-                port = p;
+        for _ in 0..60 {
+            if let Ok(contents) = std::fs::read_to_string(&port_file) {
+                if let Ok(p) = contents.trim().parse::<u16>() {
+                    return p;
+                }
             }
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
         }
     }
     port
