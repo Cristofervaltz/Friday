@@ -112,10 +112,20 @@ class DelegateTaskTool(BaseTool):
                 "When finished, output final result clearly."
             )
 
+            # Check if there is a custom skill matching this role
+            if app and hasattr(app, "config"):
+                skill_path = app.config.paths.app_home / "skills" / f"{role.lower()}.md"
+                if skill_path.exists():
+                    try:
+                        skill_content = skill_path.read_text(encoding="utf-8")
+                        system_prompt += f"\n\n[SYSTEM SKILL INSTRUCTION]:\n{skill_content}"
+                    except Exception as e:
+                        logger.warning("Failed to load skill %s for sub-agent: %s", role, e)
+
             # Create a new isolated memory
             save_dir = (
                 app.config.paths.data_dir / "chats"
-                if app.config and hasattr(app.config, "paths")
+                if app and hasattr(app, "config") and hasattr(app.config, "paths")
                 else None
             )
             memory = ConversationMemory(
