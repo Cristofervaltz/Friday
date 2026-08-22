@@ -186,8 +186,10 @@ function App() {
   const [chats, setChats] = useState<Array<{id: string, title: string}>>([]);
   const [currentChatId, setCurrentChatId] = useState<string>('');
   const [currentWorkspace, setCurrentWorkspace] = useState<string>('');
-  const [currentModel, setCurrentModel] = useState<string>('Default');
-  const [currentProvider, setCurrentProvider] = useState<string>('provider');
+  const [currentProvider, setCurrentProvider] = useState<string>('openai');
+  const [currentModel, setCurrentModel] = useState<string>('gpt-4o');
+  const [providers, setProviders] = useState<any[]>([]);
+  const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<string[]>([]);
   const [updateAvailable, setUpdateAvailable] = useState<string | null>(null);
   
@@ -294,11 +296,18 @@ function App() {
       .then(res => res.json())
       .then(data => {
         applyTheme(data.theme, data.accent_color);
+        const defaultProviders = [
+          { id: 'openai', name: 'OpenAI', api_key: '', base_url: '', models: 'gpt-4o, gpt-4-turbo' },
+          { id: 'gemini', name: 'Gemini', api_key: '', base_url: 'https://generativelanguage.googleapis.com/v1beta/openai/', models: 'gemini-1.5-pro' },
+          { id: 'openrouter', name: 'OpenRouter', api_key: '', base_url: 'https://openrouter.ai/api/v1', models: 'anthropic/claude-3.5-sonnet' },
+          { id: 'ollama', name: 'Ollama', api_key: '', base_url: 'http://localhost:11434', models: 'llama3' }
+        ];
+        setProviders(Array.isArray(data.providers) ? data.providers : defaultProviders);
         if (data.voice_auto_send !== undefined) {
           setVoiceAutoSend(data.voice_auto_send === 'true');
         }
-        if (data.llm_model) setCurrentModel(data.llm_model);
         if (data.llm_provider) setCurrentProvider(data.llm_provider);
+        if (data.llm_model) setCurrentModel(data.llm_model);
       })
       .catch(err => console.error("Failed to load initial settings", err));
   }, [apiPort, applyTheme]);
@@ -728,42 +737,51 @@ function App() {
             onClearWorkspace={handleClearWorkspace}
           />
           <div className="model-selector-wrapper" style={{ position: 'relative' }}>
-            <select 
+            <div 
               className="model-pill" 
-              style={{ appearance: 'none', cursor: 'pointer', background: 'var(--bg-hover)', border: '1px solid var(--border)', color: 'var(--text)', padding: '4px 12px', paddingRight: '28px', borderRadius: '14px', fontSize: '12px', fontWeight: 500, outline: 'none' }}
-              value={`${currentProvider}|${currentModel}`}
-              onChange={async (e) => {
-                const [prov, mod] = e.target.value.split('|');
-                setCurrentProvider(prov);
-                setCurrentModel(mod);
-                const isTauri = '__TAURI_INTERNALS__' in window || '__TAURI__' in window || window.location.hostname === 'tauri.localhost';
-                const apiHost = isTauri ? `127.0.0.1:8000` : (window.location.host || '127.0.0.1:8000');
-                try {
-                  await fetch(`http://${apiHost}/api/settings`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ llm_provider: prov, llm_model: mod })
-                  });
-                } catch(err) { console.error(err); }
-              }}
+              onClick={() => setIsModelSelectorOpen(!isModelSelectorOpen)}
+              style={{ cursor: 'pointer', background: 'var(--bg-hover)', border: '1px solid var(--border)', color: 'var(--text)', padding: '4px 12px', paddingRight: '28px', borderRadius: '14px', fontSize: '12px', fontWeight: 500, outline: 'none', display: 'flex', alignItems: 'center', userSelect: 'none' }}
             >
-              <option value="openai|gpt-4o">GPT-4o (OpenAI)</option>
-              <option value="anthropic|claude-3-5-sonnet-20240620">Claude 3.5 Sonnet (Anthropic)</option>
-              <option value="gemini|gemini-1.5-pro">Gemini 1.5 Pro (Google)</option>
-              <option value="openrouter|anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (OpenRouter)</option>
-              <option value="ollama|llama3">Llama 3 (Ollama Local)</option>
-              {/* Fallback if user set a custom one in settings */}
-              {![
-                'openai|gpt-4o', 
-                'anthropic|claude-3-5-sonnet-20240620', 
-                'gemini|gemini-1.5-pro',
-                'openrouter|anthropic/claude-3.5-sonnet',
-                'ollama|llama3'
-              ].includes(`${currentProvider}|${currentModel}`) && (
-                <option value={`${currentProvider}|${currentModel}`}>{currentModel} ({currentProvider})</option>
-              )}
-            </select>
-            <ChevronDown size={12} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-low)' }} />
+              {currentModel}
+              <ChevronDown size={12} style={{ position: 'absolute', right: '10px', color: 'var(--text-low)' }} />
+            </div>
+            {isModelSelectorOpen && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '4px', background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 100, minWidth: '200px', maxHeight: '300px', overflowY: 'auto' }}>
+                {providers.map(p => {
+                  const mods = (p.models || '').split(',').map((s: string) => s.trim()).filter(Boolean);
+                  if (mods.length === 0) return null;
+                  return (
+                    <div key={p.id}>
+                      <div style={{ padding: '6px 12px', fontSize: '11px', fontWeight: 600, color: 'var(--text-low)', textTransform: 'uppercase', background: 'var(--bg-hover)' }}>{p.name}</div>
+                      {mods.map((m: string) => (
+                        <div 
+                          key={m}
+                          onClick={async () => {
+                            setCurrentProvider(p.id);
+                            setCurrentModel(m);
+                            setIsModelSelectorOpen(false);
+                            const isTauri = '__TAURI_INTERNALS__' in window || '__TAURI__' in window || window.location.hostname === 'tauri.localhost';
+                            const apiHost = isTauri ? `127.0.0.1:8000` : (window.location.host || '127.0.0.1:8000');
+                            try {
+                              await fetch(`http://${apiHost}/api/settings`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ llm_provider: p.id, llm_model: m })
+                              });
+                            } catch(err) { console.error(err); }
+                          }}
+                          style={{ padding: '8px 12px', fontSize: '12px', cursor: 'pointer', color: 'var(--text)' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          {m} {currentProvider === p.id && currentModel === m && '✓'}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
           <div className="top-actions">
             <button className="icon-btn" title="Voice input" onClick={handleOpenVoice}>

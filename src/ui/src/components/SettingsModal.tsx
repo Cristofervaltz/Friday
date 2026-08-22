@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Save, Palette, Bot, Monitor, Shield, AlertTriangle, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
+import { X, Save, Palette, Bot, Monitor, Shield, AlertTriangle, CheckCircle, XCircle, HelpCircle, Plus, Trash2 } from 'lucide-react';
 import { useTranslation, type Language } from '../i18n/index.ts';
 import './SettingsModal.css';
 
@@ -9,7 +9,7 @@ interface SettingsModalProps {
   onClose: () => void;
   voiceAutoSend?: boolean;
   onVoiceAutoSendChange?: (val: boolean) => void;
-  onSettingsChanged?: (settings: Record<string, string>) => void;
+  onSettingsChanged?: (settings: Record<string, any>) => void;
   apiPort?: number | null;
 }
 
@@ -18,7 +18,7 @@ type TabId = 'appearance' | 'agent' | 'security' | 'app';
 // settings modal wrapped in memo to prevent heavy form tree re-evaluation
 export const SettingsModal = React.memo(function SettingsModal({ isOpen, onClose, voiceAutoSend = true, onVoiceAutoSendChange, onSettingsChanged, apiPort }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<TabId>('appearance');
-  const [settings, setSettings] = useState<Record<string, string>>({});
+  const [settings, setSettings] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +26,31 @@ export const SettingsModal = React.memo(function SettingsModal({ isOpen, onClose
 
   // hook translation helper and language selector
   const { t, language, setLanguage } = useTranslation();
+
+  const defaultProviders = [
+    { id: 'openai', name: 'OpenAI', api_key: '', base_url: '', models: 'gpt-4o, gpt-4-turbo' },
+    { id: 'gemini', name: 'Gemini', api_key: '', base_url: 'https://generativelanguage.googleapis.com/v1beta/openai/', models: 'gemini-1.5-pro' },
+    { id: 'openrouter', name: 'OpenRouter', api_key: '', base_url: 'https://openrouter.ai/api/v1', models: 'anthropic/claude-3.5-sonnet' },
+    { id: 'ollama', name: 'Ollama', api_key: '', base_url: 'http://localhost:11434', models: 'llama3' }
+  ];
+
+  const providers = Array.isArray(settings.providers) ? settings.providers : defaultProviders;
+
+  const updateProvider = (index: number, key: string, value: string) => {
+    const newProviders = [...providers];
+    newProviders[index] = { ...newProviders[index], [key]: value };
+    setSettings({ ...settings, providers: newProviders });
+  };
+
+  const addProvider = () => {
+    const newProviders = [...providers, { id: 'custom_' + Date.now(), name: 'Custom Provider', api_key: '', base_url: '', models: '' }];
+    setSettings({ ...settings, providers: newProviders });
+  };
+
+  const removeProvider = (index: number) => {
+    const newProviders = providers.filter((_, i) => i !== index);
+    setSettings({ ...settings, providers: newProviders });
+  };
 
   // load settings from fastapi backend
   const loadSettings = useCallback(async () => {
@@ -62,10 +87,22 @@ export const SettingsModal = React.memo(function SettingsModal({ isOpen, onClose
       const port = apiPort || 8000;
       const isTauri = '__TAURI_INTERNALS__' in window || '__TAURI__' in window || window.location.hostname === 'tauri.localhost';
       const apiHost = isTauri ? `127.0.0.1:${port}` : (window.location.host || '127.0.0.1:8000');
+
+      // Flatten providers before saving
+      const payload = { ...settings };
+      if (Array.isArray(payload.providers)) {
+        payload.providers.forEach((p: any) => {
+          if (p.api_key) payload[`${p.id}_api_key`] = p.api_key;
+          if (p.base_url) payload[`${p.id}_base_url`] = p.base_url;
+        });
+      }
+
       const response = await fetch(`http://${apiHost}/api/settings`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings)
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
       });
       if (!response.ok) throw new Error(t('settings.error_save'));
       setSuccess(t('settings.save_success'));
@@ -175,96 +212,69 @@ export const SettingsModal = React.memo(function SettingsModal({ isOpen, onClose
                   </div>
                 )}
 
-                {/* AGENT TAB */}
-                {activeTab === 'agent' && (
-                  <div className="tab-content">
-                    <div className="form-group">
-                      <label>OpenAI API Key</label>
-                      <input 
-                        type="password"
-                        placeholder="sk-proj-..."
-                        value={settings.openai_api_key || settings.llm_api_key || ''}
-                        onChange={e => setSettings({...settings, openai_api_key: e.target.value})}
-                      />
-                    </div>
+                  {/* AGENT TAB */}
+                  {activeTab === 'agent' && (
+                    <div className="tab-content">
+                      <div className="providers-section">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                          <h3 style={{ margin: 0, color: 'var(--text)' }}>LLM Providers</h3>
+                          <button type="button" className="icon-btn" onClick={addProvider} style={{ background: 'var(--bg-hover)', borderRadius: '8px', padding: '4px 12px', fontSize: '12px' }}>
+                            <Plus size={14} style={{ marginRight: '4px' }} /> Add Provider
+                          </button>
+                        </div>
+                        
+                        {providers.map((p: any, i: number) => (
+                          <div key={i} className="provider-card" style={{ background: 'var(--bg-hover)', padding: '16px', borderRadius: '8px', marginBottom: '16px', position: 'relative' }}>
+                            <button type="button" onClick={() => removeProvider(i)} style={{ position: 'absolute', right: '16px', top: '16px', background: 'none', border: 'none', color: 'var(--text-low)', cursor: 'pointer' }}>
+                              <Trash2 size={16} />
+                            </button>
+                            
+                            <div className="form-group">
+                              <label>Provider Name (e.g. OpenAI, Groq)</label>
+                              <input type="text" value={p.name} onChange={e => { updateProvider(i, 'name', e.target.value); updateProvider(i, 'id', e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '')); }} />
+                            </div>
+                            <div className="form-group">
+                              <label>API Key</label>
+                              <input type="password" value={p.api_key || settings[`${p.id}_api_key`] || ''} onChange={e => updateProvider(i, 'api_key', e.target.value)} />
+                            </div>
+                            <div className="form-group">
+                              <label>Base URL (Optional)</label>
+                              <input type="text" value={p.base_url || settings[`${p.id}_base_url`] || ''} onChange={e => updateProvider(i, 'base_url', e.target.value)} placeholder="e.g. https://api.groq.com/openai/v1" />
+                            </div>
+                            <div className="form-group">
+                              <label>Models (comma separated)</label>
+                              <input type="text" value={p.models || ''} onChange={e => updateProvider(i, 'models', e.target.value)} placeholder="e.g. gpt-4o, gpt-3.5-turbo" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
 
-                    <div className="form-group">
-                      <label>Anthropic API Key</label>
-                      <input 
-                        type="password"
-                        placeholder="sk-ant-..."
-                        value={settings.anthropic_api_key || ''}
-                        onChange={e => setSettings({...settings, anthropic_api_key: e.target.value})}
-                      />
+                      <div className="form-group" style={{ marginTop: '24px' }}>
+                        <label>{t('settings.max_iterations')}</label>
+                        <input 
+                          type="number"
+                          min="1"
+                          max="100"
+                          placeholder="10"
+                          value={settings.max_iterations || '10'}
+                          onChange={e => setSettings({...settings, max_iterations: e.target.value})}
+                        />
+                        <p className="form-hint">{t('settings.max_iterations_hint')}</p>
+                      </div>
+  
+                      <div className="form-group">
+                        <label>{t('settings.system_prompt')}</label>
+                        <textarea 
+                          className="system-prompt-textarea"
+                          placeholder={t('settings.system_prompt_placeholder')}
+                          value={settings.system_prompt || ''}
+                          onChange={e => setSettings({...settings, system_prompt: e.target.value})}
+                          rows={4}
+                        />
+                        <p className="form-hint">{t('settings.system_prompt_hint')}</p>
+                      </div>
                     </div>
-
-                    <div className="form-group">
-                      <label>Gemini API Key</label>
-                      <input 
-                        type="password"
-                        placeholder="AIza..."
-                        value={settings.gemini_api_key || ''}
-                        onChange={e => setSettings({...settings, gemini_api_key: e.target.value})}
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label>OpenRouter API Key</label>
-                      <input 
-                        type="password"
-                        placeholder="sk-or-v1-..."
-                        value={settings.openrouter_api_key || ''}
-                        onChange={e => setSettings({...settings, openrouter_api_key: e.target.value})}
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label>Ollama Base URL</label>
-                      <input 
-                        type="text"
-                        placeholder="http://localhost:11434"
-                        value={settings.ollama_base_url || 'http://localhost:11434'}
-                        onChange={e => setSettings({...settings, ollama_base_url: e.target.value})}
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label>Custom Base URL (OpenAI Compatible)</label>
-                      <input 
-                        type="text"
-                        placeholder="e.g. https://api.openai.com/v1"
-                        value={settings.openai_base_url || settings.llm_base_url || ''}
-                        onChange={e => setSettings({...settings, openai_base_url: e.target.value})}
-                      />
-                    </div>
-
-                    
-                    <div className="form-group">
-                      <label>{t('settings.max_iterations')}</label>
-                      <input 
-                        type="number"
-                        min="1"
-                        max="100"
-                        placeholder="10"
-                        value={settings.max_iterations || '10'}
-                        onChange={e => setSettings({...settings, max_iterations: e.target.value})}
-                      />
-                      <p className="form-hint">{t('settings.max_iterations_hint')}</p>
-                    </div>
-
-                    <div className="form-group">
-                      <label>{t('settings.system_prompt')}</label>
-                      <textarea 
-                        className="system-prompt-textarea"
-                        placeholder={t('settings.system_prompt_placeholder')}
-                        value={settings.system_prompt || ''}
-                        onChange={e => setSettings({...settings, system_prompt: e.target.value})}
-                        rows={4}
-                      />
-                      <p className="form-hint">{t('settings.system_prompt_hint')}</p>
-                    </div>
-                  </div>
-                )}
+                  )}
 
                 {/* SECURITY TAB */}
                 {activeTab === 'security' && (

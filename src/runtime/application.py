@@ -234,10 +234,8 @@ class FridayApplication:
             elif provider_type == "ollama":
                 self._provider = OllamaProvider.from_config(self._config.llm)
             else:
-                raise ConfigurationError(
-                    f"Unknown LLM provider: {provider_type}. "
-                    f"Supported providers: openai, gemini, openrouter, ollama."
-                )
+                self._logger.info(f"Unknown provider '{provider_type}', falling back to OpenAI compatibility mode.")
+                self._provider = OpenAIProvider.from_config(self._config.llm)
             self._logger.info("Provider initialized: %s", self._provider.model_name())
         except Exception as exc:
             self._logger.warning(
