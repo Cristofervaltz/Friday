@@ -15,7 +15,7 @@ def test_runtime_initializes_openrouter_provider(
     monkeypatch.setenv("FRIDAY_LLM_PROVIDER", "openrouter")
     monkeypatch.setenv(
         "FRIDAY_LLM_API_KEY",
-        "sk-or-v1-FAKE_KEY_FOR_TESTING_DO_NOT_USE_IN_PRODUCTION_12345678",
+        "fake-openrouter-key-for-testing-12345",
     )
     monkeypatch.setenv("FRIDAY_LLM_MODEL", "openai/gpt-4-turbo")
 
