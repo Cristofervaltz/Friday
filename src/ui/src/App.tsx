@@ -194,17 +194,33 @@ function App() {
   const currentChatIdRef = useRef<string>('');
   const pendingChatIdRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    fetch('https://api.github.com/repos/Cristofervaltz/Friday/releases/latest')
-      .then(res => res.json())
-      .then(data => {
-        const currentVersion = 'v1.0.0';
-        if (data.tag_name && data.tag_name !== currentVersion && !data.tag_name.includes('beta')) {
-          setUpdateAvailable(data.tag_name);
-        }
-      })
-      .catch(() => {});
-  }, []);
+    useEffect(() => {
+      import('@tauri-apps/api/app')
+        .then(({ getVersion }) => getVersion())
+        .then((version) => {
+          fetch('https://api.github.com/repos/Cristofervaltz/Friday/releases/latest')
+            .then(res => res.json())
+            .then(data => {
+              const currentVersion = `v${version}`;
+              if (data.tag_name && data.tag_name !== currentVersion && !data.tag_name.includes('beta')) {
+                setUpdateAvailable(data.tag_name);
+              }
+            })
+            .catch(() => {});
+        })
+        .catch(() => {
+          // Fallback if not running in Tauri or missing API
+          fetch('https://api.github.com/repos/Cristofervaltz/Friday/releases/latest')
+            .then(res => res.json())
+            .then(data => {
+              const currentVersion = 'v1.5.0';
+              if (data.tag_name && data.tag_name !== currentVersion && !data.tag_name.includes('beta')) {
+                setUpdateAvailable(data.tag_name);
+              }
+            })
+            .catch(() => {});
+        });
+    }, []);
 
   useEffect(() => {
     currentChatIdRef.current = currentChatId;
