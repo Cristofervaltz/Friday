@@ -72,6 +72,25 @@ class PathsConfig:
             self.app_home / "skills",
         ):
             directory.mkdir(parents=True, exist_ok=True)
+            
+        self._populate_default_skills(self.app_home / "skills")
+
+    def _populate_default_skills(self, skills_dir: Path) -> None:
+        """Populate default skills if the directory is empty."""
+        try:
+            if any(skills_dir.iterdir()):
+                return
+                
+            defaults = {
+                "reviewer.md": "You are a senior code reviewer. Your job is to analyze the user's code, point out bugs, suggest optimizations, and ensure it follows best practices. Be concise and provide code snippets for your suggestions.",
+                "architect.md": "You are a software architect. Focus on high-level system design, design patterns, scalability, and maintainability. When the user asks for a solution, provide an architectural overview before diving into code.",
+                "writer.md": "You are an expert technical writer. Help the user write clear, concise, and professional documentation, READMEs, and changelogs. Use proper markdown formatting."
+            }
+            
+            for name, content in defaults.items():
+                (skills_dir / name).write_text(content, encoding="utf-8")
+        except Exception:
+            pass
 
 
 @dataclass(frozen=True)
