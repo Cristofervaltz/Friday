@@ -10,6 +10,8 @@
 [![Python](https://img.shields.io/badge/python-3.12+-3776ab?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
+**English** | [Русский](README_ru.md)
+
 Friday is an open-source, autonomous AI assistant that lives on your machine.  
 It reads your files, runs your commands, searches your codebase, listens to your voice — and does it all through a native desktop app or a terminal.
 
