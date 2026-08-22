@@ -61,6 +61,12 @@ class GoogleSpeechProvider(BaseSpeechProvider):
                             source, timeout=timeout, phrase_time_limit=phrase_time_limit
                         )
                         result_container["audio"] = audio
+                    except OSError:
+                        if abort_event and abort_event.is_set():
+                            return
+                        import traceback
+
+                        result_container["error"] = traceback.format_exc()
                     except Exception as e:
                         result_container["error"] = e
 
@@ -76,7 +82,9 @@ class GoogleSpeechProvider(BaseSpeechProvider):
                                 source.stream.stop_stream()
                             except Exception:
                                 pass
-                        raise InterruptedError("Voice recording aborted by user.")
+                        # Wait for worker to finish before exiting context
+                        worker_thread.join(timeout=2.0)
+                        raise RuntimeError("Voice recording aborted by user.")
                     worker_thread.join(timeout=0.1)
 
                 if "error" in result_container:

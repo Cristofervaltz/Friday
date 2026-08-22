@@ -95,23 +95,6 @@ class WakeWordDetector:
                 self._running = False
                 return
 
-            try:
-                stream = sd.RawInputStream(
-                    samplerate=samplerate,
-                    blocksize=4000,
-                    device=None,
-                    dtype="int16",
-                    channels=1,
-                    callback=self._callback_sd,
-                )
-            except Exception as audio_err:
-                safe_print(
-                    f"Could not open microphone: {audio_err}. Wake word detection disabled."
-                )
-                self.running = False
-                self._running = False
-                return
-
             def handle_detection(
                 text: str,
                 words: list[str],
@@ -131,7 +114,16 @@ class WakeWordDetector:
                 return False
 
             while self.running and self._running:
+                stream = None
                 try:
+                    stream = sd.RawInputStream(
+                        samplerate=samplerate,
+                        blocksize=4000,
+                        device=None,
+                        dtype="int16",
+                        channels=1,
+                        callback=self._callback_sd,
+                    )
                     with stream:
                         safe_print(
                             f"Listening for wake words at {samplerate}Hz: {self.wake_words_ru + self.wake_words_en}"
@@ -165,6 +157,11 @@ class WakeWordDetector:
 
                 except Exception as e:
                     safe_print(f"WakeWordDetector stream error: {e}")
+                    if stream is not None:
+                        try:
+                            stream.close()
+                        except Exception:
+                            pass
                     if self.running and self._running:
                         safe_print(
                             "Attempting to restart wake word stream in 2 seconds..."

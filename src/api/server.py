@@ -6,6 +6,7 @@ import json
 import logging
 import sys
 import threading
+import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -101,6 +102,8 @@ def _handle_voice_for_ws(
         if wake_word_detector is not None:
             try:
                 wake_word_detector.stop()
+                # Yield PortAudio subsystem context back to PyAudio on Windows
+                time.sleep(0.1)
             except Exception:
                 pass
 
